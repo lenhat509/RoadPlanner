@@ -79,12 +79,24 @@ record() {
       echo "Failures:"
       echo
       echo '```'
-      grep -E "✘|recorded an issue|error:|FAIL|failed|Failing tests|Test Case .* failed" "$raw" | grep -v "^✔" | head -60
+      failure_lines "$raw"
       echo '```'
     fi
     echo
   } >> "$RUN_FILE"
   printf '%-28s %s (%s, %ss)\n' "$suite" "$icon" "$tests" "$seconds"
+  # Also print failures to the console so CI job logs show them without downloading artifacts.
+  if [ "$status" = "fail" ] && [ -f "$raw" ]; then
+    echo "  ── failures ($suite) ──"
+    failure_lines "$raw" | sed 's/^/  /'
+    echo "  ── last lines ──"
+    tail -25 "$raw" | sed 's/^/  /'
+  fi
+}
+
+failure_lines() {
+  grep -E "✘|recorded an issue|error:|FAIL|failed|Failing tests|Test Case .* failed|Testing cancelled|crashed" "$1" \
+    | grep -v "^✔" | awk '!seen[$0]++' | head -80
 }
 
 # run_suite <suite> <raw-log-name> <count-extractor> <command...>
@@ -101,7 +113,13 @@ run_suite() {
 
 swift_count() { grep -Eo "Test run with [0-9]+ tests?" "$1" | tail -1 | grep -Eo "[0-9]+" | sed 's/$/ tests/'; }
 vitest_count() { grep -E "^\s+Tests\s+" "$1" | tail -1 | sed -E 's/^\s+Tests\s+//'; }
-xcode_count() { grep -Eo "Executed [0-9]+ tests?, with [0-9]+ failures?" "$1" | tail -1; }
+# xcodebuild runs both XCTest ("Executed N tests") and Swift Testing ("Test run with N tests").
+xcode_count() {
+  local xctest swifttesting
+  xctest=$(grep -Eo "Executed [0-9]+ tests?, with [0-9]+ failures?" "$1" | tail -1)
+  swifttesting=$(grep -Eo "Test run with [0-9]+ tests?" "$1" | tail -1 | grep -Eo "[0-9]+")
+  echo "${swifttesting:+$swifttesting Swift Testing tests; }${xctest:-no XCTest run}"
+}
 none_count() { echo "-"; }
 
 core_suite() {
