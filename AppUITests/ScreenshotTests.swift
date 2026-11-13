@@ -11,14 +11,32 @@ final class ScreenshotTests: XCTestCase {
     }
 
     private func launch(dark: Bool) {
-        app.launchArguments = [LaunchArgument.uiTestSandbox, LaunchArgument.resetState, LaunchArgument.skipSafetyNotice]
-            + (dark ? [LaunchArgument.darkMode] : [])
+        app.launchArguments = [
+            LaunchArgument.uiTestSandbox, LaunchArgument.resetState, LaunchArgument.skipSafetyNotice, LaunchArgument.screenshotPace,
+        ] + (dark ? [LaunchArgument.darkMode] : [])
         app.launch()
     }
 
     /// Gives map tiles a moment to load before a capture.
     private func settle(_ seconds: TimeInterval = 4) {
         Thread.sleep(forTimeInterval: seconds)
+    }
+
+    /// Starts the drive and waits for drive mode: guidance, or (the simulated car is fast, and a
+    /// slow simulator may load directions late) already the arrival card at the first stop.
+    private func startDriving(file: StaticString = #filePath, line: UInt = #line) {
+        let start = app.buttons[AccessibilityID.Results.start]
+        XCTAssertTrue(start.waitForExistence(timeout: 5), file: file, line: line)
+        start.tap()
+        let states = [AccessibilityID.Drive.banner, AccessibilityID.Drive.arrivalCard, AccessibilityID.Drive.completedCard]
+            .map { app.descendants(matching: .any)[$0].firstMatch }
+        let deadline = Date().addingTimeInterval(30)
+        while !states.contains(where: \.exists) && Date() < deadline {
+            _ = states[0].waitForExistence(timeout: 1)
+        }
+        let onScreen = app.descendants(matching: .any).allElementsBoundByIndex.prefix(200)
+            .map(\.identifier).filter { !$0.isEmpty }.joined(separator: ", ")
+        XCTAssertTrue(states.contains(where: \.exists), "drive mode not shown; on screen: \(onScreen)", file: file, line: line)
     }
 
     private func capture(_ name: String) {
@@ -59,11 +77,10 @@ final class ScreenshotTests: XCTestCase {
         app.swipeUp()
         capture("03-Timeline")
 
-        app.buttons[AccessibilityID.Results.start].tap()
-        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.banner].firstMatch.waitForExistence(timeout: 15))
+        startDriving()
         settle(3)
         capture("04-Drive")
-        if app.buttons[AccessibilityID.Drive.continueToNext].waitForExistence(timeout: 90) {
+        if app.buttons[AccessibilityID.Drive.continueToNext].waitForExistence(timeout: 150) {
             capture("05-Arrival")
         }
     }
@@ -75,8 +92,7 @@ final class ScreenshotTests: XCTestCase {
         planCrossCountry(captureForm: "11-Plan-Dark")
         settle()
         capture("12-Options-Dark")
-        app.buttons[AccessibilityID.Results.start].tap()
-        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.banner].firstMatch.waitForExistence(timeout: 15))
+        startDriving()
         settle(3)
         capture("13-Drive-Dark")
     }

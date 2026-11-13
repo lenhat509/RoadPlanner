@@ -19,6 +19,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 - Choosing an autocomplete suggestion needed two taps: a search still in flight re-opened the list.
+- In the demo, drive mode's camera trailed the (fast) simulated car and lost it off screen.
 - "Fastest" could arrive later than "Cheapest" (e.g. Current Location on a phone set to a different
   time zone): day windows now use the location's time zone, overnight check-ins are never planned
   before 2 PM, and each option is cross-checked against the others after real directions.

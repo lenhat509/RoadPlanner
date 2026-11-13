@@ -41,6 +41,7 @@ final class AppEnvironment {
             return makeUITest(
                 reset: arguments.contains(LaunchArgument.resetState),
                 skipSafetyNotice: arguments.contains(LaunchArgument.skipSafetyNotice),
+                screenshotPace: arguments.contains(LaunchArgument.screenshotPace),
                 configuration: configuration
             )
         }
@@ -97,7 +98,12 @@ final class AppEnvironment {
         return AppEnvironment(mode: .demo, dependencies: dependencies, configuration: configuration)
     }
 
-    private static func makeUITest(reset: Bool, skipSafetyNotice: Bool, configuration: AppConfiguration) -> AppEnvironment {
+    private static func makeUITest(
+        reset: Bool,
+        skipSafetyNotice: Bool,
+        screenshotPace: Bool,
+        configuration: AppConfiguration
+    ) -> AppEnvironment {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("CadenceUITests", isDirectory: true)
         let defaults = UserDefaults(suiteName: "cadence.uitests") ?? .standard
         if reset {
@@ -115,7 +121,11 @@ final class AppEnvironment {
             repository: FileTripRepository(directory: directory),
             preferences: preferences,
             location: SimulatedLocationProvider(
-                start: FakeAutocompleteProvider.cities[1].coordinate, autoDrive: true, metersPerTick: 4_000, tickInterval: 0.05
+                start: FakeAutocompleteProvider.cities[1].coordinate,
+                autoDrive: true,
+                // Screenshots: ~4 km/s, about a minute to the first stop. Tests: ~80 km/s.
+                metersPerTick: screenshotPace ? 2_000 : 4_000,
+                tickInterval: screenshotPace ? 0.5 : 0.05
             ),
             speech: RecordingSpeechAnnouncer(),
             formatters: TripFormatters(locale: Locale(identifier: "en_US")),
