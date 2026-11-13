@@ -32,6 +32,9 @@ jobs:
       - name: Generate Xcode project
         run: brew install xcodegen && xcodegen generate
       - name: Run screenshot tests
+        # A normal run takes about 10 minutes; a simulator that fails to launch the app can
+        # leave xcodebuild waiting forever, so give up early instead of holding the runner.
+        timeout-minutes: 25
         run: |
           device=$(xcrun simctl list devices available | grep -Eo "iPhone [0-9]+ Pro \(" | head -1 | sed 's/ ($//')
           echo "Simulator: $device"
