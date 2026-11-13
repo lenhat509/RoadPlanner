@@ -75,6 +75,30 @@ final class CadenceUITests: XCTestCase {
         XCTAssertTrue(shown, "drive mode not shown; on screen: \(visibleIdentifiers())", file: file, line: line)
     }
 
+    /// After resuming: a trip paused at a stop shows its arrival card first; continuing from there
+    /// opens the preview of the next leg.
+    private func continueIfAtStop() {
+        let preview = element(AccessibilityID.Drive.preview), arrival = element(AccessibilityID.Drive.arrivalCard)
+        let deadline = Date().addingTimeInterval(15)
+        while !preview.exists && !arrival.exists && Date() < deadline {
+            _ = preview.waitForExistence(timeout: 1)
+        }
+        if !preview.exists && arrival.exists {
+            app.buttons[AccessibilityID.Drive.continueToNext].firstMatch.tap()
+        }
+    }
+
+    /// The route preview (resume / continue) is shown; tapping Start begins guidance.
+    private func startFromPreview(file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(element(AccessibilityID.Drive.preview).waitForExistence(timeout: 15),
+                      "route preview not shown; on screen: \(visibleIdentifiers())", file: file, line: line)
+        XCTAssertTrue(app.buttons[AccessibilityID.Drive.exit].exists, "the preview has an exit button", file: file, line: line)
+        let start = app.buttons[AccessibilityID.Drive.startNavigation]
+        XCTAssertTrue(start.exists, file: file, line: line)
+        start.tap()
+        assertDriving(file: file, line: line)
+    }
+
     /// One-line list of accessibility identifiers on screen, for failure messages in CI logs.
     private func visibleIdentifiers() -> String {
         app.descendants(matching: .any).allElementsBoundByIndex.prefix(300)
@@ -124,7 +148,7 @@ final class CadenceUITests: XCTestCase {
         let continueButton = app.buttons[AccessibilityID.Drive.continueToNext]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 90))
         continueButton.tap()
-        assertDriving()
+        startFromPreview()
     }
 
     func testTripProgressIsRestoredAfterRelaunch() {
@@ -137,7 +161,22 @@ final class CadenceUITests: XCTestCase {
         let resume = app.buttons[AccessibilityID.Home.resume]
         XCTAssertTrue(resume.waitForExistence(timeout: 5), "an active trip should be offered for resuming")
         resume.tap()
-        assertDriving()
+        continueIfAtStop()
+        startFromPreview()
+    }
+
+    func testExitLeavesDriveModeAndResumingShowsTheRoutePreview() {
+        launch()
+        planLosAngelesToVegas()
+        startDrive()
+        let exit = app.buttons[AccessibilityID.Drive.exit]
+        XCTAssertTrue(exit.waitForExistence(timeout: 5), "drive mode has a dedicated exit button")
+        exit.tap()
+        let resume = app.buttons[AccessibilityID.Home.resume]
+        XCTAssertTrue(resume.waitForExistence(timeout: 5), "exiting keeps the trip for later")
+        resume.tap()
+        continueIfAtStop()
+        startFromPreview()
     }
 
     func testEndingATripReturnsHomeAndClearsProgress() {

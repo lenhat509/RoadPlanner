@@ -39,6 +39,16 @@ enum Theme {
             ? UIColor(red: 0.40, green: 0.65, blue: 1.00, alpha: 1)
             : UIColor(red: 0.10, green: 0.45, blue: 0.91, alpha: 1)
     })
+    /// Darker edge around the route line, so it reads on any map background.
+    static let routeCasing = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.10, green: 0.30, blue: 0.62, alpha: 1)
+            : UIColor(red: 0.05, green: 0.28, blue: 0.62, alpha: 1)
+    })
+    /// The rest of the trip beyond the leg being driven.
+    static let routeLineMuted = routeLine.opacity(0.38)
+    /// Exit navigation.
+    static let danger = Color(red: 0.86, green: 0.20, blue: 0.18)
 
     /// Stop colours from the Okabe–Ito palette, distinguishable with common colour-vision
     /// deficiencies. Stops are drawn as plain dots; the legend explains the colours.

@@ -32,6 +32,10 @@ public struct GuidanceUpdate: Hashable, Sendable {
     /// The next maneuver the driver must make (`.arrive` on the final step).
     public var upcomingManeuver: Maneuver
     public var upcomingInstruction: String
+    /// The maneuver right after the upcoming one (`.arrive` when that one is the last turn).
+    public var followingManeuver: Maneuver?
+    /// Distance between the upcoming maneuver and the following one.
+    public var distanceBetweenManeuvers: Double?
     public var distanceToManeuver: Double
     public var distanceRemaining: Double
     public var timeRemaining: TimeInterval
@@ -162,6 +166,12 @@ public struct GuidanceEngine: Sendable {
             instruction = "Arrive at \(destinationName)"
         }
         let distanceToManeuver = index + 1 < steps.count ? max(0, stepEnd(index) - alongDistance) : remaining
+        var following: Maneuver?
+        var between: Double?
+        if index + 1 < steps.count {
+            following = index + 2 < steps.count ? steps[index + 2].maneuver : .arrive
+            between = max(0, stepEnd(index + 1) - stepStarts[index + 1])
+        }
 
         // Time: remainder of the current step plus all later steps.
         let stepLength = max(1, stepEnd(index) - stepStarts[index])
@@ -174,6 +184,8 @@ public struct GuidanceEngine: Sendable {
             stepIndex: index,
             upcomingManeuver: maneuver,
             upcomingInstruction: instruction,
+            followingManeuver: following,
+            distanceBetweenManeuvers: between,
             distanceToManeuver: distanceToManeuver,
             distanceRemaining: remaining,
             timeRemaining: timeRemaining,

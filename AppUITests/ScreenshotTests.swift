@@ -39,6 +39,24 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertTrue(states.contains(where: \.exists), "drive mode not shown; on screen: \(onScreen)", file: file, line: line)
     }
 
+    /// "I've arrived" from the trip menu, then waits for the arrival card.
+    private func arriveViaMenu() {
+        app.buttons[AccessibilityID.Drive.menu].firstMatch.tap()
+        let byID = app.buttons[AccessibilityID.Drive.arrived].firstMatch
+        let arrived = byID.waitForExistence(timeout: 3) ? byID : app.buttons["I've arrived"].firstMatch
+        XCTAssertTrue(arrived.waitForExistence(timeout: 3))
+        arrived.tap()
+        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.arrivalCard].firstMatch.waitForExistence(timeout: 10))
+        settle(2)
+    }
+
+    /// "Continue to next stop" from the arrival card, then waits for the route preview.
+    private func continueToPreview() {
+        app.buttons[AccessibilityID.Drive.continueToNext].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.preview].firstMatch.waitForExistence(timeout: 15))
+        settle(3)
+    }
+
     private func capture(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
@@ -81,15 +99,10 @@ final class ScreenshotTests: XCTestCase {
         settle(6) // the car parks a little way into the leg
         capture("04-Drive")
 
-        // Arrival card: "I've arrived" from the trip menu.
-        app.buttons[AccessibilityID.Drive.menu].firstMatch.tap()
-        let byID = app.buttons[AccessibilityID.Drive.arrived].firstMatch
-        let arrived = byID.waitForExistence(timeout: 3) ? byID : app.buttons["I've arrived"].firstMatch
-        XCTAssertTrue(arrived.waitForExistence(timeout: 3))
-        arrived.tap()
-        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.arrivalCard].firstMatch.waitForExistence(timeout: 10))
-        settle(2)
+        arriveViaMenu()
         capture("05-Arrival")
+        continueToPreview()
+        capture("06-Preview")
     }
 
     func testCaptureDarkModeScreenshots() {
@@ -102,5 +115,8 @@ final class ScreenshotTests: XCTestCase {
         startDriving()
         settle(6)
         capture("13-Drive-Dark")
+        arriveViaMenu()
+        continueToPreview()
+        capture("14-Preview-Dark")
     }
 }

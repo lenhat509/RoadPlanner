@@ -6,6 +6,9 @@ import TripPlanner
 
 /// Turn-by-turn drive mode. Follows the driver to each stop, offers "Continue to next stop"
 /// when close to / at a stop, reroutes when off course and auto-saves progress.
+///
+/// A leg can first be shown as a silent *preview* (the route from the car to the next stop and a
+/// Start button) — when resuming a trip and when continuing from a stop — before guidance starts.
 @MainActor
 @Observable
 public final class DriveViewModel {
@@ -13,11 +16,14 @@ public final class DriveViewModel {
         public var symbolName: String
         public var distanceText: String
         public var instruction: String
+        /// The turn right after this one, when it comes soon ("Then ↰").
+        public var thenSymbolName: String?
 
-        public init(symbolName: String, distanceText: String, instruction: String) {
+        public init(symbolName: String, distanceText: String, instruction: String, thenSymbolName: String? = nil) {
             self.symbolName = symbolName
             self.distanceText = distanceText
             self.instruction = instruction
+            self.thenSymbolName = thenSymbolName
         }
     }
 
@@ -29,6 +35,8 @@ public final class DriveViewModel {
         public var symbolName: String
         public var etaText: String
         public var remainingText: String
+        /// Driving time left to the stop ("1 h 12 min"); empty at a stop.
+        public var durationText: String
         public var plannedAction: String?
         public var isDestination: Bool
 
@@ -40,6 +48,7 @@ public final class DriveViewModel {
             symbolName: String,
             etaText: String,
             remainingText: String,
+            durationText: String = "",
             plannedAction: String?,
             isDestination: Bool
         ) {
@@ -50,6 +59,7 @@ public final class DriveViewModel {
             self.symbolName = symbolName
             self.etaText = etaText
             self.remainingText = remainingText
+            self.durationText = durationText
             self.plannedAction = plannedAction
             self.isDestination = isDestination
         }
@@ -61,11 +71,27 @@ public final class DriveViewModel {
         case completed
     }
 
+    /// Whether a leg is being previewed or guided.
+    public enum Stage: Equatable, Sendable {
+        /// The route to the next stop with a Start button: no voice, the simulated car waits.
+        case preview
+        /// Turn-by-turn guidance.
+        case navigating
+    }
+
     public private(set) var trip: ActiveTrip
     public private(set) var guidance: GuidanceUpdate?
     public private(set) var currentLocation: GeoCoordinate?
     public private(set) var currentCourse: Double?
     public private(set) var legCoordinates: [GeoCoordinate] = []
+    public private(set) var stage: Stage
+    /// The route still to drive to the target stop, starting at the car (at a stop: the next leg).
+    public private(set) var routeToTarget: [GeoCoordinate] = []
+    /// The rest of the trip after that, drawn lighter.
+    public private(set) var routeAfterTarget: [GeoCoordinate] = []
+    /// What the map frames in a preview and at a stop: the route to the next stop as it was when
+    /// the leg was loaded (it doesn't follow the car, so the user can zoom and pan freely).
+    public private(set) var previewFrame: [GeoCoordinate] = []
     public private(set) var isRerouting = false
     public private(set) var isLoadingDirections = false
     public private(set) var statusMessage: String?
@@ -83,6 +109,11 @@ public final class DriveViewModel {
     private var updatesTask: Task<Void, Never>?
     private var lastSave: Date?
     private var lastReroute: Date?
+    private var legGeometry: PolylineGeometry?
+    /// The leg's opening instruction, spoken when guidance starts.
+    private var departureAnnouncement: String?
+    /// Whether the car's position has been checked against the current leg's start.
+    private var hasCheckedLegStart = false
 
     /// How often location-only progress is persisted.
     public var saveInterval: TimeInterval = 30
@@ -90,11 +121,16 @@ public final class DriveViewModel {
     public var rerouteCooldown: TimeInterval = 20
     /// Driving this far from a stop (at speed) counts as leaving it.
     public var autoDepartureDistance: Double = 400
+    /// When the car is farther than this from the planned leg, directions are fetched from the car.
+    public var legStartTolerance: Double = 300
 
+    /// A trip that hasn't started goes straight to guidance (the plan was its preview); resuming
+    /// one starts with a preview.
     public init(trip: ActiveTrip, dependencies: AppDependencies) {
         self.trip = trip
         self.dependencies = dependencies
         self.isMuted = !dependencies.preferences.load().voiceGuidanceEnabled
+        self.stage = trip.progress.phase == .notStarted ? .navigating : .preview
     }
 
     // MARK: Derived state
@@ -116,12 +152,21 @@ public final class DriveViewModel {
         }
     }
 
+    /// Show "Then …" when the turn after the next one is at most this far after it.
+    public static let thenManeuverDistance: Double = 1_000
+
     public var banner: Banner? {
-        guard mode == .driving, let guidance else { return nil }
+        guard mode == .driving, stage == .navigating, let guidance else { return nil }
+        var then: String?
+        if let following = guidance.followingManeuver, let between = guidance.distanceBetweenManeuvers,
+           between <= Self.thenManeuverDistance, guidance.upcomingManeuver != .arrive {
+            then = following.symbolName
+        }
         return Banner(
             symbolName: guidance.upcomingManeuver.symbolName,
             distanceText: DistanceText.short(guidance.distanceToManeuver),
-            instruction: guidance.upcomingInstruction
+            instruction: guidance.upcomingInstruction,
+            thenSymbolName: then
         )
     }
 
@@ -144,6 +189,7 @@ public final class DriveViewModel {
             symbolName: presentation.symbolName,
             etaText: eta.map { formatters.clockTime($0, utcOffsetSeconds: target.place.utcOffsetSeconds) } ?? "—",
             remainingText: guidance.map { formatters.distance($0.distanceRemaining) } ?? "",
+            durationText: trip.progress.phase == .atStop ? "" : guidance.map { formatters.duration($0.timeRemaining) } ?? "",
             plannedAction: presentation.detail,
             isDestination: target.kind == .destination
         )
@@ -230,12 +276,19 @@ public final class DriveViewModel {
             // Driving away from the stop starts the next leg automatically.
             if let stop = trip.targetStop, sample.speed > 4,
                GeoMath.distance(sample.coordinate, stop.place.coordinate) > autoDepartureDistance {
-                await continueToNextStop()
+                await continueToNextStop(startNavigating: true)
                 return
             }
         case .enRoute:
             guard var engine else {
                 if !isLoadingDirections { await prepareLeg() }
+                return
+            }
+            if await fetchDirectionsFromCarIfAway() { return }
+            if stage == .preview {
+                // Show where the car is on the leg, without advancing guidance or speaking.
+                guidance = engine.update(with: sample)
+                updateRouteToTarget()
                 return
             }
             let update = engine.update(with: sample)
@@ -247,19 +300,36 @@ public final class DriveViewModel {
                 return
             }
             if update.isOffRoute { await reroute(from: sample.coordinate) }
+            updateRouteToTarget()
         }
         await persistIfDue()
     }
 
     // MARK: Driver actions
 
+    /// Starts guidance from a preview ("Start"): speaks the instruction and starts following.
+    public func beginNavigation() {
+        guard stage == .preview else { return }
+        stage = .navigating
+        guard trip.progress.phase == .enRoute, let guidance else { return }
+        if guidance.progress < 0.01, let departureAnnouncement {
+            speak(departureAnnouncement)
+        } else if guidance.upcomingManeuver == .arrive {
+            speak("\(guidance.upcomingInstruction) in \(DistanceText.spoken(guidance.distanceToManeuver)).")
+        } else {
+            speak("In \(DistanceText.spoken(guidance.distanceToManeuver)), \(lowercasedFirst(guidance.upcomingInstruction)).")
+        }
+        startFollowing()
+    }
+
     /// "I'm here": records arrival at the target stop.
     public func confirmArrival() async {
         await arriveAtTarget()
     }
 
-    /// Leaves the current stop (or the one being approached) for the next one.
-    public func continueToNextStop() async {
+    /// Leaves the current stop (or the one being approached) for the next one. Shows the next leg
+    /// as a preview unless the car is already driving away (`startNavigating`).
+    public func continueToNextStop(startNavigating: Bool = false) async {
         do {
             try trip.continueToNextStop(at: dependencies.now())
         } catch {
@@ -267,6 +337,7 @@ public final class DriveViewModel {
         }
         engine = nil
         guidance = nil
+        stage = startNavigating ? .navigating : .preview
         await persist()
         if trip.progress.phase == .completed {
             speak("You have arrived at your destination.")
@@ -301,16 +372,29 @@ public final class DriveViewModel {
         guard trip.progress.phase == .enRoute else { return }
         try? trip.markArrived(at: dependencies.now())
         guidance = guidance.map { var arrived = $0; arrived.arrival = .arrived; return arrived }
+        refreshRouteAfterTarget()
+        updateRouteToTarget()
+        previewFrame = routeToTarget
         await persist()
     }
 
     private func prepareLeg(forceFetch: Bool = false) async {
+        refreshRouteAfterTarget()
         guard trip.progress.phase == .enRoute, let target = trip.targetStop else {
             engine = nil
             legCoordinates = []
+            legGeometry = nil
+            updateRouteToTarget()
+            previewFrame = routeToTarget
             return
         }
         if !forceFetch, let leg = trip.legToTarget {
+            // Directions start where the car is: when it is away from the planned leg (starting
+            // from home, or continuing while still approaching a stop), fetch them from the car.
+            if let car = currentLocation, isAway(car, from: leg) {
+                await fetchLeg(from: car, to: target)
+                if engine != nil { return }
+            }
             install(leg, to: target)
             return
         }
@@ -325,8 +409,78 @@ public final class DriveViewModel {
         self.engine = engine
         guidance = initial
         legCoordinates = engine.coordinates
-        if let announcement = initial.announcement { speak(announcement) }
+        legGeometry = PolylineGeometry(coordinates: legCoordinates)
+        departureAnnouncement = initial.announcement
+        // Without a position yet, the first fix is checked against the leg instead.
+        hasCheckedLegStart = currentLocation != nil
+        if stage == .preview, let car = currentLocation {
+            // Where the car is on the leg (e.g. resuming halfway), without touching guidance state.
+            var probe = engine
+            guidance = probe.update(with: LocationSample(coordinate: car, timestamp: dependencies.now()))
+        }
+        updateRouteToTarget()
+        previewFrame = routeToTarget
+        if stage == .navigating {
+            if let announcement = initial.announcement { speak(announcement) }
+            startFollowing()
+        }
+    }
+
+    /// Hands the leg to a route-following (simulated) location source.
+    private func startFollowing() {
         (dependencies.location as? any RouteFollowingLocationProvider)?.follow(legCoordinates)
+    }
+
+    private func isAway(_ car: GeoCoordinate, from leg: RouteLeg) -> Bool {
+        let geometry = PolylineGeometry(coordinates: (try? PolylineCodec.decode(leg.encodedPolyline)) ?? [])
+        return geometry.project(car).map { $0.offsetMeters > legStartTolerance } ?? false
+    }
+
+    /// The first fix of a leg loaded before the position was known: when the car is well away
+    /// from the leg, fetches directions from the car (once per leg).
+    private func fetchDirectionsFromCarIfAway() async -> Bool {
+        guard !hasCheckedLegStart, trip.progress.phase == .enRoute, let car = currentLocation,
+              let legGeometry, let target = trip.targetStop else { return false }
+        hasCheckedLegStart = true
+        guard let projection = legGeometry.project(car), projection.offsetMeters > legStartTolerance else { return false }
+        await fetchLeg(from: car, to: target)
+        hasCheckedLegStart = true
+        return true
+    }
+
+    /// The route from the car (or, at a stop, from the stop) to the next stop.
+    private func updateRouteToTarget() {
+        switch trip.progress.phase {
+        case .enRoute:
+            guard let legGeometry, legGeometry.coordinates.count > 1 else {
+                routeToTarget = []
+                return
+            }
+            let along = (guidance?.progress ?? 0) * legGeometry.totalLength
+            var ahead = legGeometry.slice(from: along, to: legGeometry.totalLength)
+            if ahead.isEmpty, let last = legGeometry.coordinates.last { ahead = [last] }
+            if let car = currentLocation, let first = ahead.first, GeoMath.distance(car, first) > 1 {
+                ahead.insert(car, at: 0)
+            }
+            routeToTarget = ahead
+        case .atStop:
+            routeToTarget = trip.itinerary.leg(after: trip.progress.targetStopIndex)
+                .flatMap { try? PolylineCodec.decode($0.encodedPolyline) } ?? []
+        case .notStarted, .completed:
+            routeToTarget = []
+        }
+    }
+
+    /// The trip beyond the next stop (beyond the one after, at a stop), simplified for drawing.
+    private func refreshRouteAfterTarget() {
+        let firstLeg = trip.progress.targetStopIndex + (trip.progress.phase == .atStop ? 1 : 0)
+        let legs = trip.itinerary.legs
+        guard trip.progress.phase != .completed, firstLeg < legs.count else {
+            routeAfterTarget = []
+            return
+        }
+        let coordinates = legs[firstLeg...].flatMap { (try? PolylineCodec.decode($0.encodedPolyline)) ?? [] }
+        routeAfterTarget = GeoMath.simplify(coordinates, minimumSpacingMeters: 150)
     }
 
     private func fetchLeg(from start: GeoCoordinate, to target: ItineraryStop) async {
@@ -357,6 +511,11 @@ public final class DriveViewModel {
         defer { isRerouting = false }
         speak("Rerouting.")
         await fetchLeg(from: coordinate, to: target)
+    }
+
+    private func lowercasedFirst(_ text: String) -> String {
+        guard let first = text.first else { return text }
+        return first.lowercased() + text.dropFirst()
     }
 
     private func speak(_ text: String) {

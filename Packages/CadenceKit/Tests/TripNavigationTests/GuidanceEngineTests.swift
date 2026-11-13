@@ -36,6 +36,24 @@ struct GuidanceEngineTests {
         #expect(update.arrival == .enRoute)
     }
 
+    @Test("Reports the maneuver after the upcoming one, and the distance between them")
+    func followingManeuver() throws {
+        var engine = GuidanceEngine(leg: leg, destinationName: "Rest Area")
+        let first = engine.start()
+        #expect(first.followingManeuver != nil)
+        #expect(abs((first.distanceBetweenManeuvers ?? 0) - 10_000) < 600)
+        // On the second-to-last step the turn after the next one is the arrival.
+        let lastStepStart = path.totalLength - 5_000
+        let late = engine.update(with: LocationSample(
+            coordinate: path.coordinate(atDistance: lastStepStart - 6_000), speed: 27, timestamp: Date()
+        ))
+        #expect(late.followingManeuver == .arrive)
+        // On the last step there is nothing after the arrival.
+        let end = engine.update(with: LocationSample(coordinate: path.coordinate(atDistance: lastStepStart), speed: 27, timestamp: Date()))
+        #expect(end.upcomingManeuver == .arrive)
+        #expect(end.followingManeuver == nil)
+    }
+
     @Test("Progress, step index and remaining distance advance monotonically to arrival")
     func monotonicProgress() throws {
         var engine = GuidanceEngine(leg: leg, destinationName: "Rest Area")

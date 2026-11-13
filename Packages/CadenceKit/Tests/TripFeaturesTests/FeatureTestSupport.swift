@@ -13,15 +13,18 @@ let testNow = SampleTrips.departure.addingTimeInterval(-3_600)
 struct FeatureHarness {
     let repository = InMemoryTripRepository()
     let preferences = InMemoryPreferencesStore()
-    let location = SimulatedLocationProvider(start: SampleTrips.city("la").coordinate)
+    let location: SimulatedLocationProvider
     let speech = RecordingSpeechAnnouncer()
     let dependencies: AppDependencies
 
     init(
         backend: SimulatedGoogleBackend = SimulatedGoogleBackend(),
         timeZone: TimeZone = TimeZone(identifier: "America/Los_Angeles")!,
-        autocompleteDebounce: TimeInterval = 0
+        autocompleteDebounce: TimeInterval = 0,
+        startLocation: GeoCoordinate? = SampleTrips.city("la").coordinate
     ) {
+        let location = SimulatedLocationProvider(start: startLocation)
+        self.location = location
         dependencies = SandboxEnvironment.makeDependencies(
             backend: backend,
             repository: repository,

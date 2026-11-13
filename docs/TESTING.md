@@ -10,15 +10,15 @@ in [`test-logs/TEST_LOG.md`](../test-logs/TEST_LOG.md).
 |---|---|---|---|---|
 | Unit — core | `Packages/CadenceKit/Tests/*` | Swift Testing | geometry, polyline codec, models, route profile, candidate builder, optimizer, feasibility ladder, validator, retimer, lodging windows, guidance engine, trip state machine, persistence, formatters, deep links | Linux, macOS, iOS simulator |
 | Unit — API adapters | `TripServicesTests` | Swift Testing + JSON fixtures | request encoding (headers, field masks, bodies), response decoding, error mapping, retries for Routes API, Places API (New), gateway | same |
-| Unit — view models (UI features) | `TripFeaturesTests` | Swift Testing | every screen's logic: planning form, autocomplete, validation, plan comparison, timeline, drive mode (arrival, next stop, skip, reroute, mute, auto-departure, completion, auto-save, resume), settings | same |
+| Unit — view models (UI features) | `TripFeaturesTests` | Swift Testing | every screen's logic: planning form, autocomplete, validation, plan comparison, timeline, drive mode (route preview, route line from the car, directions from the car, arrival, next stop, skip, reroute, mute, auto-departure, completion, auto-save, resume), settings | same |
 | Property | `PlannerPropertyTests` | Swift Testing | 24 random scenarios: every plan satisfies all safety rules | same |
 | Integration | `IntegrationTests` | Swift Testing | full planning through the **production** Google/gateway adapters against the in-process `SimulatedGoogleBackend` (cross-country, short trip, custom breaks, impossible deadline, degraded services, failures) | same |
 | Unit — app shell | `AppTests` | Swift Testing | configuration, composition root modes, CoreLocation mapping, design tokens, marker icons, component rendering (`ImageRenderer`) | iOS simulator |
-| UI (sandbox) | `AppUITests` | XCUITest | plan flow, validation, plan comparison, drive → arrive → continue, resume after relaunch, end trip, settings persistence, App Store screenshots | iOS simulator |
+| UI (sandbox) | `AppUITests` | XCUITest | plan flow, validation, plan comparison, drive → arrive → continue → route preview → start, exit and resume, resume after relaunch, end trip, settings persistence, App Store screenshots | iOS simulator |
 | Gateway | `Backend/gateway/test` | Vitest | Expedia signature (independent vector), Rapid client, lodging service, EIA client, PADD mapping, cache, HTTP API (auth, validation, errors, rate limit), config | Node 22 |
 
-Current counts: **173** core tests (31 suites, more with parameterized cases), **66** gateway
-tests, **17** app unit tests, **7** UI tests + 1 screenshot test.
+Current counts: **203** core tests (33 suites, more with parameterized cases), **66** gateway
+tests, **21** app unit tests, **8** UI tests + 2 screenshot tests (light and dark).
 
 ## Running tests
 

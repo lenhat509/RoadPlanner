@@ -31,6 +31,7 @@ struct DriveViewModelTests {
         await model.start()
         #expect(model.trip.progress.phase == .enRoute)
         #expect(model.mode == .driving)
+        #expect(model.stage == .navigating, "a new trip goes straight to guidance (the plan was the preview)")
         #expect(model.banner != nil)
         #expect(model.nextStop?.name == model.trip.itinerary.stops[1].place.name)
         #expect(!model.legCoordinates.isEmpty)
@@ -53,11 +54,116 @@ struct DriveViewModelTests {
         #expect(try await harness.repository.loadActiveTrip()?.progress.phase == .atStop)
         #expect(harness.speech.spoken.contains { $0.hasPrefix("You have arrived") })
 
+        let spokenAtStop = harness.speech.spoken.count
         await model.continueToNextStop()
         #expect(model.mode == .driving)
+        #expect(model.stage == .preview, "continuing shows the next leg before guidance starts")
+        #expect(model.banner == nil)
         #expect(model.trip.progress.targetStopIndex == 2)
         #expect(model.guidance != nil)
+        #expect(harness.speech.spoken.count == spokenAtStop, "the preview is silent")
         #expect(try await harness.repository.loadActiveTrip()?.progress.targetStopIndex == 2)
+
+        model.beginNavigation()
+        #expect(model.stage == .navigating)
+        #expect(model.banner != nil)
+        #expect(harness.speech.spoken.count == spokenAtStop + 1, "starting speaks the first instruction")
+    }
+
+    @Test("Resuming a started trip opens a silent preview of the route from the car to the next stop")
+    func resumePreview() async throws {
+        let harness = FeatureHarness()
+        let itinerary = try #require(try await Plans.laToVegas().recommended)
+        var trip = ActiveTrip(itinerary: itinerary)
+        try trip.start(at: testNow)
+        let model = DriveViewModel(trip: trip, dependencies: harness.dependencies)
+        #expect(model.stage == .preview)
+        await model.start()
+        #expect(harness.speech.spoken.isEmpty)
+        #expect(model.banner == nil)
+        let car = try #require(model.currentLocation)
+        let target = try #require(model.trip.targetStop)
+        #expect(GeoMath.distance(try #require(model.routeToTarget.first), car) < 1, "the route starts at the car")
+        #expect(GeoMath.distance(try #require(model.routeToTarget.last), target.place.coordinate) < 500)
+        #expect(model.previewFrame == model.routeToTarget)
+        #expect(!model.routeAfterTarget.isEmpty, "the rest of the trip is drawn too")
+
+        model.beginNavigation()
+        #expect(model.stage == .navigating)
+        #expect(harness.speech.spoken.count == 1)
+    }
+
+    @Test("While driving, the route line starts at the car and shrinks as the car advances")
+    func routeStartsAtCar() async throws {
+        let model = try await makeModel(FeatureHarness())
+        await model.start()
+        let leg = try #require(model.trip.legToTarget)
+        let fixes = samples(along: leg)
+        await model.handle(fixes[4])
+        let early = model.routeToTarget
+        #expect(GeoMath.distance(try #require(early.first), fixes[4].coordinate) < 1)
+        await model.handle(fixes[20])
+        let later = model.routeToTarget
+        #expect(GeoMath.distance(try #require(later.first), fixes[20].coordinate) < 1)
+        #expect(GeoMath.length(of: later) < GeoMath.length(of: early) - 3_000)
+    }
+
+    @Test("Starting away from the planned leg fetches directions from where the car is")
+    func directionsFromCar() async throws {
+        let harness = FeatureHarness()
+        let itinerary = try #require(try await Plans.laToVegas().recommended)
+        var trip = ActiveTrip(itinerary: itinerary)
+        try trip.start(at: testNow)
+        let origin = itinerary.stops[0].place.coordinate
+        let elsewhere = GeoCoordinate(latitude: origin.latitude + 0.05, longitude: origin.longitude + 0.05)
+        harness.location.send(LocationSample(coordinate: elsewhere, timestamp: testNow))
+        let model = DriveViewModel(trip: trip, dependencies: harness.dependencies)
+        await model.start()
+        #expect(model.trip.rerouteLegs[0] != nil, "fresh directions replace the planned leg")
+        #expect(GeoMath.distance(try #require(model.routeToTarget.first), elsewhere) < 1)
+        let fetchedStart = try #require(model.legCoordinates.first)
+        #expect(GeoMath.distance(fetchedStart, elsewhere) < 300)
+    }
+
+    @Test("A new trip started away from the planned origin is guided from the car, announced once")
+    func newTripFromElsewhere() async throws {
+        let harness = FeatureHarness()
+        let origin = try #require(try await Plans.laToVegas().recommended).stops[0].place.coordinate
+        harness.location.send(LocationSample(
+            coordinate: GeoCoordinate(latitude: origin.latitude + 0.05, longitude: origin.longitude), timestamp: testNow
+        ))
+        let model = try await makeModel(harness)
+        await model.start()
+        #expect(model.stage == .navigating)
+        #expect(model.trip.rerouteLegs[0] != nil)
+        #expect(harness.speech.spoken.count == 1, "spoken: \(harness.speech.spoken)")
+    }
+
+    @Test("A fix far from a leg loaded without a position fetches directions from the car")
+    func firstFixAway() async throws {
+        let harness = FeatureHarness(startLocation: nil)
+        let itinerary = try #require(try await Plans.laToVegas().recommended)
+        var trip = ActiveTrip(itinerary: itinerary)
+        try trip.start(at: testNow)
+        let model = DriveViewModel(trip: trip, dependencies: harness.dependencies)
+        await model.start()
+        #expect(model.trip.rerouteLegs[0] == nil)
+        let origin = itinerary.stops[0].place.coordinate
+        let away = GeoCoordinate(latitude: origin.latitude + 0.05, longitude: origin.longitude)
+        await model.handle(LocationSample(coordinate: away, speed: 10, timestamp: testNow))
+        #expect(model.trip.rerouteLegs[0] != nil)
+        #expect(GeoMath.distance(try #require(model.routeToTarget.first), away) < 1)
+    }
+
+    @Test("At a stop the map shows the next leg")
+    func atStopShowsNextLeg() async throws {
+        let model = try await makeModel(FeatureHarness())
+        await model.start()
+        await model.confirmArrival()
+        #expect(model.mode == .atStop)
+        let stop = try #require(model.trip.targetStop)
+        #expect(GeoMath.distance(try #require(model.routeToTarget.first), stop.place.coordinate) < 500)
+        #expect(model.previewFrame == model.routeToTarget)
     }
 
     @Test("The next-stop option appears when approaching a stop")
@@ -84,6 +190,7 @@ struct DriveViewModelTests {
         let away = GeoCoordinate(latitude: stop.place.coordinate.latitude + 0.01, longitude: stop.place.coordinate.longitude)
         await model.handle(LocationSample(coordinate: away, speed: 20, timestamp: testNow))
         #expect(model.mode == .driving)
+        #expect(model.stage == .navigating, "already driving: no preview")
         #expect(model.trip.progress.targetStopIndex == 2)
     }
 

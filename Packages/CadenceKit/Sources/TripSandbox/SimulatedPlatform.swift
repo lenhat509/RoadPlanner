@@ -13,7 +13,8 @@ public final class SimulatedLocationProvider: RouteFollowingLocationProvider {
     public var autoDrive: Bool
     public var metersPerTick: Double
     public var tickInterval: TimeInterval
-    /// When set, the simulated car parks this far into each leg (screenshots need a still screen).
+    /// When set, the simulated car parks after driving this far on each leg (screenshots need a
+    /// still screen).
     public var parksAfterMeters: Double?
     public private(set) var isUpdating = false
 
@@ -65,9 +66,15 @@ public final class SimulatedLocationProvider: RouteFollowingLocationProvider {
         driveTask?.cancel()
         let geometry = PolylineGeometry(coordinates: coordinates)
         let step = metersPerTick, interval = tickInterval
-        let end = min(geometry.totalLength, parksAfterMeters ?? .infinity)
+        // Carry on from where the car is when it is on the leg (resuming mid-leg); otherwise
+        // start at the beginning.
+        var startDistance = 0.0
+        if let here = lastKnownLocation, let projection = geometry.project(here), projection.offsetMeters < 500 {
+            startDistance = projection.distanceAlong
+        }
+        let end = min(geometry.totalLength, startDistance + (parksAfterMeters ?? .infinity))
         driveTask = Task { [weak self] in
-            var distance = 0.0
+            var distance = startDistance
             while !Task.isCancelled {
                 let point = geometry.coordinate(atDistance: distance)
                 let ahead = geometry.coordinate(atDistance: distance + 10)

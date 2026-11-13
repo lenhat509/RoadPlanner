@@ -16,7 +16,8 @@ them.
 enough) and keep the trip active. Check that the ringer volume is up.
 
 **I closed the app during a trip.** Open Cadence and tap **Resume** on the home screen. Progress
-is saved automatically.
+is saved automatically. Cadence shows the route from where you are to your next stop; tap
+**Start** when you're ready. The red **✕** in drive mode leaves navigation without ending the trip.
 
 **Can I use Google Maps for navigation instead?** Yes: in drive mode open the menu (•••) and
 choose **Open in Google Maps** for the current leg.

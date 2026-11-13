@@ -1,4 +1,5 @@
 @testable import Cadence
+import MapKit
 import SwiftUI
 import Testing
 import TripFeatures
@@ -54,6 +55,25 @@ struct DesignSystemTests {
         #expect(PlanTripScreen.hoursText(0.75) == "45 min")
     }
 
+    private static let stopInfo = DriveViewModel.NextStopInfo(
+        kind: .fuel, isPullOff: false, name: "Love's #4", kindTitle: "Fuel stop", symbolName: "fuelpump.fill",
+        etaText: "4:24 PM", remainingText: "72 mi", durationText: "1 h 12 min",
+        plannedAction: "Arrive with 21% · Fill about 11.1 gal", isDestination: false
+    )
+
+    @Test("A framed route fills about 80 % of the map, with a minimum size for short legs")
+    func framing() throws {
+        let leg = [GeoCoordinate(latitude: 36.0, longitude: -115.0), GeoCoordinate(latitude: 36.5, longitude: -114.5)]
+        let rect = try #require(AppleRouteMap.framingRect(for: leg))
+        let a = MKMapPoint(leg[0].clCoordinate), b = MKMapPoint(leg[1].clCoordinate)
+        #expect(abs(abs(b.x - a.x) / rect.width - 0.8) < 0.001)
+        #expect(abs(abs(b.y - a.y) / rect.height - 0.8) < 0.001)
+        #expect(rect.contains(a) && rect.contains(b))
+        let tiny = try #require(AppleRouteMap.framingRect(for: [leg[0]]))
+        #expect(tiny.width > 1_000 * MKMapPointsPerMeterAtLatitude(36), "a single point still shows ~1 km around it")
+        #expect(AppleRouteMap.framingRect(for: []) == nil)
+    }
+
     @Test("The legend layout wraps onto new lines when narrow")
     func flowLayoutWraps() throws {
         let items = ForEach(0..<6) { _ in Color.red.frame(width: 100, height: 20) }
@@ -100,6 +120,21 @@ struct DesignSystemTests {
                 banner: DriveViewModel.Banner(symbolName: "arrow.up.right", distanceText: "0.5 mi", instruction: "Take the ramp onto I-15 N"),
                 isRerouting: false
             )),
+            AnyView(ManeuverBannerView(
+                banner: DriveViewModel.Banner(
+                    symbolName: "arrow.turn.up.left", distanceText: "500 ft", instruction: "Turn left onto Main St",
+                    thenSymbolName: "arrow.turn.up.right"
+                ),
+                isRerouting: false
+            )),
+            AnyView(PreviewHeader(destination: Self.stopInfo)),
+            AnyView(PreviewSheet(info: Self.stopInfo, onExit: {}, onStart: {}) { Button("End trip") {} }),
+            AnyView(NextStopPanel(
+                info: Self.stopInfo, canContinue: true, ribbon: [], progress: 0.3, onExit: {}, onContinue: {}
+            ) { Button("End trip") {} }),
+            AnyView(ArrivalCard(info: Self.stopInfo, nextStopName: "Motel 6", onExit: {}, onContinue: {}) { Button("End trip") {} }),
+            AnyView(ExitNavigationButton {}),
+            AnyView(StatusPill(message: "Finding the route…", systemImage: "location.magnifyingglass")),
             AnyView(CompletedCard(destination: "Las Vegas", summary: "270 mi") {}),
             AnyView(SafetyNoticeView {}),
         ]

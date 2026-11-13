@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- Drive mode follows the layout of familiar navigation apps: the next turn at the very top (with a
+  "Then" turn when two come close together), mute and "show route" buttons on the right,
+  "Re-center" after panning, and a bottom sheet with the time left, distance, arrival time, the next
+  stop and a red exit button (which leaves navigation; the trip stays saved).
+- Resuming a trip, or continuing from a stop, first shows a preview: the route from where you are
+  to the next stop, filling most of the screen, with the rest of the trip in light blue. **Start**
+  glides down into turn-by-turn guidance.
+- Directions start where the car is: when you are away from the planned route (e.g. starting
+  from home), Cadence fetches directions from your position.
 - Refreshed design: warm canvas, soft cards, teal brand gradient, rounded type; a "route rail"
   joining start and destination, trip ribbons (every stop as a dot along the trip) on plans,
   saved trips and drive mode, goal tiles, a fuel gauge for the minimum fuel level and a break
@@ -18,6 +27,8 @@ All notable changes to this project are documented here. The format follows
 - The map legend wraps instead of scrolling; bottom action bars are opaque with a soft fade.
 
 ### Fixed
+- In drive mode the route line now starts at the car (it began at the planned start, so it
+  could be missing near the car); the part already driven is no longer drawn.
 - Choosing an autocomplete suggestion needed two taps: a search still in flight re-opened the list.
 - In the demo, drive mode's camera trailed the (fast) simulated car and lost it off screen.
 - "Fastest" could arrive later than "Cheapest" (e.g. Current Location on a phone set to a different

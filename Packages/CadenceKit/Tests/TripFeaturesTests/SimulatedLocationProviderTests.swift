@@ -31,6 +31,16 @@ struct SimulatedLocationProviderTests {
         #expect(GeoMath.distance(last, leg[1]) < 1)
     }
 
+    @Test("Picks up from its position on the leg instead of jumping back to the start")
+    func resumesMidLeg() async throws {
+        let midway = PolylineGeometry(coordinates: leg).coordinate(atDistance: 60_000)
+        let provider = SimulatedLocationProvider(start: midway, autoDrive: true, metersPerTick: 20_000, tickInterval: 0.001)
+        provider.parksAfterMeters = 20_000
+        let parkingSpot = PolylineGeometry(coordinates: leg).coordinate(atDistance: 80_000)
+        let last = try #require(await drive(provider, until: parkingSpot))
+        #expect(GeoMath.distance(last, parkingSpot) < 1)
+    }
+
     @Test("Parks after the configured distance")
     func parks() async throws {
         let provider = SimulatedLocationProvider(autoDrive: true, metersPerTick: 20_000, tickInterval: 0.001)
