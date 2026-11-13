@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: "fastlane lane to run"
+        type: choice
+        options: [beta, release, metadata]
+        default: beta
+
+jobs:
+  release:
+    runs-on: macos-15
+    environment: app-store
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Write build secrets
+        env:
+          SECRETS_XCCONFIG: ${{ secrets.SECRETS_XCCONFIG }}
+        run: printf '%s\n' "$SECRETS_XCCONFIG" > Config/Secrets.xcconfig
+      - name: Test before shipping
+        run: scripts/test-all.sh ios
+      - name: fastlane ${{ inputs.lane }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          CADENCE_BUNDLE_ID: ${{ vars.CADENCE_BUNDLE_ID }}
+          CADENCE_TEAM_ID: ${{ vars.CADENCE_TEAM_ID }}
+        run: bundle exec fastlane ${{ inputs.lane }}

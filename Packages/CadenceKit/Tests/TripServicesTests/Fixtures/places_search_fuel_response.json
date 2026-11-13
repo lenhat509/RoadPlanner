@@ -1,0 +1,135 @@
+{
+  "places": [
+    {
+      "id": "ChIJshell",
+      "displayName": {
+        "text": "Shell",
+        "languageCode": "en"
+      },
+      "formattedAddress": "100 Gas Rd, Vacaville, CA",
+      "location": {
+        "latitude": 38.3566,
+        "longitude": -121.9877
+      },
+      "types": [
+        "gas_station",
+        "convenience_store",
+        "point_of_interest"
+      ],
+      "rating": 4.1,
+      "utcOffsetMinutes": -480,
+      "businessStatus": "OPERATIONAL",
+      "fuelOptions": {
+        "fuelPrices": [
+          {
+            "type": "REGULAR_UNLEADED",
+            "price": {
+              "currencyCode": "USD",
+              "units": "4",
+              "nanos": 599000000
+            },
+            "updateTime": "2026-11-12T18:00:00Z"
+          },
+          {
+            "type": "PREMIUM",
+            "price": {
+              "currencyCode": "USD",
+              "units": "5",
+              "nanos": 199000000
+            },
+            "updateTime": "2026-11-12T18:00:00Z"
+          },
+          {
+            "type": "DIESEL",
+            "price": {
+              "currencyCode": "USD",
+              "units": "5",
+              "nanos": 49000000
+            },
+            "updateTime": "2026-11-12T18:00:00Z"
+          },
+          {
+            "type": "E85",
+            "price": {
+              "currencyCode": "USD",
+              "units": "3",
+              "nanos": 990000000
+            },
+            "updateTime": "2026-11-12T18:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ChIJarco",
+      "displayName": {
+        "text": "ARCO",
+        "languageCode": "en"
+      },
+      "formattedAddress": "200 Fuel Way, Fairfield, CA",
+      "location": {
+        "latitude": 38.2494,
+        "longitude": -122.04
+      },
+      "types": [
+        "gas_station"
+      ],
+      "utcOffsetMinutes": -480,
+      "businessStatus": "OPERATIONAL"
+    },
+    {
+      "id": "ChIJclosed",
+      "displayName": {
+        "text": "Closed Gas",
+        "languageCode": "en"
+      },
+      "location": {
+        "latitude": 38.3,
+        "longitude": -122.0
+      },
+      "types": [
+        "gas_station"
+      ],
+      "businessStatus": "CLOSED_PERMANENTLY"
+    }
+  ],
+  "routingSummaries": [
+    {
+      "legs": [
+        {
+          "duration": "1260s",
+          "distanceMeters": 21000
+        },
+        {
+          "duration": "1800s",
+          "distanceMeters": 30000
+        }
+      ],
+      "directionsUri": "https://www.google.com/maps/dir/"
+    },
+    {
+      "legs": [
+        {
+          "duration": "900s",
+          "distanceMeters": 15000
+        },
+        {
+          "duration": "2100s",
+          "distanceMeters": 36500
+        }
+      ]
+    },
+    {
+      "legs": [
+        {
+          "duration": "1000s",
+          "distanceMeters": 16000
+        },
+        {
+          "duration": "2000s",
+          "distanceMeters": 35000
+        }
+      ]
+    }
+  ]
+}

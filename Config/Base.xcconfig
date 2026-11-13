@@ -1,0 +1,11 @@
+// Shared build settings. Secrets live in Secrets.xcconfig (git-ignored).
+// Copy Secrets.example.xcconfig → Secrets.xcconfig and fill in your values.
+
+CADENCE_BUNDLE_ID = com.example.cadence
+CADENCE_TEAM_ID =
+GOOGLE_MAPS_API_KEY =
+// xcconfig treats "//" as a comment: write URLs as https:/$()/host
+CADENCE_GATEWAY_URL =
+CADENCE_GATEWAY_TOKEN =
+
+#include? "Secrets.xcconfig"

@@ -1,0 +1,4 @@
+# Values come from the environment so nothing personal is committed.
+app_identifier(ENV.fetch("CADENCE_BUNDLE_ID", "com.example.cadence"))
+apple_id(ENV["FASTLANE_APPLE_ID"]) if ENV["FASTLANE_APPLE_ID"]
+team_id(ENV["CADENCE_TEAM_ID"]) if ENV["CADENCE_TEAM_ID"]

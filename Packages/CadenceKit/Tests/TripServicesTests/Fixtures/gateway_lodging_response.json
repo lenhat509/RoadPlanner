@@ -1,0 +1,32 @@
+{
+  "offers": [
+    {
+      "propertyId": "12345",
+      "name": "Hampton Inn Reno",
+      "latitude": 39.5297,
+      "longitude": -119.8139,
+      "nightlyRate": 129.0,
+      "currency": "USD",
+      "provider": "Expedia",
+      "bookingUrl": "https://www.expedia.com/h12345.Hotel-Information"
+    },
+    {
+      "propertyId": "999",
+      "name": "Euro Hotel",
+      "latitude": 39.5,
+      "longitude": -119.8,
+      "nightlyRate": 99.0,
+      "currency": "EUR",
+      "provider": "Expedia"
+    },
+    {
+      "propertyId": "777",
+      "name": "Sold Out Inn",
+      "latitude": 39.5,
+      "longitude": -119.8,
+      "nightlyRate": 0,
+      "currency": "USD",
+      "provider": "Expedia"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "suggestions": [
+    {
+      "placePrediction": {
+        "place": "places/ChIJden",
+        "placeId": "ChIJden",
+        "text": {
+          "text": "Denver, CO, USA"
+        },
+        "structuredFormat": {
+          "mainText": {
+            "text": "Denver"
+          },
+          "secondaryText": {
+            "text": "CO, USA"
+          }
+        }
+      }
+    },
+    {
+      "queryPrediction": {
+        "text": {
+          "text": "denver hotels"
+        }
+      }
+    },
+    {
+      "placePrediction": {
+        "placeId": "ChIJdenint",
+        "text": {
+          "text": "Denver International Airport"
+        }
+      }
+    }
+  ]
+}

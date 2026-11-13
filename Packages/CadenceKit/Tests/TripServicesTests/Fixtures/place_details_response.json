@@ -1,0 +1,13 @@
+{
+  "id": "ChIJden",
+  "displayName": {
+    "text": "Denver",
+    "languageCode": "en"
+  },
+  "formattedAddress": "Denver, CO, USA",
+  "location": {
+    "latitude": 39.7392358,
+    "longitude": -104.990251
+  },
+  "utcOffsetMinutes": -420
+}

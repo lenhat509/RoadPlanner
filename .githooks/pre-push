@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Runs the fast test suites before every push so nothing broken leaves the machine.
+# Bypass in an emergency with `git push --no-verify` (CI still runs everything).
+set -e
+"$(git rev-parse --show-toplevel)/scripts/test-all.sh" quick

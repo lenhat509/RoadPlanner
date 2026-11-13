@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: Swift package (Linux)
+    runs-on: ubuntu-24.04
+    container: swift:6.2-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit + integration tests
+        run: scripts/test-all.sh core
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-core
+          path: test-logs
+
+  gateway:
+    name: Backend gateway
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Backend/gateway/package-lock.json
+      - name: Lint, typecheck, tests
+        run: scripts/test-all.sh gateway
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-gateway
+          path: test-logs
+
+  ios:
+    name: iOS (unit, integration, UI tests on simulator)
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install tools
+        run: brew install xcodegen swiftlint
+      - name: Lint
+        run: swiftlint lint --strict
+      - name: Package tests on iOS + app unit tests + XCUITests
+        run: scripts/test-all.sh ios
+      - name: Upload test logs and result bundles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-ios
+          path: test-logs

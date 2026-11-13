@@ -1,0 +1,24 @@
+{
+  "places": [
+    {
+      "id": "ChIJhampton",
+      "displayName": {
+        "text": "Hampton Inn",
+        "languageCode": "en"
+      },
+      "formattedAddress": "1 Inn Ct, Reno, NV",
+      "location": {
+        "latitude": 39.5296,
+        "longitude": -119.8138
+      },
+      "types": [
+        "lodging",
+        "hotel"
+      ],
+      "priceLevel": "PRICE_LEVEL_MODERATE",
+      "rating": 4.3,
+      "utcOffsetMinutes": -480,
+      "businessStatus": "OPERATIONAL"
+    }
+  ]
+}

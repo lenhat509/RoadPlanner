@@ -1,0 +1,312 @@
+import Foundation
+import Observation
+import TripModels
+import TripPersistence
+import TripPlanner
+
+/// The trip planning form: places, times, car and preferences.
+@MainActor
+@Observable
+public final class PlanTripViewModel {
+    public enum Field: Hashable, Sendable {
+        case origin
+        case destination
+    }
+
+    public struct LocationInput: Equatable, Sendable {
+        public var text = ""
+        public var place: Place?
+        public var suggestions: [PlaceSuggestion] = []
+        public var isResolving = false
+    }
+
+    /// Outcome of validating the form.
+    public enum Validation: Equatable, Sendable {
+        case valid(TripRequest)
+        case invalid([TripRequestError])
+    }
+
+    public enum Status: Equatable, Sendable {
+        case idle
+        case planning(PlanningPhase?)
+        case failed(String)
+    }
+
+    // Form state
+    public var origin = LocationInput()
+    public var destination = LocationInput()
+    public var departure: Date
+    public var arriveByEnabled = false
+    public var arriveBy: Date
+    public var mpgText: String
+    /// When off, the default cadence applies (a break at most every 3 h, i.e. every 2–3 h).
+    public var customRestEnabled = false
+    public var restIntervalHours: Double
+    public var goal: OptimizationGoal
+    // Advanced
+    public var tankGallonsText: String
+    public var startingFuelPercent: Double
+    public var fuelType: FuelType
+    public var maxDailyDrivingHours: Double
+    public var travelers: Int
+
+    public private(set) var status: Status = .idle
+    public private(set) var result: PlanResult?
+
+    private let dependencies: AppDependencies
+    private var searchTasks: [Field: Task<Void, Never>] = [:]
+    private var planTask: Task<Void, Never>?
+    private var sessionToken = UUID().uuidString
+
+    public init(dependencies: AppDependencies) {
+        self.dependencies = dependencies
+        let preferences = dependencies.preferences.load()
+        let now = dependencies.now()
+        departure = PlanTripViewModel.nextQuarterHour(after: now)
+        arriveBy = now.addingTimeInterval(3 * 86_400)
+        mpgText = PlanTripViewModel.format(preferences.vehicle.milesPerGallon)
+        tankGallonsText = PlanTripViewModel.format(preferences.vehicle.tankCapacityGallons)
+        startingFuelPercent = 100
+        fuelType = preferences.vehicle.fuelType
+        goal = preferences.goal
+        travelers = preferences.travelers
+        maxDailyDrivingHours = preferences.policy.maxDailyDriving / 3_600
+        restIntervalHours = min(3, preferences.policy.maxContinuousDriving / 3_600)
+        customRestEnabled = preferences.policy.maxContinuousDriving != DrivingPolicy.standard.maxContinuousDriving
+    }
+
+    // MARK: Places
+
+    public func input(for field: Field) -> LocationInput {
+        field == .origin ? origin : destination
+    }
+
+    private func update(_ field: Field, _ change: (inout LocationInput) -> Void) {
+        switch field {
+        case .origin: change(&origin)
+        case .destination: change(&destination)
+        }
+    }
+
+    /// Called as the user types; fetches suggestions after a short pause.
+    public func queryChanged(_ text: String, for field: Field) {
+        update(field) {
+            $0.text = text
+            if $0.place?.name != text { $0.place = nil }
+        }
+        searchTasks[field]?.cancel()
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else {
+            update(field) { $0.suggestions = [] }
+            return
+        }
+        let debounce = dependencies.autocompleteDebounce
+        let autocomplete = dependencies.autocomplete
+        let bias = dependencies.location.lastKnownLocation
+        let token = sessionToken
+        searchTasks[field] = Task { [weak self] in
+            if debounce > 0 { try? await Task.sleep(nanoseconds: UInt64(debounce * 1e9)) }
+            guard !Task.isCancelled else { return }
+            let suggestions = (try? await autocomplete.suggestions(for: trimmed, near: bias, sessionToken: token)) ?? []
+            guard !Task.isCancelled else { return }
+            self?.update(field) { $0.suggestions = suggestions }
+        }
+    }
+
+    /// Waits for pending autocomplete requests (tests and UI previews).
+    public func waitForSuggestions() async {
+        for task in searchTasks.values { await task.value }
+    }
+
+    public func select(_ suggestion: PlaceSuggestion, for field: Field) async {
+        update(field) {
+            $0.text = suggestion.primaryText
+            $0.suggestions = []
+            $0.isResolving = true
+        }
+        do {
+            let place = try await dependencies.autocomplete.place(for: suggestion.placeID, sessionToken: sessionToken)
+            update(field) {
+                $0.place = place
+                $0.text = place.name
+                $0.isResolving = false
+            }
+        } catch {
+            update(field) { $0.isResolving = false }
+            status = .failed("Couldn't load that place. Check your connection and try again.")
+        }
+        // A session ends with a details request (Places billing best practice).
+        sessionToken = UUID().uuidString
+    }
+
+    public func useCurrentLocation(for field: Field) async {
+        var coordinate = dependencies.location.lastKnownLocation
+        if coordinate == nil {
+            let authorization = await dependencies.location.requestAuthorization()
+            guard authorization == .authorized else {
+                status = .failed("Allow location access in Settings to start from your current location.")
+                return
+            }
+            coordinate = dependencies.location.lastKnownLocation
+        }
+        guard let coordinate else {
+            status = .failed("Your location isn't available yet. Try again in a moment.")
+            return
+        }
+        let place = Place(
+            id: "current-location",
+            name: "Current Location",
+            coordinate: coordinate,
+            utcOffsetMinutes: TimeZone.current.secondsFromGMT(for: dependencies.now()) / 60
+        )
+        update(field) {
+            $0.place = place
+            $0.text = place.name
+            $0.suggestions = []
+        }
+    }
+
+    public func swapLocations() {
+        swap(&origin, &destination)
+    }
+
+    // MARK: Validation
+
+    /// The request the form describes, or the problems preventing it.
+    public func makeRequest() -> Validation {
+        var errors: [TripRequestError] = []
+        if origin.place == nil { errors.append(.invalidOrigin) }
+        if destination.place == nil { errors.append(.invalidDestination) }
+        let mpg = PlanTripViewModel.parse(mpgText) ?? -1
+        let tank = PlanTripViewModel.parse(tankGallonsText) ?? Vehicle.defaultTankCapacityGallons
+        var policy = dependencies.preferences.load().policy
+        policy.maxContinuousDriving = customRestEnabled ? restIntervalHours * 3_600 : DrivingPolicy.standard.maxContinuousDriving
+        policy.maxDailyDriving = max(policy.maxContinuousDriving, maxDailyDrivingHours * 3_600)
+        guard let origin = origin.place, let destination = destination.place else { return .invalid(errors) }
+        let request = TripRequest(
+            origin: origin,
+            destination: destination,
+            departure: departure,
+            arriveBy: arriveByEnabled ? arriveBy : nil,
+            vehicle: Vehicle(
+                milesPerGallon: mpg,
+                tankCapacityGallons: tank,
+                initialFuelFraction: startingFuelPercent / 100,
+                fuelType: fuelType
+            ),
+            policy: policy,
+            goal: goal,
+            travelers: travelers
+        )
+        errors += request.validationErrors()
+        return errors.isEmpty ? .valid(request) : .invalid(errors)
+    }
+
+    public var validationErrors: [TripRequestError] {
+        if case let .invalid(errors) = makeRequest() { return errors }
+        return []
+    }
+
+    public var canPlan: Bool {
+        if case .planning = status { return false }
+        return validationErrors.isEmpty
+    }
+
+    public var isPlanning: Bool {
+        if case .planning = status { return true }
+        return false
+    }
+
+    public var progressText: String? {
+        guard case let .planning(phase) = status else { return nil }
+        return phase?.displayText ?? "Getting started…"
+    }
+
+    public var progressFraction: Double {
+        guard case let .planning(phase) = status else { return 0 }
+        return phase?.fraction ?? 0.02
+    }
+
+    public var errorMessage: String? {
+        if case let .failed(message) = status { return message }
+        return nil
+    }
+
+    // MARK: Planning
+
+    /// Starts planning in a cancellable task.
+    public func startPlanning() {
+        planTask?.cancel()
+        planTask = Task { [weak self] in await self?.plan() }
+    }
+
+    public func cancelPlanning() {
+        planTask?.cancel()
+        planTask = nil
+        status = .idle
+    }
+
+    public func plan() async {
+        switch makeRequest() {
+        case let .invalid(errors):
+            status = .failed(errors.map(\.message).joined(separator: "\n"))
+        case let .valid(request):
+            status = .planning(nil)
+            rememberPreferences(from: request)
+            do {
+                let result = try await dependencies.planner.plan(request) { [weak self] phase in
+                    Task { @MainActor in self?.report(phase) }
+                }
+                try Task.checkCancellation()
+                self.result = result
+                status = .idle
+            } catch is CancellationError {
+                status = .idle
+            } catch let error as PlanningError {
+                status = .failed(error.message)
+            } catch {
+                status = .failed("Something went wrong while planning. Please try again.")
+            }
+        }
+    }
+
+    public func clearResult() {
+        result = nil
+    }
+
+    public func dismissError() {
+        if case .failed = status { status = .idle }
+    }
+
+    private func report(_ phase: PlanningPhase) {
+        guard case .planning = status else { return }
+        status = .planning(phase)
+    }
+
+    private func rememberPreferences(from request: TripRequest) {
+        var preferences = dependencies.preferences.load()
+        preferences.vehicle.milesPerGallon = request.vehicle.milesPerGallon
+        preferences.vehicle.tankCapacityGallons = request.vehicle.tankCapacityGallons
+        preferences.vehicle.fuelType = request.vehicle.fuelType
+        preferences.goal = request.goal
+        preferences.travelers = request.travelers
+        preferences.policy.maxContinuousDriving = request.policy.maxContinuousDriving
+        preferences.policy.maxDailyDriving = request.policy.maxDailyDriving
+        dependencies.preferences.save(preferences)
+    }
+
+    // MARK: Helpers
+
+    static func parse(_ text: String) -> Double? {
+        Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
+    }
+
+    static func format(_ value: Double) -> String {
+        value.rounded() == value ? String(Int(value)) : String(format: "%.1f", value)
+    }
+
+    static func nextQuarterHour(after date: Date) -> Date {
+        let quarter: TimeInterval = 900
+        return Date(timeIntervalSince1970: (date.timeIntervalSince1970 / quarter).rounded(.up) * quarter)
+    }
+}

@@ -1,0 +1,44 @@
+included:
+  - App
+  - AppTests
+  - AppUITests
+  - Packages/CadenceKit/Sources
+  - Packages/CadenceKit/Tests
+excluded:
+  - Packages/CadenceKit/.build
+  - DerivedData
+opt_in_rules:
+  - closure_spacing
+  - empty_count
+  - explicit_init
+  - first_where
+  - modifier_order
+  - redundant_nil_coalescing
+  - sorted_imports
+  - toggle_bool
+  - unneeded_parentheses_in_closure_argument
+  - vertical_whitespace_closing_braces
+disabled_rules:
+  - todo
+  - nesting
+line_length:
+  warning: 140
+  error: 180
+  ignores_urls: true
+  ignores_comments: true
+identifier_name:
+  excluded: [id, x, y, z, a, b, dx, dy, ax, ay, bx, by, px, py, t, t0, t1, d0, d1, lat, lon, lng, rng, key, row, url]
+type_body_length:
+  warning: 400
+  error: 600
+file_length:
+  warning: 600
+  error: 900
+function_body_length:
+  warning: 80
+  error: 140
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+large_tuple:
+  warning: 4

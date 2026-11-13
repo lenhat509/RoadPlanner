@@ -1,0 +1,97 @@
+{
+  "routes": [
+    {
+      "description": "I-80 E",
+      "distanceMeters": 45210,
+      "duration": "2875s",
+      "polyline": {
+        "encodedPolyline": "c|peFf`ejV{^gxBo}@o}@_vJobd@oh\\_ry@"
+      },
+      "travelAdvisory": {
+        "tollInfo": {
+          "estimatedPrice": [
+            {
+              "currencyCode": "USD",
+              "units": "7",
+              "nanos": 500000000
+            }
+          ]
+        }
+      },
+      "legs": [
+        {
+          "distanceMeters": 45210,
+          "duration": "2875s",
+          "polyline": {
+            "encodedPolyline": "c|peFf`ejV{^gxBo}@o}@_vJobd@oh\\_ry@"
+          },
+          "travelAdvisory": {
+            "tollInfo": {
+              "estimatedPrice": [
+                {
+                  "currencyCode": "USD",
+                  "units": "7",
+                  "nanos": 500000000
+                }
+              ]
+            }
+          },
+          "steps": [
+            {
+              "distanceMeters": 2100,
+              "staticDuration": "310s",
+              "polyline": {
+                "encodedPolyline": "c|peFf`ejV{^gxBo}@o}@"
+              },
+              "navigationInstruction": {
+                "maneuver": "DEPART",
+                "instructions": "Head northeast on Market St"
+              }
+            },
+            {
+              "distanceMeters": 43110,
+              "staticDuration": "2400s",
+              "polyline": {
+                "encodedPolyline": "ozseFnh_jV_vJobd@oh\\_ry@"
+              },
+              "navigationInstruction": {
+                "maneuver": "RAMP_RIGHT",
+                "instructions": "Take the ramp onto I-80 E toward Oakland"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "description": "US-101 S",
+      "distanceMeters": 61000,
+      "duration": "3400s",
+      "polyline": {
+        "encodedPolyline": "c|peFf`ejVbda@gk}@_cmA_af@"
+      },
+      "legs": [
+        {
+          "distanceMeters": 61000,
+          "duration": "3400s",
+          "polyline": {
+            "encodedPolyline": "c|peFf`ejVbda@gk}@_cmA_af@"
+          },
+          "steps": [
+            {
+              "distanceMeters": 61000,
+              "staticDuration": "3300s",
+              "polyline": {
+                "encodedPolyline": "c|peFf`ejVbda@gk}@_cmA_af@"
+              },
+              "navigationInstruction": {
+                "maneuver": "DEPART",
+                "instructions": "Head south"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
