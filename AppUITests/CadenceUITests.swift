@@ -73,7 +73,7 @@ final class CadenceUITests: XCTestCase {
             shown = states.contains { $0.exists }
             if !shown { _ = states[0].waitForExistence(timeout: 1) }
         }
-        XCTAssertTrue(shown, "drive mode not shown; on screen: \(visibleIdentifiers())", file: file, line: line)
+        XCTAssertTrue(shown, "drive mode not shown; on screen: \(app.visibleIdentifiers())", file: file, line: line)
     }
 
     /// After resuming: a trip paused at a stop shows its arrival card first; continuing from there
@@ -92,18 +92,12 @@ final class CadenceUITests: XCTestCase {
     /// The route preview (resume / continue) is shown; tapping Start begins guidance.
     private func startFromPreview(file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(element(AccessibilityID.Drive.preview).waitForExistence(timeout: 15),
-                      "route preview not shown; on screen: \(visibleIdentifiers())", file: file, line: line)
+                      "route preview not shown; on screen: \(app.visibleIdentifiers())", file: file, line: line)
         XCTAssertTrue(app.buttons[AccessibilityID.Drive.exit].exists, "the preview has an exit button", file: file, line: line)
         let start = app.buttons[AccessibilityID.Drive.startNavigation]
         XCTAssertTrue(start.exists, file: file, line: line)
         start.tap()
         assertDriving(file: file, line: line)
-    }
-
-    /// One-line list of accessibility identifiers on screen, for failure messages in CI logs.
-    private func visibleIdentifiers() -> String {
-        app.descendants(matching: .any).allElementsBoundByIndex.prefix(300)
-            .map(\.identifier).filter { !$0.isEmpty }.joined(separator: ", ")
     }
 
     // MARK: Tests
@@ -184,19 +178,10 @@ final class CadenceUITests: XCTestCase {
         launch()
         planLosAngelesToVegas()
         startDrive()
-        // SwiftUI menu items don't reliably expose identifiers; use the visible label. The
-        // simulated car drives fast, so the panel holding the menu can swap (driving → at a stop)
-        // while the menu is open, which closes it: open it again if so.
-        let menuItem = app.buttons["End trip"].firstMatch
-        var opened = false
-        for _ in 0..<3 where !opened {
-            let menu = app.buttons[AccessibilityID.Drive.menu].firstMatch
-            guard menu.waitForExistence(timeout: 5) else { break }
-            menu.tap()
-            opened = menuItem.waitForExistence(timeout: 3)
+        guard let endTrip = app.tripMenuItem("End trip") else {
+            return XCTFail("trip menu did not open; on screen: \(app.visibleIdentifiers())")
         }
-        XCTAssertTrue(opened, "trip menu did not open; on screen: \(visibleIdentifiers())")
-        menuItem.tap()
+        endTrip.tap()
         let confirm = app.sheets.buttons["End trip"].firstMatch
         let confirmButton = confirm.waitForExistence(timeout: 3) ? confirm : app.buttons["End trip"].firstMatch
         XCTAssertTrue(confirmButton.waitForExistence(timeout: 3))
@@ -242,14 +227,14 @@ final class CadenceUITests: XCTestCase {
         let accept = app.buttons[AccessibilityID.Drive.safetyAccept]
         if accept.waitForExistence(timeout: 5) { accept.tap() }
         XCTAssertTrue(element(AccessibilityID.Drive.preview).waitForExistence(timeout: 15),
-                      "drive mode previews the way to the start; on screen: \(visibleIdentifiers())")
+                      "drive mode previews the way to the start; on screen: \(app.visibleIdentifiers())")
         XCTAssertTrue(app.buttons["Directions to start"].exists)
         XCTAssertTrue(elementWithLabel(containing: "Trip start · San Francisco").exists, "the header names the trip's start")
 
         // Or start the trip from here: the preview switches to the first stop.
-        app.buttons[AccessibilityID.Drive.menu].firstMatch.tap()
-        let startHere = app.buttons["Start the trip from here"].firstMatch
-        XCTAssertTrue(startHere.waitForExistence(timeout: 3))
+        guard let startHere = app.tripMenuItem("Start the trip from here") else {
+            return XCTFail("trip menu did not open; on screen: \(app.visibleIdentifiers())")
+        }
         startHere.tap()
         XCTAssertTrue(app.buttons[AccessibilityID.Drive.startNavigation].waitForExistence(timeout: 10))
         let deadline = Date().addingTimeInterval(10)

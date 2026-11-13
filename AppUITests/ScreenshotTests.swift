@@ -34,17 +34,15 @@ final class ScreenshotTests: XCTestCase {
         while !states.contains(where: \.exists) && Date() < deadline {
             _ = states[0].waitForExistence(timeout: 1)
         }
-        let onScreen = app.descendants(matching: .any).allElementsBoundByIndex.prefix(200)
-            .map(\.identifier).filter { !$0.isEmpty }.joined(separator: ", ")
-        XCTAssertTrue(states.contains(where: \.exists), "drive mode not shown; on screen: \(onScreen)", file: file, line: line)
+        XCTAssertTrue(states.contains(where: \.exists), "drive mode not shown; on screen: \(app.visibleIdentifiers())",
+                      file: file, line: line)
     }
 
     /// "I've arrived" from the trip menu, then waits for the arrival card.
     private func arriveViaMenu() {
-        app.buttons[AccessibilityID.Drive.menu].firstMatch.tap()
-        let byID = app.buttons[AccessibilityID.Drive.arrived].firstMatch
-        let arrived = byID.waitForExistence(timeout: 3) ? byID : app.buttons["I've arrived"].firstMatch
-        XCTAssertTrue(arrived.waitForExistence(timeout: 3))
+        guard let arrived = app.tripMenuItem("I've arrived") else {
+            return XCTFail("trip menu did not open; on screen: \(app.visibleIdentifiers())")
+        }
         arrived.tap()
         XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.arrivalCard].firstMatch.waitForExistence(timeout: 10))
         settle(2)
@@ -121,7 +119,7 @@ final class ScreenshotTests: XCTestCase {
         capture("13-ToStart-Dark")
         app.buttons[AccessibilityID.Drive.startNavigation].tap()
         XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.banner].firstMatch.waitForExistence(timeout: 30))
-        settle(6)
+        settle(10) // the car parks ~7.5 s after Start; then the map tiles load
         capture("14-Drive-Dark")
     }
 }
