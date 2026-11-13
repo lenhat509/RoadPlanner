@@ -94,6 +94,8 @@ struct SettingsScreen: View {
                     .accessibilityIdentifier(AccessibilityID.Settings.reset)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Theme.canvas.ignoresSafeArea())
         .navigationTitle("Settings")
         .confirmationDialog("Reset all settings to their defaults?", isPresented: $confirmsReset, titleVisibility: .visible) {
             Button("Reset", role: .destructive) { model.resetToDefaults() }

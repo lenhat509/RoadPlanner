@@ -65,6 +65,22 @@ struct DesignSystemTests {
             AnyView(StopDot(kind: .lodging)),
             AnyView(StopLegend(entries: [.init(kind: .origin, isPullOff: false), .init(kind: .rest, isPullOff: true)])),
             AnyView(VehicleArrow(rotation: 45)),
+            AnyView(TripRibbonView(
+                marks: [
+                    RibbonMark(id: "a", fraction: 0, kind: .origin, isPullOff: false),
+                    RibbonMark(id: "b", fraction: 0.4, kind: .fuel, isPullOff: false),
+                    RibbonMark(id: "c", fraction: 1, kind: .destination, isPullOff: false),
+                ],
+                progress: 0.5
+            )),
+            AnyView(RouteRail().frame(height: 100)),
+            AnyView(NumberTile(title: "Fuel economy", unit: "mpg", text: .constant("28"), identifier: "test")),
+            AnyView(ChoiceTile(systemImage: "hare.fill", title: "Fastest", subtitle: "Arrive earliest", isSelected: true) {}),
+            AnyView(FuelGauge(reserveFraction: 0.15)),
+            AnyView(RhythmStrip(intervalHours: 2.5)),
+            AnyView(MapControlButton(systemImage: "plus", label: "Zoom in") {}),
+            AnyView(DecorativeRoute().frame(width: 170, height: 110)),
+            AnyView(SectionLabel(title: "Your car")),
             AnyView(MetricView(value: "2,631 mi", label: "Distance")),
             AnyView(WarningList(warnings: [PlanWarning(code: .estimatedPrices, message: "Some prices are estimates.")])),
             AnyView(ManeuverBannerView(

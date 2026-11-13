@@ -20,6 +20,18 @@ extension EnvironmentValues {
     }
 }
 
+/// A one-off request to move the map (from the zoom buttons). A new value is a new request.
+struct MapCommand: Equatable {
+    enum Action: Equatable {
+        case zoomIn
+        case zoomOut
+        case fitRoute
+    }
+
+    let action: Action
+    let id = UUID()
+}
+
 /// Route map that renders with the configured provider.
 struct RouteMap: View {
     var paths: [[GeoCoordinate]]
@@ -27,15 +39,16 @@ struct RouteMap: View {
     var camera: TripMapView.Camera = .overview
     var edgeInsets = UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
     var vehicle: TripMapView.Vehicle?
+    var command: MapCommand?
 
     @Environment(\.mapProvider) private var provider
 
     var body: some View {
         switch provider {
         case .google:
-            TripMapView(paths: paths, markers: markers, camera: camera, edgeInsets: edgeInsets, vehicle: vehicle)
+            TripMapView(paths: paths, markers: markers, camera: camera, edgeInsets: edgeInsets, vehicle: vehicle, command: command)
         case .apple:
-            AppleRouteMap(paths: paths, markers: markers, camera: camera, edgeInsets: edgeInsets, vehicle: vehicle)
+            AppleRouteMap(paths: paths, markers: markers, camera: camera, edgeInsets: edgeInsets, vehicle: vehicle, command: command)
         }
     }
 }
@@ -47,8 +60,10 @@ struct AppleRouteMap: View {
     var camera: TripMapView.Camera
     var edgeInsets: UIEdgeInsets
     var vehicle: TripMapView.Vehicle?
+    var command: MapCommand?
 
     @State private var position: MapCameraPosition = .automatic
+    @State private var visibleCamera: MapCamera?
 
     var body: some View {
         Map(position: $position) {
@@ -74,6 +89,10 @@ struct AppleRouteMap: View {
         }
         .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
         .safeAreaPadding(EdgeInsets(top: edgeInsets.top, leading: edgeInsets.left, bottom: edgeInsets.bottom, trailing: edgeInsets.right))
+        .onMapCameraChange(frequency: .onEnd) { context in visibleCamera = context.camera }
+        .onChange(of: command) { _, newValue in
+            if let newValue { perform(newValue.action) }
+        }
         .onAppear { apply(camera, animated: false) }
         .onChange(of: camera) { _, newValue in apply(newValue, animated: true) }
         .onChange(of: paths.first?.count) { _, _ in
@@ -86,6 +105,21 @@ struct AppleRouteMap: View {
     private func vehicleRotation(_ vehicle: TripMapView.Vehicle) -> Double {
         if case .follow = camera { return 0 }
         return vehicle.course ?? 0
+    }
+
+    private func perform(_ action: MapCommand.Action) {
+        guard action != .fitRoute, let current = visibleCamera else {
+            withAnimation(.easeInOut(duration: 0.5)) { position = .automatic }
+            return
+        }
+        let factor = action == .zoomIn ? 0.5 : 2
+        let zoomed = MapCamera(
+            centerCoordinate: current.centerCoordinate,
+            distance: min(40_000_000, max(300, current.distance * factor)),
+            heading: current.heading,
+            pitch: current.pitch
+        )
+        withAnimation(.easeInOut(duration: 0.35)) { position = .camera(zoomed) }
     }
 
     private func apply(_ camera: TripMapView.Camera, animated: Bool) {

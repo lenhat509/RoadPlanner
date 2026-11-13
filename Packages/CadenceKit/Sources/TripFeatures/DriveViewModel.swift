@@ -168,6 +168,12 @@ public final class DriveViewModel {
             }
     }
 
+    /// Stops along the whole trip, for the progress ribbon.
+    public var ribbonMarks: [RibbonMark] { TripRibbon.marks(for: trip.itinerary) }
+
+    /// Fraction of the trip already driven, `0...1`.
+    public var tripProgress: Double { TripRibbon.progress(of: trip, legProgress: guidance?.progress) }
+
     /// Hand-off link to the Google Maps app for the current leg.
     public var googleMapsURL: URL? {
         guard let target = trip.targetStop else { return nil }

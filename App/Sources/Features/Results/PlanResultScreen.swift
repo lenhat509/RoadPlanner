@@ -3,11 +3,14 @@ import TripFeatures
 import TripModels
 import TripPlanner
 
-/// Compare plans, review the day-by-day timeline and start driving.
+/// Compare plans, explore the route on the map, review the day-by-day timeline and start driving.
+/// The map sits above the scrolling content (not inside it) so pinch and pan gestures go to the map.
 struct PlanResultScreen: View {
     @State private var model: PlanResultViewModel
     @State private var selectedStop: ItineraryStop?
     @State private var isStarting = false
+    @State private var mapExpanded = false
+    @State private var mapCommand: MapCommand?
     @Environment(\.openURL) private var openURL
     private let formatters: TripFormatters
     let onStart: (ActiveTrip) -> Void
@@ -19,38 +22,18 @@ struct PlanResultScreen: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.l) {
-                if let itinerary = model.selected {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                        RouteMap(paths: MapContent.paths(for: itinerary), markers: MapContent.markers(for: itinerary.stops))
-                            .frame(height: 260)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-                            .accessibilityIdentifier(AccessibilityID.Results.map)
-                        StopLegend(entries: StopLegend.entries(for: itinerary.stops))
-                            .padding(.horizontal, Theme.Spacing.xxs)
-                    }
-                }
-                if model.options.count > 1 { optionPicker }
-                if let itinerary = model.selected { summary(itinerary) }
-                if !model.warnings.isEmpty {
-                    WarningList(warnings: model.warnings)
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier(AccessibilityID.Results.warnings)
-                }
-                VStack(spacing: Theme.Spacing.m) {
-                    ForEach(model.days) { day in
-                        DayTimelineView(day: day) { stopID in
-                            selectedStop = model.selected?.stops.first { $0.id == stopID }
-                        }
-                    }
-                }
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier(AccessibilityID.Results.timeline)
+        VStack(spacing: 0) {
+            if let itinerary = model.selected {
+                mapArea(itinerary)
+                StopLegend(entries: StopLegend.entries(for: itinerary.stops))
+                    .padding(.vertical, Theme.Spacing.s)
             }
-            .padding(Theme.Spacing.m)
+            if !mapExpanded {
+                ScrollView { details }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
-        .background(Theme.background)
+        .background(Theme.canvas.ignoresSafeArea())
         .navigationTitle(model.routeTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -85,12 +68,14 @@ struct PlanResultScreen: View {
                     if let trip = await model.startTrip() { onStart(trip) }
                 }
             } label: {
-                Label("Start trip", systemImage: "car.fill")
+                Label("Start driving", systemImage: "car.fill")
             }
             .buttonStyle(.primary)
             .disabled(isStarting || model.selected == nil)
-            .padding(Theme.Spacing.m)
-            .background(.bar)
+            .padding(.horizontal, Theme.Spacing.m)
+            .padding(.top, Theme.Spacing.s)
+            .padding(.bottom, Theme.Spacing.xs)
+            .background(Theme.canvas.opacity(0.94).ignoresSafeArea())
             .accessibilityIdentifier(AccessibilityID.Results.start)
         }
         .sheet(item: $selectedStop) { stop in
@@ -104,21 +89,76 @@ struct PlanResultScreen: View {
         }
     }
 
-    private var optionPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.s) {
-                ForEach(model.options) { option in
-                    PlanOptionCard(option: option, isSelected: option.goal == model.selectedGoal) {
-                        withAnimation(.snappy) { model.selectedGoal = option.goal }
-                    }
-                }
+    // MARK: Map
+
+    private func mapArea(_ itinerary: Itinerary) -> some View {
+        ZStack(alignment: .topTrailing) {
+            RouteMap(paths: MapContent.paths(for: itinerary), markers: MapContent.markers(for: itinerary.stops), command: mapCommand)
+            VStack(spacing: Theme.Spacing.xs) {
+                MapControlButton(
+                    systemImage: mapExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                    label: mapExpanded ? "Show plan details" : "Expand map",
+                    action: toggleExpanded
+                )
+                Spacer().frame(height: Theme.Spacing.xxs)
+                MapControlButton(systemImage: "plus", label: "Zoom in") { mapCommand = MapCommand(action: .zoomIn) }
+                MapControlButton(systemImage: "minus", label: "Zoom out") { mapCommand = MapCommand(action: .zoomOut) }
+                MapControlButton(systemImage: "scope", label: "Show the whole route") { mapCommand = MapCommand(action: .fitRoute) }
             }
-            .padding(.vertical, 2)
+            .padding(Theme.Spacing.s)
+        }
+        .frame(maxHeight: mapExpanded ? .infinity : 300)
+        .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 28, bottomTrailingRadius: 28, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(AccessibilityID.Results.map)
+    }
+
+    private func toggleExpanded() {
+        withAnimation(.snappy) { mapExpanded.toggle() }
+        // Re-frame the route once the map has its new size.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            mapCommand = MapCommand(action: .fitRoute)
         }
     }
 
+    // MARK: Details
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+            if model.options.count > 1 {
+                HStack(spacing: Theme.Spacing.xs) {
+                    ForEach(model.options) { option in
+                        PlanOptionCard(option: option, isSelected: option.goal == model.selectedGoal) {
+                            withAnimation(.snappy) { model.selectedGoal = option.goal }
+                        }
+                    }
+                }
+            }
+            if let itinerary = model.selected { summary(itinerary) }
+            if !model.warnings.isEmpty {
+                WarningList(warnings: model.warnings)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier(AccessibilityID.Results.warnings)
+            }
+            VStack(spacing: Theme.Spacing.s) {
+                SectionLabel(title: "Day by day")
+                ForEach(model.days) { day in
+                    DayTimelineView(day: day) { stopID in
+                        selectedStop = model.selected?.stops.first { $0.id == stopID }
+                    }
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier(AccessibilityID.Results.timeline)
+        }
+        .padding(.horizontal, Theme.Spacing.m)
+        .padding(.top, Theme.Spacing.xxs)
+        .padding(.bottom, Theme.Spacing.l)
+    }
+
     private func summary(_ itinerary: Itinerary) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.m) {
+            TripRibbonView(marks: TripRibbon.marks(for: itinerary))
             HStack(alignment: .top) {
                 MetricView(value: formatters.duration(itinerary.totals.elapsedDuration), label: "Total time")
                 Spacer()
@@ -134,7 +174,8 @@ struct PlanResultScreen: View {
     }
 }
 
-/// A selectable plan summary card.
+/// A selectable plan: goal, total time, cost and nights. The selected plan is filled with the
+/// brand gradient.
 struct PlanOptionCard: View {
     let option: PlanOption
     let isSelected: Bool
@@ -142,36 +183,42 @@ struct PlanOptionCard: View {
 
     var body: some View {
         Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: PlanTripScreen.symbol(for: option.goal))
                     Text(option.title)
-                        .font(.headline)
+                        .textCase(.uppercase)
                     if option.isRecommended {
                         Image(systemName: "star.fill")
-                            .font(.caption)
-                            .foregroundStyle(Theme.warning)
                             .accessibilityLabel("Your preference")
                     }
                 }
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(isSelected ? Color.white.opacity(0.85) : Theme.accent)
                 Text(option.durationText)
-                    .font(.title3.weight(.semibold))
+                    .font(.title3.weight(.bold))
                     .monospacedDigit()
-                Text("\(option.costText) · \(option.nightsText)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                if !option.badges.isEmpty {
-                    Text(option.badges.joined(separator: " · "))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
-                }
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(option.costText)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                Text(option.nightsText)
+                    .font(.caption)
+                    .opacity(0.75)
             }
-            .frame(width: 168, alignment: .leading)
-            .padding(Theme.Spacing.m)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .foregroundStyle(isSelected ? Color.white : Color.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Theme.Spacing.s)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
+                    .fill(isSelected ? AnyShapeStyle(Theme.brandGradient) : AnyShapeStyle(Theme.card))
+            }
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .strokeBorder(isSelected ? Theme.accent : Color.clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
+                    .strokeBorder(isSelected ? Color.clear : Theme.cardStroke, lineWidth: 1)
             )
+            .shadow(color: isSelected ? Theme.accent.opacity(0.3) : .black.opacity(0.04), radius: isSelected ? 10 : 6, y: 4)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -184,16 +231,24 @@ struct DayTimelineView: View {
     let day: DaySection
     let onSelect: (String) -> Void
 
+    /// "Day 1" from "Day 1 · Mon, May 3".
+    private var dayName: String { day.title.components(separatedBy: " · ").first ?? day.title }
+    private var dateText: String { day.title.components(separatedBy: " · ").dropFirst().joined(separator: " · ") }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(day.title)
-                    .font(.headline)
-                Text(day.summary)
-                    .font(.caption)
+            HStack(alignment: .firstTextBaseline) {
+                Text(dayName)
+                    .font(.title3.weight(.bold))
+                Text(dateText)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+                Spacer()
             }
-            .padding(.bottom, Theme.Spacing.xs)
+            Text(day.summary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, Theme.Spacing.xs)
             ForEach(Array(day.stops.enumerated()), id: \.element.id) { index, stop in
                 Button { onSelect(stop.id) } label: {
                     StopRowView(stop: stop, isFirst: index == 0, isLast: index == day.stops.count - 1)

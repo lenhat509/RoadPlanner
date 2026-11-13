@@ -1,14 +1,18 @@
 import XCTest
 
-/// Captures App Store screenshots as test attachments. Run with `fastlane screenshots`,
-/// which exports the attachments from the .xcresult bundle.
+/// Captures screenshots as test attachments, for the App Store (`fastlane screenshots`) and for
+/// design review (`.github/workflows/screenshots.yml`). Runs in the offline UI-test sandbox.
 final class ScreenshotTests: XCTestCase {
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+    }
+
+    private func launch(dark: Bool) {
         app.launchArguments = [LaunchArgument.uiTestSandbox, LaunchArgument.resetState, LaunchArgument.skipSafetyNotice]
+            + (dark ? [LaunchArgument.darkMode] : [])
         app.launch()
     }
 
@@ -19,23 +23,32 @@ final class ScreenshotTests: XCTestCase {
         add(attachment)
     }
 
-    func testCaptureAppStoreScreenshots() {
+    private func choose(_ identifier: String, typing text: String, pick suggestion: String) {
+        let field = app.textFields[identifier]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText(text)
+        let row = app.buttons[AccessibilityID.Plan.suggestion(suggestion)]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+    }
+
+    /// Home → plan form → plan San Francisco → New York → results, and returns when results show.
+    private func planCrossCountry(captureForm: String?) {
         XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
         app.buttons[AccessibilityID.Home.planTrip].tap()
-
-        let origin = app.textFields[AccessibilityID.Plan.origin]
-        XCTAssertTrue(origin.waitForExistence(timeout: 5))
-        origin.tap()
-        origin.typeText("San")
-        app.buttons[AccessibilityID.Plan.suggestion("San Francisco")].tap()
-        let destination = app.textFields[AccessibilityID.Plan.destination]
-        destination.tap()
-        destination.typeText("New")
-        app.buttons[AccessibilityID.Plan.suggestion("New York")].tap()
-        capture("01-Plan")
-
+        choose(AccessibilityID.Plan.origin, typing: "San", pick: "San Francisco")
+        choose(AccessibilityID.Plan.destination, typing: "New", pick: "New York")
+        if let captureForm { capture(captureForm) }
         app.buttons[AccessibilityID.Plan.submit].tap()
-        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 60))
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 90))
+    }
+
+    func testCaptureAppStoreScreenshots() {
+        launch(dark: false)
+        XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
+        capture("00-Home")
+        planCrossCountry(captureForm: "01-Plan")
         capture("02-Options")
         app.swipeUp()
         capture("03-Timeline")
@@ -46,5 +59,16 @@ final class ScreenshotTests: XCTestCase {
         if app.buttons[AccessibilityID.Drive.continueToNext].waitForExistence(timeout: 90) {
             capture("05-Arrival")
         }
+    }
+
+    func testCaptureDarkModeScreenshots() {
+        launch(dark: true)
+        XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
+        capture("10-Home-Dark")
+        planCrossCountry(captureForm: "11-Plan-Dark")
+        capture("12-Options-Dark")
+        app.buttons[AccessibilityID.Results.start].tap()
+        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.banner].firstMatch.waitForExistence(timeout: 15))
+        capture("13-Drive-Dark")
     }
 }

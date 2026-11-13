@@ -1,0 +1,55 @@
+name: Screenshots
+
+# Captures the app's main screens (light and dark) on an iPhone simulator using the offline
+# UI-test sandbox, for design review and App Store screenshots. Download the "screenshots"
+# artifact from the run, or read the previews printed in the log.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "App/**"
+      - "AppUITests/**"
+      - "Packages/CadenceKit/Sources/TripFeatures/**"
+      - "scripts/print_screenshots.py"
+      - ".github/workflows/screenshots.yml"
+
+concurrency:
+  group: screenshots
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    name: Capture screenshots
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Generate Xcode project
+        run: brew install xcodegen && xcodegen generate
+      - name: Run screenshot tests
+        run: |
+          device=$(xcrun simctl list devices available | grep -Eo "iPhone [0-9]+ Pro \(" | head -1 | sed 's/ ($//')
+          echo "Simulator: $device"
+          set -o pipefail
+          xcodebuild test -project Cadence.xcodeproj -scheme Cadence \
+            -destination "platform=iOS Simulator,name=$device" \
+            -only-testing:CadenceUITests/ScreenshotTests \
+            -resultBundlePath Screenshots.xcresult CODE_SIGNING_ALLOWED=NO \
+            | grep -E "Test Case|error:|TEST (SUCCEEDED|FAILED)"
+      - name: Export screenshots
+        if: always()
+        run: |
+          mkdir -p raw
+          xcrun xcresulttool export attachments --path Screenshots.xcresult --output-path raw
+          python3 scripts/print_screenshots.py raw screenshots --print
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots

@@ -8,4 +8,6 @@ enum LaunchArgument {
     static let resetState = "-ResetState"
     /// Accept the driving safety notice automatically (screenshot runs).
     static let skipSafetyNotice = "-SkipSafetyNotice"
+    /// Force dark appearance (screenshot runs).
+    static let darkMode = "-DarkMode"
 }

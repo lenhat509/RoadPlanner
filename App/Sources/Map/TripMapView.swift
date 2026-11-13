@@ -33,6 +33,8 @@ struct TripMapView: UIViewRepresentable {
     var edgeInsets = UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
     /// Drawn from the location the app navigates with (real or simulated), not the SDK's own GPS dot.
     var vehicle: Vehicle?
+    /// Zoom / fit requests from the map buttons.
+    var command: MapCommand?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -54,6 +56,7 @@ struct TripMapView: UIViewRepresentable {
         context.coordinator.render(paths: paths, markers: markers, on: mapView)
         context.coordinator.updateVehicle(vehicle, on: mapView)
         context.coordinator.updateCamera(camera, paths: paths, markers: markers, on: mapView)
+        context.coordinator.perform(command, paths: paths, markers: markers, on: mapView)
     }
 
     @MainActor
@@ -64,6 +67,21 @@ struct TripMapView: UIViewRepresentable {
         private var polylines: [GMSPolyline] = []
         private var stopMarkers: [GMSMarker] = []
         private var vehicleMarker: GMSMarker?
+        private var lastCommandID: UUID?
+
+        func perform(_ command: MapCommand?, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView) {
+            guard let command, command.id != lastCommandID else { return }
+            lastCommandID = command.id
+            switch command.action {
+            case .zoomIn:
+                mapView.animate(with: GMSCameraUpdate.zoomIn())
+            case .zoomOut:
+                mapView.animate(with: GMSCameraUpdate.zoomOut())
+            case .fitRoute:
+                framedSignature = nil
+                updateCamera(.overview, paths: paths, markers: markers, on: mapView)
+            }
+        }
 
         func updateVehicle(_ vehicle: TripMapView.Vehicle?, on mapView: GMSMapView) {
             guard let vehicle else {

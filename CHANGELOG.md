@@ -6,7 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Refreshed design: warm canvas, soft cards, teal brand gradient, rounded type; a "route rail"
+  joining start and destination, trip ribbons (every stop as a dot along the trip) on plans,
+  saved trips and drive mode, goal tiles, a fuel gauge for the minimum fuel level and a break
+  rhythm strip.
+- The route preview map no longer scrolls with the page (pinch/pan work), and has zoom in/out,
+  "whole route" and expand buttons.
+
 ### Fixed
+- Choosing an autocomplete suggestion needed two taps: a search still in flight re-opened the list.
 - "Fastest" could arrive later than "Cheapest" (e.g. Current Location on a phone set to a different
   time zone): day windows now use the location's time zone, overnight check-ins are never planned
   before 2 PM, and each option is cross-checked against the others after real directions.

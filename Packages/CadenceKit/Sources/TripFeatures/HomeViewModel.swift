@@ -17,6 +17,18 @@ public final class HomeViewModel {
         self.dependencies = dependencies
     }
 
+    /// "Good morning" / "Good afternoon" / "Good evening" in the phone's time zone.
+    public var greeting: String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = dependencies.timeZone
+        let hour = calendar.component(.hour, from: dependencies.now())
+        switch hour {
+        case 5..<12: return "Good morning"
+        case 12..<18: return "Good afternoon"
+        default: return "Good evening"
+        }
+    }
+
     public func load() async {
         isLoading = true
         defer { isLoading = false }

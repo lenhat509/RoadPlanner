@@ -58,6 +58,29 @@ struct PlanTripViewModelTests {
         #expect(model.destination.suggestions.isEmpty)
     }
 
+    /// Regression: picking a suggestion while a search was still in flight made the list
+    /// reappear, so every place needed two taps.
+    @Test("Choosing a suggestion closes the list even if a search is still in flight")
+    func selectionCancelsPendingSearch() async {
+        let model = PlanTripViewModel(dependencies: FeatureHarness(autocompleteDebounce: 0.05).dependencies)
+        model.queryChanged("Den", for: .destination)
+        await model.select(PlaceSuggestion(placeID: "den", primaryText: "Denver", secondaryText: "CO, USA"), for: .destination)
+        await model.waitForSuggestions()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        #expect(model.destination.suggestions.isEmpty)
+        #expect(model.destination.place?.name == "Denver")
+    }
+
+    @Test("Re-sending the selected text (e.g. on focus change) does not search again")
+    func noOpTextWrite() async {
+        let model = PlanTripViewModel(dependencies: FeatureHarness().dependencies)
+        await model.select(PlaceSuggestion(placeID: "den", primaryText: "Denver", secondaryText: "CO, USA"), for: .destination)
+        model.queryChanged("Denver", for: .destination)
+        await model.waitForSuggestions()
+        #expect(model.destination.suggestions.isEmpty)
+        #expect(model.destination.place?.name == "Denver")
+    }
+
     @Test("Validates MPG, deadline and rest interval")
     func validation() async throws {
         let model = PlanTripViewModel(dependencies: FeatureHarness().dependencies)

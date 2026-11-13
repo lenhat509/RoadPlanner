@@ -138,7 +138,13 @@ struct DriveScreen: View {
     private var bottomPanel: some View {
         switch model.mode {
         case .driving:
-            NextStopPanel(info: model.nextStop, canContinue: model.canContinueToNextStop, onContinue: continueToNext) {
+            NextStopPanel(
+                info: model.nextStop,
+                canContinue: model.canContinueToNextStop,
+                ribbon: model.ribbonMarks,
+                progress: model.tripProgress,
+                onContinue: continueToNext
+            ) {
                 menuContent
             }
         case .atStop:
@@ -231,7 +237,7 @@ struct ManeuverBannerView: View {
         }
         .foregroundStyle(.white)
         .padding(Theme.Spacing.m)
-        .background(Theme.bannerBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(AccessibilityID.Drive.banner)
@@ -242,11 +248,16 @@ struct ManeuverBannerView: View {
 struct NextStopPanel<MenuContent: View>: View {
     let info: DriveViewModel.NextStopInfo?
     let canContinue: Bool
+    /// The whole trip at a glance, with the driven part filled.
+    let ribbon: [RibbonMark]
+    let progress: Double
     let onContinue: () -> Void
     @ViewBuilder let menu: () -> MenuContent
 
     var body: some View {
         VStack(spacing: Theme.Spacing.s) {
+            TripRibbonView(marks: ribbon, progress: progress, height: 12)
+                .padding(.horizontal, Theme.Spacing.xxs)
             HStack(spacing: Theme.Spacing.s) {
                 if let info {
                     StopDot(kind: info.kind, isPullOff: info.isPullOff, size: 22)

@@ -2,6 +2,7 @@ import SwiftUI
 import TripFeatures
 import TripModels
 
+/// Start screen: a calm hero with one action, the trip in progress, and saved trips.
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var model: HomeViewModel
@@ -32,29 +33,30 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.l) {
-                header
+                hero
                 if isDemo { demoBanner }
                 if let trip = model.activeTrip { resumeCard(trip) }
-                Button(action: onPlanTrip) {
-                    Label("Plan a trip", systemImage: "map.fill")
-                }
-                .buttonStyle(.primary)
-                .accessibilityIdentifier(AccessibilityID.Home.planTrip)
-
                 if !model.savedItineraries.isEmpty {
                     savedTrips
                 } else if model.activeTrip == nil {
-                    emptyState
+                    howItWorks
                 }
             }
-            .padding(Theme.Spacing.m)
+            .padding(.horizontal, Theme.Spacing.m)
+            .padding(.bottom, Theme.Spacing.xl)
         }
-        .background(Theme.background)
-        .navigationTitle("Cadence")
+        .background(Theme.canvas.ignoresSafeArea())
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Text("Cadence")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(Theme.accent)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onOpenSettings) {
-                    Image(systemName: "gearshape")
+                    Image(systemName: "slider.horizontal.3")
                 }
                 .accessibilityLabel("Settings")
                 .accessibilityIdentifier(AccessibilityID.Home.settings)
@@ -63,60 +65,103 @@ struct HomeView: View {
         .task(id: environment.drivingTrip?.id) { await model.load() }
     }
 
-    private var header: some View {
-        Text("Plan long drives with breaks, fuel and hotels built in.")
-            .font(.title3)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+    // MARK: Sections
+
+    private var hero: some View {
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Theme.heroGradient)
+            DecorativeRoute()
+                .frame(width: 170, height: 110)
+                .padding(.top, 14)
+                .padding(.trailing, 6)
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Spacer(minLength: 64)
+                Text(model.greeting)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.75))
+                Text("Where to next?")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundStyle(.white)
+                Button(action: onPlanTrip) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                        Text("Plan a road trip")
+                        Spacer()
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Theme.accent)
+                    }
+                    .font(.headline)
+                    .foregroundStyle(Theme.brandDeep)
+                    .padding(.leading, 18)
+                    .padding(.trailing, 10)
+                    .frame(height: 54)
+                    .background(.white, in: Capsule(style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, Theme.Spacing.xs)
+                .accessibilityLabel("Plan a road trip")
+                .accessibilityIdentifier(AccessibilityID.Home.planTrip)
+            }
+            .padding(Theme.Spacing.l)
+        }
+        .frame(minHeight: 236)
+        .padding(.top, Theme.Spacing.xs)
     }
 
     private var demoBanner: some View {
         Label {
-            Text("Demo mode: add your Google Maps API key in Config/Secrets.xcconfig to plan real trips.")
+            Text("Demo mode: sample cities and a simulated drive. Add a Google Maps key to plan real trips.")
                 .font(.footnote)
         } icon: {
             Image(systemName: "wand.and.stars")
+                .foregroundStyle(Theme.accent)
         }
-        .padding(Theme.Spacing.s)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.warning.opacity(0.15), in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+        .card(padding: Theme.Spacing.s)
         .accessibilityIdentifier(AccessibilityID.Home.demoBanner)
     }
 
     private func resumeCard(_ trip: ActiveTrip) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-            Label("Trip in progress", systemImage: "car.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.accent)
-            Text(model.resumeSummary(for: trip))
-                .font(.headline)
-                .fixedSize(horizontal: false, vertical: true)
-            ProgressView(value: trip.completionFraction)
-                .tint(Theme.accent)
             HStack {
-                Button("Resume") { onResume(trip) }
-                    .buttonStyle(.primary)
-                    .accessibilityIdentifier(AccessibilityID.Home.resume)
+                Label("On the road", systemImage: "car.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.accent)
+                    .textCase(.uppercase)
+                Spacer()
                 Menu {
                     Button("End trip", role: .destructive) {
                         Task { await model.discardActiveTrip() }
                     }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .frame(width: 54, height: 54)
-                        .background(Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                        .frame(width: 32, height: 32)
+                        .background(Theme.mutedFill, in: Circle())
                 }
                 .accessibilityLabel("More options")
                 .accessibilityIdentifier(AccessibilityID.Home.discard)
             }
+            Text(model.resumeSummary(for: trip))
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
+            TripRibbonView(
+                marks: TripRibbon.marks(for: trip.itinerary),
+                progress: TripRibbon.progress(of: trip, legProgress: nil)
+            )
+            Button { onResume(trip) } label: {
+                Label("Resume", systemImage: "play.fill")
+            }
+            .buttonStyle(.primary)
+            .accessibilityIdentifier(AccessibilityID.Home.resume)
         }
         .card()
     }
 
     private var savedTrips: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-            Text("Saved trips")
-                .font(.headline)
+            SectionLabel(title: "Saved trips")
             ForEach(model.savedItineraries) { itinerary in
                 Button { onOpenItinerary(itinerary) } label: {
                     savedRow(itinerary)
@@ -133,45 +178,52 @@ struct HomeView: View {
     }
 
     private func savedRow(_ itinerary: Itinerary) -> some View {
-        HStack(spacing: Theme.Spacing.s) {
-            Image(systemName: "car.fill")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 36, height: 36)
-                .background(Theme.accent, in: Circle())
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            HStack(alignment: .firstTextBaseline) {
                 Text("\(itinerary.request.origin.name) → \(itinerary.request.destination.name)")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.headline)
                     .lineLimit(1)
-                Text([
-                    formatters.dayTitle(itinerary.request.departure, utcOffsetSeconds: itinerary.request.origin.utcOffsetSeconds),
-                    formatters.duration(itinerary.totals.elapsedDuration),
-                    formatters.currency(itinerary.totals.cost.total),
-                ].joined(separator: " · "))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .foregroundStyle(.tertiary)
+            TripRibbonView(marks: TripRibbon.marks(for: itinerary), height: 14)
+            Text([
+                formatters.dayTitle(itinerary.request.departure, utcOffsetSeconds: itinerary.request.origin.utcOffsetSeconds),
+                formatters.duration(itinerary.totals.elapsedDuration),
+                formatters.currency(itinerary.totals.cost.total),
+            ].joined(separator: " · "))
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
         .card()
     }
 
-    private var emptyState: some View {
-        VStack(spacing: Theme.Spacing.s) {
-            Image(systemName: "road.lanes")
-                .font(.system(size: 44))
-                .foregroundStyle(Theme.accent)
-            Text("Your next road trip starts here")
-                .font(.headline)
-            Text("Tell Cadence where you're going and how far your car goes on a gallon. It plans breaks every 2–3 hours, fuel stops and places to sleep.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+    private var howItWorks: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            SectionLabel(title: "How Cadence plans")
+            VStack(alignment: .leading, spacing: 14) {
+                feature(.rest, "A break every 2–3 hours", "Rest areas when there are some, a safe exit when there aren't.")
+                feature(.fuel, "Gas before you run low", "Live prices, never below your minimum fuel level.")
+                feature(.lodging, "A bed at the end of each day", "Hotels near where your driving day ends.")
+            }
+            .card()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, Theme.Spacing.xl)
+    }
+
+    private func feature(_ kind: StopKind, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.s) {
+            StopDot(kind: kind, size: 14)
+                .padding(.top, 3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }

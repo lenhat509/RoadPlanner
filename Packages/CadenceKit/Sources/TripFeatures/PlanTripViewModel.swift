@@ -93,13 +93,15 @@ public final class PlanTripViewModel {
 
     /// Called as the user types; fetches suggestions after a short pause.
     public func queryChanged(_ text: String, for field: Field) {
+        // Text fields re-send their current text on focus changes; that must not search again.
+        guard text != input(for: field).text else { return }
         update(field) {
             $0.text = text
             if $0.place?.name != text { $0.place = nil }
         }
         searchTasks[field]?.cancel()
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 2 else {
+        guard trimmed.count >= 2, input(for: field).place == nil else {
             update(field) { $0.suggestions = [] }
             return
         }
@@ -111,8 +113,11 @@ public final class PlanTripViewModel {
             if debounce > 0 { try? await Task.sleep(nanoseconds: UInt64(debounce * 1e9)) }
             guard !Task.isCancelled else { return }
             let suggestions = (try? await autocomplete.suggestions(for: trimmed, near: bias, sessionToken: token)) ?? []
-            guard !Task.isCancelled else { return }
-            self?.update(field) { $0.suggestions = suggestions }
+            guard !Task.isCancelled, let self else { return }
+            // Ignore stale results: the text changed or a place was chosen meanwhile.
+            let current = self.input(for: field)
+            guard current.place == nil, current.text.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else { return }
+            self.update(field) { $0.suggestions = suggestions }
         }
     }
 
@@ -122,6 +127,9 @@ public final class PlanTripViewModel {
     }
 
     public func select(_ suggestion: PlaceSuggestion, for field: Field) async {
+        // A search still in flight would otherwise bring the list back after this tap.
+        searchTasks[field]?.cancel()
+        searchTasks[field] = nil
         update(field) {
             $0.text = suggestion.primaryText
             $0.suggestions = []

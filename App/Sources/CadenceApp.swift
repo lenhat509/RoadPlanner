@@ -18,7 +18,10 @@ struct CadenceApp: App {
                 .environment(environment)
                 // Google Maps needs an API key; demo mode and UI tests use Apple Maps instead.
                 .environment(\.mapProvider, environment.mode == .production ? .google : .apple)
+                .fontDesign(.rounded)
                 .tint(Theme.accent)
+                // Screenshot runs can force dark mode to review the dark theme.
+                .preferredColorScheme(ProcessInfo.processInfo.arguments.contains(LaunchArgument.darkMode) ? .dark : nil)
         }
     }
 }
