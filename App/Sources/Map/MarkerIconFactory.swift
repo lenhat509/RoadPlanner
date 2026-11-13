@@ -7,14 +7,25 @@ import UIKit
 enum MarkerIconFactory {
     private static var cache: [String: UIImage] = [:]
 
+    /// A plain coloured dot with a white ring (no symbol); colours are explained by the legend.
     static func icon(for kind: StopKind, isPullOff: Bool, isActive: Bool) -> UIImage {
-        let symbol = isPullOff ? "parkingsign.circle.fill" : StopPresentation.symbolName(for: kind)
-        let diameter: CGFloat = isActive ? 40 : 30
-        let key = "\(symbol)-\(kind.rawValue)-\(isPullOff)-\(diameter)"
+        let diameter: CGFloat = isActive ? 26 : 20
+        let key = "dot-\(kind.rawValue)-\(isPullOff)-\(diameter)"
         if let cached = cache[key] { return cached }
-        let image = render(symbolName: symbol, color: UIColor(Theme.color(for: kind, isPullOff: isPullOff)), diameter: diameter)
+        let image = renderDot(color: UIColor(Theme.color(for: kind, isPullOff: isPullOff)), diameter: diameter)
         cache[key] = image
         return image
+    }
+
+    static func renderDot(color: UIColor, diameter: CGFloat) -> UIImage {
+        let size = CGSize(width: diameter, height: diameter)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            UIColor.white.setFill()
+            UIBezierPath(ovalIn: rect).fill()
+            color.setFill()
+            UIBezierPath(ovalIn: rect.insetBy(dx: max(2.5, diameter * 0.14), dy: max(2.5, diameter * 0.14))).fill()
+        }
     }
 
     /// Heading arrow for the car's position in drive mode.

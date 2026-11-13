@@ -62,6 +62,13 @@ struct TripRequestTests {
         #expect(makeRequest(maxContinuous: interval).validationErrors().contains(.invalidRestInterval))
     }
 
+    @Test("Rejects a minimum fuel level outside 5 % … 50 %", arguments: [0.0, 0.6])
+    func invalidFuelReserve(fraction: Double) {
+        var request = makeRequest()
+        request.policy.fuelReserveFraction = fraction
+        #expect(request.validationErrors().contains(.invalidFuelReserve))
+    }
+
     @Test("Vehicle range accounts for tank size and MPG")
     func vehicleRange() {
         let vehicle = Vehicle(milesPerGallon: 30, tankCapacityGallons: 15)

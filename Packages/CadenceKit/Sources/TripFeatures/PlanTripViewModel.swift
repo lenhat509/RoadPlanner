@@ -45,6 +45,8 @@ public final class PlanTripViewModel {
     public var goal: OptimizationGoal
     // Advanced
     public var tankGallonsText: String
+    /// Refuel before the tank drops below this level (percent of the tank).
+    public var minimumFuelPercent: Double
     public var startingFuelPercent: Double
     public var fuelType: FuelType
     public var maxDailyDrivingHours: Double
@@ -67,6 +69,7 @@ public final class PlanTripViewModel {
         mpgText = PlanTripViewModel.format(preferences.vehicle.milesPerGallon)
         tankGallonsText = PlanTripViewModel.format(preferences.vehicle.tankCapacityGallons)
         startingFuelPercent = 100
+        minimumFuelPercent = (preferences.policy.fuelReserveFraction * 100).rounded()
         fuelType = preferences.vehicle.fuelType
         goal = preferences.goal
         travelers = preferences.travelers
@@ -157,7 +160,9 @@ public final class PlanTripViewModel {
             id: "current-location",
             name: "Current Location",
             coordinate: coordinate,
-            utcOffsetMinutes: TimeZone.current.secondsFromGMT(for: dependencies.now()) / 60
+            utcOffsetMinutes: PlanTripViewModel.utcOffsetSeconds(
+                at: coordinate, phoneTimeZone: dependencies.timeZone, date: dependencies.now()
+            ) / 60
         )
         update(field) {
             $0.place = place
@@ -182,6 +187,7 @@ public final class PlanTripViewModel {
         var policy = dependencies.preferences.load().policy
         policy.maxContinuousDriving = customRestEnabled ? restIntervalHours * 3_600 : DrivingPolicy.standard.maxContinuousDriving
         policy.maxDailyDriving = max(policy.maxContinuousDriving, maxDailyDrivingHours * 3_600)
+        policy.fuelReserveFraction = minimumFuelPercent / 100
         guard let origin = origin.place, let destination = destination.place else { return .invalid(errors) }
         let request = TripRequest(
             origin: origin,
@@ -225,6 +231,16 @@ public final class PlanTripViewModel {
     public var progressFraction: Double {
         guard case let .planning(phase) = status else { return 0 }
         return phase?.fraction ?? 0.02
+    }
+
+    /// "A full tank goes about 392 mi. Fuel stops keep at least 15% (2.1 gal) in the tank."
+    public var rangeSummary: String? {
+        guard let mpg = PlanTripViewModel.parse(mpgText), mpg > 0,
+              let tank = PlanTripViewModel.parse(tankGallonsText), tank > 0 else { return nil }
+        let formatters = dependencies.formatters
+        let range = formatters.distance(Units.meters(fromMiles: mpg * tank))
+        let minimum = formatters.gallons(tank * minimumFuelPercent / 100)
+        return "A full tank goes about \(range). Fuel stops keep at least \(Int(minimumFuelPercent))% (\(minimum)) in the tank."
     }
 
     public var errorMessage: String? {
@@ -292,10 +308,20 @@ public final class PlanTripViewModel {
         preferences.travelers = request.travelers
         preferences.policy.maxContinuousDriving = request.policy.maxContinuousDriving
         preferences.policy.maxDailyDriving = request.policy.maxDailyDriving
+        preferences.policy.fuelReserveFraction = request.policy.fuelReserveFraction
         dependencies.preferences.save(preferences)
     }
 
     // MARK: Helpers
+
+    /// The phone's UTC offset, unless it is clearly not the location's (more than 2 h from the
+    /// longitude-based estimate — e.g. a simulator or a phone still on another time zone); then the
+    /// estimate. Day windows ("stop by 9 PM") must use the location's local time.
+    static func utcOffsetSeconds(at coordinate: GeoCoordinate, phoneTimeZone: TimeZone, date: Date) -> Int {
+        let phone = phoneTimeZone.secondsFromGMT(for: date)
+        let estimate = Place.estimatedUTCOffsetSeconds(for: coordinate)
+        return abs(phone - estimate) <= 2 * 3_600 ? phone : estimate
+    }
 
     static func parse(_ text: String) -> Double? {
         Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))

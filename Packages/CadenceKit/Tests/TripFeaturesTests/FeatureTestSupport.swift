@@ -17,7 +17,7 @@ struct FeatureHarness {
     let speech = RecordingSpeechAnnouncer()
     let dependencies: AppDependencies
 
-    init(backend: SimulatedGoogleBackend = SimulatedGoogleBackend()) {
+    init(backend: SimulatedGoogleBackend = SimulatedGoogleBackend(), timeZone: TimeZone = TimeZone(identifier: "America/Los_Angeles")!) {
         dependencies = SandboxEnvironment.makeDependencies(
             backend: backend,
             repository: repository,
@@ -25,6 +25,7 @@ struct FeatureHarness {
             location: location,
             speech: speech,
             formatters: TripFormatters(locale: Locale(identifier: "en_US_POSIX")),
+            timeZone: timeZone,
             now: { testNow }
         )
     }

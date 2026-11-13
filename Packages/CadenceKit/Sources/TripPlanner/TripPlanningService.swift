@@ -129,8 +129,51 @@ public final class TripPlanningService: TripPlanning, Sendable {
             cache[signature] = itinerary
             finalized[goal] = itinerary
         }
-        return PlanResult(itineraries: finalized, recommendedGoal: request.goal)
+        return PlanResult(
+            itineraries: Self.consistentOptions(finalized, valueOfTimePerHour: request.policy.valueOfTimePerHour),
+            recommendedGoal: request.goal
+        )
     }
+
+    /// Re-timing with real directions can reorder plans slightly, so each option is replaced by
+    /// whichever finalized plan is best for *its* goal. This guarantees that "Fastest" arrives no
+    /// later and "Cheapest" costs no more than any other option shown. Feasibility still comes
+    /// first: a plan that meets the deadline with fewer relaxed preferences always ranks higher.
+    static func consistentOptions(
+        _ itineraries: [OptimizationGoal: Itinerary],
+        valueOfTimePerHour: Double
+    ) -> [OptimizationGoal: Itinerary] {
+        let all = itineraries.values.sorted { $0.goal.rawValue < $1.goal.rawValue }
+        var result: [OptimizationGoal: Itinerary] = [:]
+        for (goal, own) in itineraries {
+            func rank(_ itinerary: Itinerary) -> (Int, Int, Double, Int) {
+                let hours = itinerary.totals.elapsedDuration / Units.secondsPerHour
+                let cost = itinerary.totals.cost.total
+                let objective: Double = switch goal {
+                case .fastest: hours + cost * 1e-6
+                case .cheapest: cost + hours * 1e-6
+                case .balanced: cost + hours * valueOfTimePerHour
+                }
+                let missedDeadline = itinerary.warnings.contains { $0.code == .deadlineMissed } ? 1 : 0
+                let relaxations = itinerary.warnings.filter { relaxationCodes.contains($0.code) }.count
+                return (missedDeadline, relaxations, objective, itinerary.goal == goal ? 0 : 1)
+            }
+            let best = all.min { rank($0) < rank($1) } ?? own
+            if best.goal == goal {
+                result[goal] = best
+            } else {
+                var copy = best
+                copy.id = UUID()
+                copy.goal = goal
+                result[goal] = copy
+            }
+        }
+        return result
+    }
+
+    private static let relaxationCodes: Set<PlanWarning.Code> = [
+        .extendedDrivingDay, .shorterBreaks, .nightDriving, .lodgingAreaOnly, .fuelGap,
+    ]
 
     // MARK: - Routing
 

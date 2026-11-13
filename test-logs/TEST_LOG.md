@@ -15,3 +15,6 @@ row per suite. Per-run details, including the names of failing tests, are in `ru
 | 2026-11-13 04:01:15Z | `7c30b8a` | gateway (vitest) | ✅ pass | 66 passed (66) | 2s | [runs/20261113T040115Z.md](runs/20261113T040115Z.md) |
 | 2026-11-13 04:01:15Z | `7c30b8a` | iOS package tests | ⏭️ skipped | - | 0s | [runs/20261113T040115Z.md](runs/20261113T040115Z.md) |
 | 2026-11-13 04:01:15Z | `7c30b8a` | iOS app unit + UI tests | ⏭️ skipped | - | 0s | [runs/20261113T040115Z.md](runs/20261113T040115Z.md) |
+| 2026-11-13 07:24:02Z | `5b47117+dirty` | core (Swift package) | ✅ pass | 185 tests | 25s | [runs/20261113T072402Z.md](runs/20261113T072402Z.md) |
+| 2026-11-13 07:24:02Z | `5b47117+dirty` | gateway (lint+types) | ✅ pass | - | 3s | [runs/20261113T072402Z.md](runs/20261113T072402Z.md) |
+| 2026-11-13 07:24:02Z | `5b47117+dirty` | gateway (vitest) | ✅ pass | 66 passed (66) | 2s | [runs/20261113T072402Z.md](runs/20261113T072402Z.md) |

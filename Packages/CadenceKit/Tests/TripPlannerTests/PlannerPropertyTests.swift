@@ -34,6 +34,7 @@ struct PlannerPropertyTests {
         )
         var policy = DrivingPolicy.standard
         policy.maxContinuousDriving = [1.5, 2, 2.5, 3].randomElement(using: &rng)! * 3_600
+        policy.fuelReserveFraction = [0.1, 0.15, 0.25, 0.35].randomElement(using: &rng)!
         let departure = SampleTrips.departure.addingTimeInterval(.random(in: -6...10, using: &rng) * 3_600)
         let arriveBy: Date? = Bool.random(using: &rng)
             ? departure.addingTimeInterval(profile.totalDuration * .random(in: 0.8...2.5, using: &rng))

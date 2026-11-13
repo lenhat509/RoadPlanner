@@ -48,6 +48,47 @@ struct PlanningIntegrationTests {
         #expect(phases.contains(.finalizing))
     }
 
+    /// Regression: "Current Location" in Los Angeles on a phone set to UTC+9 made Fastest slower than Cheapest.
+    @Test("Fastest is never slower and Cheapest never pricier than another option")
+    func goalsAreConsistent() async throws {
+        let services = SimulatedGoogleBackend.services()
+        let departure = Date(timeIntervalSince1970: 1_794_552_300)
+        var scenarios: [(String, Int, Date)] = [("nyc", 540, departure)]
+        for offset in [-480, 60, 420] {
+            for hours in [0.0, 8, 16] { scenarios.append(("den", offset, departure.addingTimeInterval(hours * 3_600))) }
+        }
+        for (destination, offsetMinutes, start) in scenarios {
+            let origin = Place(
+                id: "current-location", name: "Current Location",
+                coordinate: SampleTrips.city("la").coordinate, utcOffsetMinutes: offsetMinutes
+            )
+            let request = TripRequest(origin: origin, destination: SampleTrips.city(destination), departure: start, vehicle: Vehicle(milesPerGallon: 28))
+            let result = try await services.planner.plan(request) { _ in }
+            let options = result.options
+            let fastest = try #require(result.itineraries[.fastest])
+            let cheapest = try #require(result.itineraries[.cheapest])
+            let label = "\(destination) tz\(offsetMinutes / 60) \(start)"
+            #expect(options.allSatisfy { fastest.totals.elapsedDuration <= $0.totals.elapsedDuration + 1 }, "\(label)")
+            #expect(options.allSatisfy { cheapest.totals.cost.total <= $0.totals.cost.total + 0.01 }, "\(label)")
+            for itinerary in options {
+                #expect(ScheduleValidator().violations(in: itinerary).isEmpty, "\(label) \(itinerary.goal)")
+                for stay in itinerary.stops where stay.kind == .lodging {
+                    let wait = (stay.departure ?? .distantPast).timeIntervalSince(stay.arrival ?? .distantPast)
+                    // Check-in from 2 PM, departure from 8 AM: at most 18 h (the bug produced ~23 h waits).
+                    #expect(wait <= 18.5 * 3_600, "\(label) \(itinerary.goal) waits \(wait / 3_600) h at a hotel")
+                }
+            }
+        }
+    }
+
+    @Test("Trip cost includes the gas used even without a fuel stop")
+    func gasCostWithoutFuelStop() async throws {
+        let result = try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "la", to: "lv", goal: .cheapest)) { _ in }
+        let itinerary = try #require(result.recommended)
+        #expect(itinerary.totals.cost.fuel > 20) // ~270 mi at 30 mpg ≈ 9 gal
+        #expect((itinerary.totals.fuelGallonsUsed ?? 0) > 7)
+    }
+
     @Test("A short trip is a single day with a rest stop")
     func shortTrip() async throws {
         let services = SimulatedGoogleBackend.services()

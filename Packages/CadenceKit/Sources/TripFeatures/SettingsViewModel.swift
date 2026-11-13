@@ -27,6 +27,12 @@ public final class SettingsViewModel {
         }
     }
 
+    /// Refuel before the tank drops below this percentage (5–50 %).
+    public var minimumFuelPercent: Double {
+        get { (preferences.policy.fuelReserveFraction * 100).rounded() }
+        set { preferences.policy.fuelReserveFraction = min(50, max(5, newValue)) / 100 }
+    }
+
     public var restBreakMinutes: Double {
         get { preferences.policy.restStopDuration / 60 }
         set { preferences.policy.restStopDuration = min(60, max(10, newValue)) * 60 }

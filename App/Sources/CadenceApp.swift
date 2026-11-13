@@ -16,6 +16,8 @@ struct CadenceApp: App {
         WindowGroup {
             RootView()
                 .environment(environment)
+                // Google Maps needs an API key; demo mode and UI tests use Apple Maps instead.
+                .environment(\.mapProvider, environment.mode == .production ? .google : .apple)
                 .tint(Theme.accent)
         }
     }

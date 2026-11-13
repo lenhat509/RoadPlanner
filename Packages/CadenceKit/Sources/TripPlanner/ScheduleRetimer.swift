@@ -57,11 +57,20 @@ public struct ScheduleRetimer: Sendable {
         result.stops = stops
         result.legs = legs
         let tolls = legs.compactMap(\.tollCostUSD).reduce(0, +)
+        let purchases = stops.compactMap(\.fuelPurchase)
+        let averagePurchasePrice = purchases.isEmpty ? nil : purchases.reduce(0) { $0 + $1.pricePerGallon } / Double(purchases.count)
+        let referencePrice = itinerary.totals.referenceFuelPrice ?? averagePurchasePrice ?? 0
+        let initialFuel = vehicle.tankCapacityGallons * vehicle.initialFuelFraction
+        // All gas burned: purchases + fuel that was in the tank − fuel left at the end.
+        fuelCost += (initialFuel - fuel) * referencePrice
+        let gallonsBought = purchases.reduce(0) { $0 + $1.gallons }
         result.totals = TripTotals(
             distanceMeters: distance,
             drivingDuration: drivingDuration,
             elapsedDuration: (stops.last?.arrival ?? clock).timeIntervalSince(itinerary.request.departure),
-            cost: CostBreakdown(fuel: fuelCost, lodging: lodgingCost, tolls: tolls > 0 ? tolls : itinerary.totals.cost.tolls)
+            cost: CostBreakdown(fuel: fuelCost, lodging: lodgingCost, tolls: tolls > 0 ? tolls : itinerary.totals.cost.tolls),
+            fuelGallonsUsed: initialFuel + gallonsBought - fuel,
+            referenceFuelPrice: referencePrice
         )
         return result
     }

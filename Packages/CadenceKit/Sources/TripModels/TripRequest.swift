@@ -31,6 +31,7 @@ public enum TripRequestError: String, Error, Codable, CaseIterable, Sendable {
     case deadlineBeforeDeparture
     case invalidRestInterval
     case invalidDailyDriving
+    case invalidFuelReserve
 
     public var message: String {
         switch self {
@@ -43,6 +44,7 @@ public enum TripRequestError: String, Error, Codable, CaseIterable, Sendable {
         case .deadlineBeforeDeparture: "Arrival time must be after the departure time."
         case .invalidRestInterval: "Rest interval must be between 30 minutes and 5 hours."
         case .invalidDailyDriving: "Daily driving must be at least as long as the rest interval."
+        case .invalidFuelReserve: "Minimum fuel level must be between 5% and 50% of the tank."
         }
     }
 }
@@ -94,6 +96,7 @@ public struct TripRequest: Codable, Hashable, Sendable {
             errors.append(.invalidRestInterval)
         }
         if policy.maxDailyDriving < policy.maxContinuousDriving { errors.append(.invalidDailyDriving) }
+        if !DrivingPolicy.allowedFuelReserve.contains(policy.fuelReserveFraction) { errors.append(.invalidFuelReserve) }
         return errors
     }
 }

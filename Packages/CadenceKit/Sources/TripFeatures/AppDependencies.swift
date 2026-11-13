@@ -16,6 +16,8 @@ public final class AppDependencies {
     public let formatters: TripFormatters
     /// Delay before an autocomplete request is sent while typing.
     public let autocompleteDebounce: TimeInterval
+    /// The phone's time zone (injectable for tests).
+    public let timeZone: TimeZone
     public let now: @Sendable () -> Date
 
     public init(
@@ -28,6 +30,7 @@ public final class AppDependencies {
         speech: any SpeechAnnouncing,
         formatters: TripFormatters = TripFormatters(),
         autocompleteDebounce: TimeInterval = 0.25,
+        timeZone: TimeZone = .current,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.planner = planner
@@ -39,6 +42,7 @@ public final class AppDependencies {
         self.speech = speech
         self.formatters = formatters
         self.autocompleteDebounce = autocompleteDebounce
+        self.timeZone = timeZone
         self.now = now
     }
 }

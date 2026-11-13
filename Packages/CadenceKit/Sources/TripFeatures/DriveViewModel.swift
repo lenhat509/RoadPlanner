@@ -133,7 +133,9 @@ public final class DriveViewModel {
         case .enRoute: guidance.map { now.addingTimeInterval($0.timeRemaining) } ?? target.arrival
         default: trip.progress.actualArrivals[target.id] ?? target.arrival
         }
-        let presentation = StopPresentation(stop: target, formatters: formatters)
+        let presentation = StopPresentation(
+            stop: target, formatters: formatters, tankCapacityGallons: trip.itinerary.request.vehicle.tankCapacityGallons
+        )
         return NextStopInfo(
             kind: target.kind,
             isPullOff: target.isRoadsidePullOff,
@@ -159,7 +161,10 @@ public final class DriveViewModel {
                     adjusted.arrival = projection.arrival
                     adjusted.departure = projection.departure
                 }
-                return StopPresentation(stop: adjusted, formatters: dependencies.formatters)
+                return StopPresentation(
+                    stop: adjusted, formatters: dependencies.formatters,
+                    tankCapacityGallons: trip.itinerary.request.vehicle.tankCapacityGallons
+                )
             }
     }
 

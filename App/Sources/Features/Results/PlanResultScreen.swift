@@ -22,10 +22,14 @@ struct PlanResultScreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.l) {
                 if let itinerary = model.selected {
-                    TripMapView(paths: MapContent.paths(for: itinerary), markers: MapContent.markers(for: itinerary.stops))
-                        .frame(height: 260)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-                        .accessibilityIdentifier(AccessibilityID.Results.map)
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        RouteMap(paths: MapContent.paths(for: itinerary), markers: MapContent.markers(for: itinerary.stops))
+                            .frame(height: 260)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                            .accessibilityIdentifier(AccessibilityID.Results.map)
+                        StopLegend(entries: StopLegend.entries(for: itinerary.stops))
+                            .padding(.horizontal, Theme.Spacing.xxs)
+                    }
                 }
                 if model.options.count > 1 { optionPicker }
                 if let itinerary = model.selected { summary(itinerary) }
@@ -92,7 +96,9 @@ struct PlanResultScreen: View {
         .sheet(item: $selectedStop) { stop in
             StopDetailSheet(
                 stop: stop,
-                presentation: StopPresentation(stop: stop, formatters: formatters),
+                presentation: StopPresentation(
+                    stop: stop, formatters: formatters, tankCapacityGallons: model.selected?.request.vehicle.tankCapacityGallons
+                ),
                 travelers: model.selected?.request.travelers ?? 2
             )
         }
@@ -213,7 +219,8 @@ struct StopRowView: View {
                 Rectangle()
                     .fill(isFirst ? Color.clear : Color.secondary.opacity(0.3))
                     .frame(width: 2, height: 8)
-                StopIcon(kind: stop.kind, symbolName: stop.symbolName, isPullOff: stop.symbolName == "parkingsign.circle.fill", size: 30)
+                StopDot(kind: stop.kind, isPullOff: stop.isPullOff, size: 18)
+                    .frame(width: 30, height: 30)
                 Rectangle()
                     .fill(isLast ? Color.clear : Color.secondary.opacity(0.3))
                     .frame(width: 2)
@@ -257,7 +264,7 @@ struct StopDetailSheet: View {
             List {
                 Section {
                     HStack(spacing: Theme.Spacing.s) {
-                        StopIcon(kind: stop.kind, symbolName: presentation.symbolName, isPullOff: stop.isRoadsidePullOff, size: 40)
+                        StopDot(kind: stop.kind, isPullOff: stop.isRoadsidePullOff, size: 22)
                         VStack(alignment: .leading) {
                             Text(presentation.title).font(.headline)
                             Text(presentation.subtitle).font(.subheadline).foregroundStyle(.secondary)

@@ -40,7 +40,8 @@ public struct DrivingPolicy: Codable, Hashable, Sendable {
     public var dayEnd: LocalTime
     /// Minimum time spent at an overnight stop.
     public var minimumOvernightRest: TimeInterval
-    /// Fraction of the tank kept in reserve; the planner never lets fuel drop below it.
+    /// Minimum fuel level as a fraction of the tank. The planner makes sure the car always reaches
+    /// the next gas station (and the destination) before dropping below it. Never relaxed.
     public var fuelReserveFraction: Double
     /// Dollar value of one hour, used to trade time against money for the balanced goal.
     public var valueOfTimePerHour: Double
@@ -69,6 +70,9 @@ public struct DrivingPolicy: Codable, Hashable, Sendable {
 
     /// The default policy: rest every 2–3 hours, at most 10 hours of driving per day.
     public static let standard = DrivingPolicy()
+
+    /// Allowed range for the user's minimum fuel level.
+    public static let allowedFuelReserve: ClosedRange<Double> = 0.05...0.5
 
     /// Allowed range for the user's "drive before resting" input.
     public static let allowedContinuousDriving: ClosedRange<TimeInterval> = (30 * 60)...(5 * 3_600)

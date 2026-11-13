@@ -90,7 +90,9 @@ public struct ItineraryAssembler: Sendable {
                 distanceMeters: profile.totalDistance + detourDistance,
                 drivingDuration: schedule.drivingDuration,
                 elapsedDuration: schedule.arrival.timeIntervalSince(request.departure),
-                cost: CostBreakdown(fuel: schedule.fuelCost, lodging: schedule.lodgingCost, tolls: schedule.tollCost)
+                cost: CostBreakdown(fuel: schedule.fuelCost, lodging: schedule.lodgingCost, tolls: schedule.tollCost),
+                fuelGallonsUsed: schedule.fuelGallonsUsed,
+                referenceFuelPrice: schedule.referenceFuelPrice
             ),
             warnings: warnings,
             routeSummary: profile.summary,

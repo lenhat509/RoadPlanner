@@ -69,7 +69,7 @@ See [docs/APP_STORE_RELEASE.md](docs/APP_STORE_RELEASE.md): `make screenshots`, 
 
 | Service | Used for | Where |
 |---|---|---|
-| Google Maps SDK for iOS | Map rendering | App |
+| Google Maps SDK for iOS | Map rendering (Apple Maps is used when no Google key is configured) | App |
 | Google Routes API (v2) | Routes, alternatives, tolls, turn-by-turn steps, rerouting | App → Google |
 | Google Places API (New) | Autocomplete, place details, search along route, live fuel prices | App → Google |
 | Expedia Rapid API | Live hotel rates near each night's stop | App → Gateway → Expedia |

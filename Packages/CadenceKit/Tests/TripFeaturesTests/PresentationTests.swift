@@ -72,6 +72,18 @@ struct PresentationTests {
         #expect(pullOffText.subtitle.hasPrefix("Rest break"))
     }
 
+    @Test("Fuel stops show the tank level on arrival")
+    func fuelLevelOnArrival() {
+        let place = Place(name: "Shell", coordinate: GeoCoordinate(latitude: 0, longitude: 0), utcOffsetMinutes: 0)
+        let stop = ItineraryStop(
+            kind: .fuel, place: place, arrival: Date(timeIntervalSince1970: 0), departure: Date(timeIntervalSince1970: 900),
+            distanceFromStartMeters: 0, fuelOnArrivalGallons: 3.5,
+            fuelPurchase: FuelPurchase(gallons: 10.5, pricePerGallon: 3.2, isPriceEstimated: false), dayIndex: 0
+        )
+        let text = StopPresentation(stop: stop, formatters: formatters, tankCapacityGallons: 14)
+        #expect(text.detail?.hasPrefix("Arrive with 25% · ") == true)
+    }
+
     @Test("Every maneuver has a banner symbol")
     func maneuverSymbols() {
         for maneuver in Maneuver.allCases { #expect(!maneuver.symbolName.isEmpty) }

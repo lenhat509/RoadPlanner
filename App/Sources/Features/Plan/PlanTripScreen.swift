@@ -146,7 +146,7 @@ struct PlanTripScreen: View {
     }
 
     private var carSection: some View {
-        Section("Your car") {
+        Section {
             HStack {
                 Label("Fuel economy", systemImage: "fuelpump")
                 Spacer()
@@ -158,6 +158,25 @@ struct PlanTripScreen: View {
                 Text("mpg")
                     .foregroundStyle(.secondary)
             }
+            HStack {
+                Label("Tank size", systemImage: "gauge")
+                Spacer()
+                TextField("Gallons", text: $model.tankGallonsText)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 72)
+                    .accessibilityIdentifier(AccessibilityID.Plan.tank)
+                Text("gal")
+                    .foregroundStyle(.secondary)
+            }
+            Stepper(value: $model.minimumFuelPercent, in: 5...50, step: 5) {
+                Label("Refuel before \(Int(model.minimumFuelPercent))% left", systemImage: "drop")
+            }
+            .accessibilityIdentifier(AccessibilityID.Plan.minimumFuel)
+        } header: {
+            Text("Your car")
+        } footer: {
+            if let summary = model.rangeSummary { Text(summary) }
         }
     }
 
@@ -199,15 +218,6 @@ struct PlanTripScreen: View {
     private var advancedSection: some View {
         Section {
             DisclosureGroup("More options", isExpanded: $showsAdvanced) {
-                HStack {
-                    Text("Tank size")
-                    Spacer()
-                    TextField("Gallons", text: $model.tankGallonsText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(maxWidth: 72)
-                    Text("gal").foregroundStyle(.secondary)
-                }
                 VStack(alignment: .leading) {
                     Text("Fuel at departure: \(Int(model.startingFuelPercent))%")
                     Slider(value: $model.startingFuelPercent, in: 10...100, step: 5)

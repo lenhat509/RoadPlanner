@@ -18,6 +18,7 @@ public enum SandboxEnvironment {
         speech: any SpeechAnnouncing = RecordingSpeechAnnouncer(),
         formatters: TripFormatters = TripFormatters(locale: Locale(identifier: "en_US")),
         autocompleteDebounce: TimeInterval = 0,
+        timeZone: TimeZone = .current,
         now: @escaping @Sendable () -> Date = Date.init
     ) -> AppDependencies {
         let services = SimulatedGoogleBackend.services(backend: backend)
@@ -31,6 +32,7 @@ public enum SandboxEnvironment {
             speech: speech,
             formatters: formatters,
             autocompleteDebounce: autocompleteDebounce,
+            timeZone: timeZone,
             now: now
         )
     }

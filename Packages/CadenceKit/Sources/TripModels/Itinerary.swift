@@ -202,6 +202,7 @@ public struct RouteLeg: Codable, Hashable, Sendable {
 
 /// Cost estimate in US dollars.
 public struct CostBreakdown: Codable, Hashable, Sendable {
+    /// Cost of all gas the trip burns: purchases, plus fuel already in the tank, minus fuel left over.
     public var fuel: Double
     public var lodging: Double
     public var tolls: Double
@@ -225,12 +226,25 @@ public struct TripTotals: Codable, Hashable, Sendable {
     /// Departure to arrival, including all stops.
     public var elapsedDuration: TimeInterval
     public var cost: CostBreakdown
+    /// Gallons burned on the trip (including fuel that was already in the tank).
+    public var fuelGallonsUsed: Double?
+    /// Price per gallon used to value fuel that was already in the tank (or left over).
+    public var referenceFuelPrice: Double?
 
-    public init(distanceMeters: Double, drivingDuration: TimeInterval, elapsedDuration: TimeInterval, cost: CostBreakdown) {
+    public init(
+        distanceMeters: Double,
+        drivingDuration: TimeInterval,
+        elapsedDuration: TimeInterval,
+        cost: CostBreakdown,
+        fuelGallonsUsed: Double? = nil,
+        referenceFuelPrice: Double? = nil
+    ) {
         self.distanceMeters = distanceMeters
         self.drivingDuration = drivingDuration
         self.elapsedDuration = elapsedDuration
         self.cost = cost
+        self.fuelGallonsUsed = fuelGallonsUsed
+        self.referenceFuelPrice = referenceFuelPrice
     }
 }
 

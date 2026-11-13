@@ -109,7 +109,9 @@ public final class PlanResultViewModel {
                 index: day.index,
                 title: "Day \(day.index + 1) · \(formatters.dayTitle(date, utcOffsetSeconds: offset))",
                 summary: "\(formatters.duration(driving)) driving · \(formatters.distance(max(0, distance)))",
-                stops: day.stops.map { StopPresentation(stop: $0, formatters: formatters) }
+                stops: day.stops.map {
+                    StopPresentation(stop: $0, formatters: formatters, tankCapacityGallons: itinerary.request.vehicle.tankCapacityGallons)
+                }
             )
         }
     }
@@ -117,9 +119,11 @@ public final class PlanResultViewModel {
     public var warnings: [PlanWarning] { selected?.warnings ?? [] }
 
     public var costBreakdownText: String {
-        guard let cost = selected?.totals.cost else { return "" }
+        guard let totals = selected?.totals else { return "" }
+        let cost = totals.cost
         let formatters = dependencies.formatters
-        var parts = ["Fuel \(formatters.currency(cost.fuel))", "Lodging \(formatters.currency(cost.lodging))"]
+        let gallons = totals.fuelGallonsUsed.map { " (\(formatters.gallons($0)))" } ?? ""
+        var parts = ["Fuel \(formatters.currency(cost.fuel))\(gallons)", "Lodging \(formatters.currency(cost.lodging))"]
         if cost.tolls > 0 { parts.append("Tolls \(formatters.currency(cost.tolls))") }
         return parts.joined(separator: " · ")
     }

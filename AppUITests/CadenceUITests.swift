@@ -95,6 +95,8 @@ final class CadenceUITests: XCTestCase {
         let submit = app.buttons[AccessibilityID.Plan.submit]
         XCTAssertTrue(submit.waitForExistence(timeout: 5))
         XCTAssertFalse(submit.isEnabled)
+        XCTAssertTrue(app.textFields[AccessibilityID.Plan.tank].exists, "tank size is on the main form")
+        XCTAssertTrue(element(AccessibilityID.Plan.minimumFuel).exists, "minimum fuel level is on the main form")
         choosePlace(field: AccessibilityID.Plan.origin, typing: "Los", pick: "Los Angeles")
         XCTAssertFalse(submit.isEnabled)
         choosePlace(field: AccessibilityID.Plan.destination, typing: "Den", pick: "Denver")
@@ -108,6 +110,7 @@ final class CadenceUITests: XCTestCase {
             XCTAssertTrue(app.buttons[AccessibilityID.Results.option(goal)].exists, "missing \(goal) option")
         }
         XCTAssertTrue(element(AccessibilityID.Results.day(0)).exists)
+        XCTAssertTrue(element(AccessibilityID.Results.legend).exists, "the map legend is shown below the route preview")
         app.buttons[AccessibilityID.Results.option("cheapest")].tap()
         XCTAssertTrue(app.buttons[AccessibilityID.Results.option("cheapest")].isSelected)
         XCTAssertTrue(app.buttons[AccessibilityID.Results.start].isEnabled)

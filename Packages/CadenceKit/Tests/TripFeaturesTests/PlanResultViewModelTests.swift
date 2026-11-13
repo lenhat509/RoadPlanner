@@ -34,7 +34,8 @@ struct PlanResultViewModelTests {
         #expect(day.stops.first?.kind == .origin)
         #expect(day.stops.last?.kind == .destination)
         #expect(day.stops.dropFirst().dropLast().allSatisfy { [.rest, .fuel].contains($0.kind) })
-        #expect(!model.costBreakdownText.isEmpty)
+        #expect(model.costBreakdownText.hasPrefix("Fuel $"))
+        #expect(model.costBreakdownText.contains(" gal)"))
     }
 
     @Test("Starting a trip saves it as the active trip and in history")
@@ -112,6 +113,16 @@ struct HomeViewModelTests {
 @MainActor
 @Suite("SettingsViewModel")
 struct SettingsViewModelTests {
+    @Test("Minimum fuel level is clamped to 5–50 % and saved")
+    func minimumFuel() {
+        let harness = FeatureHarness()
+        let model = SettingsViewModel(dependencies: harness.dependencies)
+        model.minimumFuelPercent = 80
+        #expect(model.minimumFuelPercent == 50)
+        model.minimumFuelPercent = 20
+        #expect(harness.preferences.load().policy.fuelReserveFraction == 0.2)
+    }
+
     @Test("Edits are clamped and saved immediately")
     func edits() {
         let harness = FeatureHarness()

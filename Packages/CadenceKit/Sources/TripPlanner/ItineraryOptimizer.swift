@@ -30,6 +30,10 @@ public struct OptimizedSchedule: Sendable {
     public var lodgingCost: Double
     public var tollCost: Double
     public var drivingDuration: TimeInterval
+    /// Gallons burned on the trip.
+    public var fuelGallonsUsed: Double
+    /// Price used to value fuel already in the tank or left over at the end.
+    public var referenceFuelPrice: Double
     /// Objective value (lower is better); only comparable for the same goal.
     public var score: Double
 
@@ -59,6 +63,9 @@ public struct OptimizationProblem: Sendable {
     public var originUTCOffset: Int
     public var destinationUTCOffset: Int
     public var goal: OptimizationGoal
+    /// Price per gallon used to value fuel already in the tank (or left over). Defaults to the
+    /// median station price along the route, then to the national default.
+    public var referenceFuelPrice: Double?
 
     public init(
         routeDistance: Double,
@@ -70,7 +77,8 @@ public struct OptimizationProblem: Sendable {
         arriveBy: Date? = nil,
         originUTCOffset: Int,
         destinationUTCOffset: Int,
-        goal: OptimizationGoal
+        goal: OptimizationGoal,
+        referenceFuelPrice: Double? = nil
     ) {
         self.routeDistance = routeDistance
         self.routeDuration = routeDuration
@@ -82,6 +90,7 @@ public struct OptimizationProblem: Sendable {
         self.originUTCOffset = originUTCOffset
         self.destinationUTCOffset = destinationUTCOffset
         self.goal = goal
+        self.referenceFuelPrice = referenceFuelPrice
     }
 
     public init(profile: RouteProfile, candidates: [StopCandidate], request: TripRequest, goal: OptimizationGoal) {
@@ -95,8 +104,18 @@ public struct OptimizationProblem: Sendable {
             arriveBy: request.arriveBy,
             originUTCOffset: request.origin.utcOffsetSeconds,
             destinationUTCOffset: request.destination.utcOffsetSeconds,
-            goal: goal
+            goal: goal,
+            referenceFuelPrice: OptimizationProblem.medianFuelPrice(of: candidates)
         )
+    }
+
+    /// Median price of fuel-capable candidates (robust against a few very cheap or pricey stations).
+    public static func medianFuelPrice(of candidates: [StopCandidate]) -> Double? {
+        let prices = candidates.compactMap { $0.capabilities.contains(.fuel) ? $0.fuelPricePerGallon : nil }.sorted()
+        guard !prices.isEmpty else { return nil }
+        return prices.count.isMultiple(of: 2)
+            ? (prices[prices.count / 2 - 1] + prices[prices.count / 2]) / 2
+            : prices[prices.count / 2]
     }
 }
 
@@ -128,6 +147,9 @@ public struct OptimizerSettings: Hashable, Sendable {
     public var minimumFillUpFraction = 0.25
     /// A late departure gets at least this much driving before the day's cutoff.
     public var lateStartGrace: TimeInterval = 2 * 3_600
+    /// Overnight stops are only planned for arrivals from this local time (or after midnight,
+    /// before the day starts). Prevents "check in at 9 AM, leave tomorrow at 8 AM" plans.
+    public var earliestOvernightArrival = LocalTime(hour: 14)
     public var pricing: PricingDefaults = .standard
 
     public init(policy: DrivingPolicy) {
@@ -226,6 +248,8 @@ private struct Search {
     let reserve: Double
     let originReserve: Double
     let deadline: Double?
+    let initialFuel: Double
+    let referenceFuelPrice: Double
 
     var labels: [Label] = []
     var fronts: [[Int]]
@@ -244,6 +268,8 @@ private struct Search {
         // If the car starts low on fuel, allow dipping into the reserve to reach the first station.
         self.originReserve = min(reserve, initialFuel * 0.25)
         self.deadline = settings.enforceDeadline ? problem.arriveBy?.timeIntervalSince1970 : nil
+        self.initialFuel = initialFuel
+        self.referenceFuelPrice = problem.referenceFuelPrice ?? settings.pricing.fuelPrice(for: problem.vehicle.fuelType)
         self.nodes = Search.makeNodes(problem: problem, settings: settings, valueOfTime: valueOfTime)
         self.fronts = Array(repeating: [], count: nodes.count)
     }
@@ -365,6 +391,9 @@ private struct Search {
             if isDestination {
                 next.action = .arrive
                 next.departure = arrival
+                // Charge the trip for all gas it burns: fuel already in the tank is valued at the
+                // reference price, and fuel left over at the end is credited.
+                next.cost += (initialFuel - fuelOnArrival) * referenceFuelPrice
                 next.score = score(cost: next.cost, penalty: next.penalty, time: arrival)
                 if bestFinal == nil || next.score < bestFinal!.score { bestFinal = next }
                 continue
@@ -393,7 +422,7 @@ private struct Search {
                 insert(refuel(base, at: node, gallons: toDestination))
             }
         }
-        if node.capabilities.contains(.lodging) {
+        if node.capabilities.contains(.lodging) && isReasonableCheckIn(base.arrival + node.utcOffset) {
             insert(overnight(base, at: node))
         }
     }
@@ -426,6 +455,13 @@ private struct Search {
     }
 
     // MARK: Helpers
+
+    /// Afternoon/evening arrivals, or arrivals after midnight but before the driving day starts.
+    private func isReasonableCheckIn(_ arrivalLocal: Double) -> Bool {
+        let timeOfDay = arrivalLocal - floor(arrivalLocal / Units.secondsPerDay) * Units.secondsPerDay
+        return timeOfDay >= settings.earliestOvernightArrival.secondsFromMidnight
+            || timeOfDay < policy.dayStart.secondsFromMidnight
+    }
 
     private func cutoff(forDayStartingAtLocal local: Double) -> Double {
         if settings.allowNightDriving { return .infinity }
@@ -536,6 +572,11 @@ private struct Search {
                 dayIndex: arrivalDay
             )
         }
+        let gallonsBought = stops.reduce(0.0) { total, stop in
+            if case let .refuel(gallons, _) = stop.action { return total + gallons }
+            return total
+        }
+        fuelCost += (initialFuel - final.fuelOnArrival) * referenceFuelPrice
         return OptimizedSchedule(
             stops: stops,
             arrival: Date(timeIntervalSince1970: final.arrival),
@@ -545,6 +586,8 @@ private struct Search {
             lodgingCost: lodgingCost,
             tollCost: problem.tollCostUSD,
             drivingDuration: final.drivingTotal,
+            fuelGallonsUsed: initialFuel + gallonsBought - final.fuelOnArrival,
+            referenceFuelPrice: referenceFuelPrice,
             score: final.score + problem.tollCostUSD
         )
     }

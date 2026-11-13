@@ -14,10 +14,14 @@ public struct StopPresentation: Hashable, Sendable, Identifiable {
     /// Planned action: fuel amount and price, nightly rate, …
     public var detail: String?
     public var isEstimate: Bool
+    /// A generic "take the next safe exit" break.
+    public var isPullOff: Bool
 
-    public init(stop: ItineraryStop, formatters: TripFormatters) {
+    /// - Parameter tankCapacityGallons: when given, fuel stops show the tank level on arrival.
+    public init(stop: ItineraryStop, formatters: TripFormatters, tankCapacityGallons: Double? = nil) {
         id = stop.id
         kind = stop.kind
+        isPullOff = stop.isRoadsidePullOff
         symbolName = StopPresentation.symbolName(for: stop)
         title = stop.place.name
         let offset = stop.place.utcOffsetSeconds
@@ -43,7 +47,12 @@ public struct StopPresentation: Hashable, Sendable, Identifiable {
         if let purchase = stop.fuelPurchase {
             isEstimate = purchase.isPriceEstimated
             let price = formatters.currency(purchase.pricePerGallon, precise: true)
-            detail = "Fill about \(formatters.gallons(purchase.gallons)) at \(price)/gal\(purchase.isPriceEstimated ? " (est.)" : "")"
+            var arrivalLevel = ""
+            if let tank = tankCapacityGallons, tank > 0, let fuel = stop.fuelOnArrivalGallons {
+                arrivalLevel = "Arrive with \(Int((fuel / tank * 100).rounded()))% · "
+            }
+            detail = arrivalLevel
+                + "Fill about \(formatters.gallons(purchase.gallons)) at \(price)/gal\(purchase.isPriceEstimated ? " (est.)" : "")"
                 + " · \(formatters.currency(purchase.cost))"
         } else if let lodging = stop.lodging {
             isEstimate = lodging.isRateEstimated

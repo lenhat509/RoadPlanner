@@ -18,6 +18,8 @@ enum AccessibilityID {
         static let departure = "plan.departure"
         static let arriveByToggle = "plan.arriveByToggle"
         static let mpg = "plan.mpg"
+        static let tank = "plan.tank"
+        static let minimumFuel = "plan.minimumFuel"
         static let customRestToggle = "plan.customRestToggle"
         static let restInterval = "plan.restInterval"
         static let goal = "plan.goal"
@@ -29,6 +31,7 @@ enum AccessibilityID {
 
     enum Results {
         static let map = "results.map"
+        static let legend = "results.legend"
         static let start = "results.start"
         static let save = "results.save"
         static let openInGoogleMaps = "results.openInGoogleMaps"

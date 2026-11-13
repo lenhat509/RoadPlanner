@@ -11,17 +11,24 @@ Given a route from origin to destination, find which stops to make and what to d
 |---|---|---|
 | Non-stop driving ≤ `maxContinuousDriving` | 3 h (a break every 2–3 h) | user's "drive before resting" |
 | Every stop includes a break ≥ `restStopDuration` / `fuelStopDuration` | 15 min | settings |
-| Fuel never below `fuelReserveFraction` of the tank | 15 % | settings |
+| Fuel never below the driver's **minimum fuel level** (`fuelReserveFraction`) — every leg must reach the next station (or the destination) above it | 15 % (5–50 %) | plan form / settings; never relaxed |
 | Daily driving ≤ `maxDailyDriving` | 10 h | settings |
 | Arrival at overnight stops / destination ≤ local `dayEnd` | 21:00 | settings |
 | Departure from overnight stops ≥ local `dayStart` and ≥ `minimumOvernightRest` | 08:00, 9 h | settings |
+| Overnight check-in at 14:00 local or later (or after midnight, before `dayStart`) | 14:00 | optimizer setting |
 | Arrival ≤ `arriveBy` | — | user (optional) |
 
-Local times use each stop's own UTC offset, so cross-country time zones are handled.
+Local times use each stop's own UTC offset, so cross-country time zones are handled. "Current
+Location" uses the phone's time zone only when it is within 2 h of the location's longitude-based
+estimate (a phone still set to another zone would otherwise distort the day windows).
 
 ### Objective
 
 `score = cost + elapsed hours × valueOfTime + comfort penalties`
+
+`cost` = fuel + lodging + tolls, where **fuel is all gas the trip burns**: purchases, plus fuel that
+was already in the tank, minus fuel left at the end, valued at the median station price along the
+route. A trip with no fuel stop therefore still shows its gas cost.
 
 | Goal | Value of time | Meaning |
 |---|---|---|
@@ -89,7 +96,7 @@ a plan that respects the user's preferences always beats a "more optimal" one th
 | extendedDay | day ends up to 2 h later, starts 1 h earlier, +1 h daily driving, −1 h overnight rest (≥ 7 h) | "Some driving days start as early as … end as late as …" |
 | shorterBreaks | breaks of 10 min | "Breaks are shortened to 10 minutes." |
 | nightDriving | no end-of-day cutoff | "Some driving happens late at night…" |
-| lastResort | lodging search areas, emergency fuel at pull-offs, 5 % reserve | lodging / fuel gap warnings |
+| lastResort | lodging search areas, emergency fuel at pull-offs (minimum fuel level kept) | lodging / fuel gap warnings |
 
 All levels are first tried **with** the deadline; only if none meets it is the deadline dropped,
 and the plan reports the earliest safe arrival. `maxContinuousDriving` is never relaxed.
@@ -100,6 +107,11 @@ Directions for the chosen stops are requested in batches of ≤ 25 intermediate 
 `ScheduleRetimer` recomputes times and fuel from real leg durations/distances; the
 `ScheduleValidator` re-checks every hard constraint. If real detours pushed a leg over a limit,
 the plan is recomputed once with limits scaled by 0.9 and the better result is kept.
+
+Finally, each option is replaced by whichever finalized plan is best for its own goal (feasibility
+first: met deadline, then fewer relaxations, then the objective). This guarantees the UI never
+shows a "Fastest" plan that arrives later, or a "Cheapest" plan that costs more, than another
+option.
 
 ## Verification
 

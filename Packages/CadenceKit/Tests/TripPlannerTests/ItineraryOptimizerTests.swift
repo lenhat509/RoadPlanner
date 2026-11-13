@@ -182,6 +182,59 @@ struct ItineraryOptimizerTests {
         #expect(balanced.arrival <= cheapest.arrival)
     }
 
+    @Test("Never checks into a hotel in the morning, even when morning hotels are cheaper")
+    func noMorningCheckIn() throws {
+        let hours = 15.0
+        let candidates = Fixture.restAreas(everyMinutes: 30, hours: hours)
+            + Fixture.gasStations(everyMinutes: 60, hours: hours)
+            + Fixture.lodging(everyMinutes: 30, from: 0.5, to: 5, rate: 40) // arrivals 08:30–13:00 local
+            + Fixture.lodging(everyMinutes: 30, from: 7, to: 12, rate: 150)
+        let schedule = try #require(Fixture.optimize(Fixture.problem(hours: hours, candidates: candidates, goal: .cheapest)).value)
+        let overnights = schedule.stops.filter { if case .overnight = $0.action { true } else { false } }
+        #expect(!overnights.isEmpty)
+        for stay in overnights {
+            let local = Fixture.localSecondsOfDay(stay.arrival)
+            #expect(local >= 14 * 3_600 || local < 8 * 3_600, "checked in at \(local / 3_600) h local")
+            #expect(stay.departure.timeIntervalSince(stay.arrival) < 16 * 3_600, "waited \(stay.departure.timeIntervalSince(stay.arrival) / 3_600) h")
+        }
+    }
+
+    @Test("Fuel cost counts all gas the trip uses, including what was already in the tank")
+    func fuelCostCountsGasUsed() throws {
+        // 2.5 h at 60 mph = 150 mi; 30 mpg → 5 gal; no fuel stop needed on a full tank.
+        var problem = Fixture.problem(hours: 2.5, candidates: [])
+        problem.referenceFuelPrice = 3.5
+        let schedule = try #require(Fixture.optimize(problem).value)
+        #expect(schedule.stops.isEmpty)
+        #expect(abs(schedule.fuelCost - 5 * 3.5) < 0.05)
+        #expect(abs(schedule.fuelGallonsUsed - 5) < 0.01)
+    }
+
+    @Test("Leftover fuel is not charged to the trip")
+    func leftoverFuelCredited() throws {
+        let vehicle = Vehicle(milesPerGallon: 25, tankCapacityGallons: 12)
+        var problem = Fixture.problem(
+            hours: 9, candidates: Fixture.restAreas(everyMinutes: 30, hours: 9) + Fixture.gasStations(everyMinutes: 30, hours: 9, price: 3.5),
+            vehicle: vehicle
+        )
+        problem.referenceFuelPrice = 3.5
+        let schedule = try #require(Fixture.optimize(problem).value)
+        // With a single price everywhere, trip fuel cost = gallons burned × price, whatever was bought.
+        #expect(abs(schedule.fuelCost - schedule.fuelGallonsUsed * 3.5) < 0.05)
+    }
+
+    @Test("Respects the driver's minimum fuel level", arguments: [0.25, 0.4])
+    func minimumFuelLevel(fraction: Double) throws {
+        var policy = DrivingPolicy.standard
+        policy.fuelReserveFraction = fraction
+        let vehicle = Vehicle(milesPerGallon: 25, tankCapacityGallons: 14)
+        let candidates = Fixture.restAreas(everyMinutes: 30, hours: 8) + Fixture.gasStations(everyMinutes: 20, hours: 8)
+        let schedule = try #require(Fixture.optimize(Fixture.problem(hours: 8, candidates: candidates, vehicle: vehicle), policy: policy).value)
+        #expect(schedule.stops.contains { if case .refuel = $0.action { true } else { false } })
+        #expect(schedule.stops.allSatisfy { $0.fuelOnArrival >= 14 * fraction - 1e-6 })
+        #expect(schedule.fuelOnArrival >= 14 * fraction - 1e-6)
+    }
+
     @Test("A car starting low on fuel may dip into the reserve to reach the first station")
     func lowStartingFuel() throws {
         let vehicle = Vehicle(milesPerGallon: 30, tankCapacityGallons: 14, initialFuelFraction: 0.1)

@@ -134,7 +134,12 @@ struct HomeView: View {
 
     private func savedRow(_ itinerary: Itinerary) -> some View {
         HStack(spacing: Theme.Spacing.s) {
-            StopIcon(kind: .destination, size: 36)
+            Image(systemName: "car.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(Theme.accent, in: Circle())
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(itinerary.request.origin.name) → \(itinerary.request.destination.name)")
                     .font(.subheadline.weight(.semibold))

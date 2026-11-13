@@ -18,14 +18,33 @@ enum Theme {
     /// Drive-mode banner background: deep, legible in sunlight and at night.
     static let bannerBackground = Color(red: 0.04, green: 0.25, blue: 0.29)
 
+    /// Stop colours from the Okabe–Ito palette, distinguishable with common colour-vision
+    /// deficiencies. Stops are drawn as plain dots; the legend explains the colours.
     static func color(for kind: StopKind, isPullOff: Bool = false) -> Color {
         if isPullOff { return Color(uiColor: .systemGray) }
         switch kind {
-        case .origin: return accent
-        case .rest: return success
-        case .fuel: return warning
-        case .lodging: return Color(red: 0.36, green: 0.36, blue: 0.84)
-        case .destination: return Color(red: 0.90, green: 0.28, blue: 0.30)
+        case .origin:
+            return Color(uiColor: UIColor { traits in
+                traits.userInterfaceStyle == .dark
+                    ? UIColor(white: 0.85, alpha: 1)
+                    : UIColor(red: 0.17, green: 0.17, blue: 0.18, alpha: 1)
+            })
+        case .rest: return Color(red: 0.0, green: 0.62, blue: 0.45) // bluish green
+        case .fuel: return Color(red: 0.90, green: 0.62, blue: 0.0) // orange
+        case .lodging: return Color(red: 0.80, green: 0.47, blue: 0.65) // reddish purple
+        case .destination: return Color(red: 0.84, green: 0.37, blue: 0.0) // vermillion
+        }
+    }
+
+    /// Legend title for a stop type.
+    static func legendTitle(for kind: StopKind, isPullOff: Bool = false) -> String {
+        if isPullOff { return "Roadside break" }
+        switch kind {
+        case .origin: return "Start"
+        case .rest: return "Rest stop"
+        case .fuel: return "Fuel stop"
+        case .lodging: return "Overnight stay"
+        case .destination: return "Destination"
         }
     }
 

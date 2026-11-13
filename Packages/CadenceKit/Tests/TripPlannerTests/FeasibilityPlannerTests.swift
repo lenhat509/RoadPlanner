@@ -92,7 +92,8 @@ struct FeasibilityPlannerTests {
 
         let last = FeasibilityPlanner.settings(for: .lastResort, base: base)
         #expect(last.allowLodgingSearchAreas && last.allowFuelAtPullOffs)
-        #expect(last.policy.fuelReserveFraction == 0.05)
+        // The minimum fuel level is the driver's rule: never relaxed (emergency fuel stops are used instead).
+        #expect(last.policy.fuelReserveFraction == base.policy.fuelReserveFraction)
 
         for level in RelaxationLevel.allCases {
             #expect(FeasibilityPlanner.settings(for: level, base: base).policy.maxContinuousDriving == 2 * 3_600)

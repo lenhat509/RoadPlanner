@@ -66,7 +66,9 @@ struct ScheduleRetimerTests {
         // 240 mi at 30 mpg = 8 gal used → 6 gal on arrival; planned level after fill = 14.
         #expect(abs((fuel.fuelOnArrivalGallons ?? 0) - 6) < 1e-9)
         #expect(abs((fuel.fuelPurchase?.gallons ?? 0) - 8) < 1e-9)
-        #expect(abs(retimed.totals.cost.fuel - 24) < 1e-9)
+        // Trip fuel cost = all gas burned: 420 mi ÷ 30 mpg = 14 gal at $3 (purchases + tank − leftover).
+        #expect(abs(retimed.totals.cost.fuel - 42) < 1e-9)
+        #expect(abs((retimed.totals.fuelGallonsUsed ?? 0) - 14) < 1e-9)
     }
 
     @Test("Overnight departures follow the next-morning rule")

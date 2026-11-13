@@ -134,6 +134,43 @@ struct PlanTripViewModelTests {
         #expect(model.origin.place?.coordinate == SampleTrips.city("la").coordinate)
     }
 
+    @Test("Current location uses the phone's time zone when it matches the location")
+    func currentLocationTimeZone() async {
+        let model = PlanTripViewModel(dependencies: FeatureHarness().dependencies)
+        await model.useCurrentLocation(for: .origin)
+        // May 2027 in Los Angeles is PDT (UTC−7).
+        #expect(model.origin.place?.utcOffsetMinutes == -420)
+    }
+
+    @Test("Current location ignores a phone time zone far from the location (e.g. a simulator set to Tokyo)")
+    func currentLocationForeignTimeZone() async {
+        let model = PlanTripViewModel(dependencies: FeatureHarness(timeZone: TimeZone(identifier: "Asia/Tokyo")!).dependencies)
+        await model.useCurrentLocation(for: .origin)
+        #expect(model.origin.place?.utcOffsetMinutes == -480) // estimated from Los Angeles' longitude
+    }
+
+    @Test("Tank size and minimum fuel level flow into the request and are remembered")
+    func fuelSettings() async throws {
+        let harness = FeatureHarness()
+        let model = PlanTripViewModel(dependencies: harness.dependencies)
+        #expect(model.minimumFuelPercent == 15)
+        try await select(model, "Los", .origin)
+        try await select(model, "Vegas", .destination)
+        model.tankGallonsText = "18.5"
+        model.minimumFuelPercent = 25
+        guard case let .valid(request) = model.makeRequest() else {
+            Issue.record("Expected a valid request")
+            return
+        }
+        #expect(request.vehicle.tankCapacityGallons == 18.5)
+        #expect(model.rangeSummary == "A full tank goes about 518 mi. Fuel stops keep at least 25% (4.6 gal) in the tank.")
+        #expect(request.policy.fuelReserveFraction == 0.25)
+        await model.plan()
+        #expect(harness.preferences.load().policy.fuelReserveFraction == 0.25)
+        #expect(harness.preferences.load().vehicle.tankCapacityGallons == 18.5)
+        #expect(PlanTripViewModel(dependencies: harness.dependencies).minimumFuelPercent == 25)
+    }
+
     @Test("Explains when location permission is denied")
     func locationDenied() async {
         let harness = FeatureHarness()

@@ -12,7 +12,7 @@ public enum RelaxationLevel: Int, CaseIterable, Comparable, Sendable {
     case shorterBreaks
     /// No end-of-day cutoff (daily driving and rest limits still apply).
     case nightDriving
-    /// Lodging search areas and emergency fuel at pull-offs; 5 % fuel reserve.
+    /// Lodging search areas and emergency fuel at pull-offs (the minimum fuel level is kept).
     case lastResort
 
     public static func < (lhs: RelaxationLevel, rhs: RelaxationLevel) -> Bool { lhs.rawValue < rhs.rawValue }
@@ -68,7 +68,8 @@ public struct FeasibilityPlanner: Sendable {
             stops: [],
             arrival: problem.departure.addingTimeInterval(problem.routeDuration),
             fuelOnArrival: 0, finalDayIndex: 0, fuelCost: 0, lodgingCost: 0,
-            tollCost: problem.tollCostUSD, drivingDuration: problem.routeDuration, score: .infinity
+            tollCost: problem.tollCostUSD, drivingDuration: problem.routeDuration,
+            fuelGallonsUsed: 0, referenceFuelPrice: 0, score: .infinity
         )
         return FeasibleSchedule(
             schedule: fallback, level: .lastResort, appliedPolicy: baseSettings.policy, deadlineMet: false,
@@ -99,7 +100,6 @@ public struct FeasibilityPlanner: Sendable {
         if level >= .lastResort {
             settings.allowLodgingSearchAreas = true
             settings.allowFuelAtPullOffs = true
-            policy.fuelReserveFraction = min(policy.fuelReserveFraction, 0.05)
         }
         settings.policy = policy
         return settings

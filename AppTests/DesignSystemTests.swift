@@ -19,12 +19,24 @@ struct DesignSystemTests {
         #expect(symbols.allSatisfy { UIImage(systemName: $0) != nil })
     }
 
+    @Test("Legend lists each stop type present, in trip order, once")
+    func legend() async throws {
+        let itinerary = try #require(try await SandboxEnvironment.samplePlan().recommended)
+        let entries = StopLegend.entries(for: itinerary.stops)
+        #expect(entries.first?.kind == .origin)
+        #expect(entries.last?.kind == .destination)
+        #expect(Set(entries).count == entries.count)
+        #expect(Set(entries.map(\.kind)) == Set(itinerary.stops.map(\.kind)))
+        #expect(StopLegend.Entry(kind: .rest, isPullOff: true).id != StopLegend.Entry(kind: .rest, isPullOff: false).id)
+        #expect(Theme.legendTitle(for: .lodging) == "Overnight stay")
+    }
+
     @Test("Map marker icons render at the expected size and are cached")
     func markerIcons() {
         let active = MarkerIconFactory.icon(for: .fuel, isPullOff: false, isActive: true)
         let inactive = MarkerIconFactory.icon(for: .fuel, isPullOff: false, isActive: false)
-        #expect(active.size == CGSize(width: 40, height: 40))
-        #expect(inactive.size == CGSize(width: 30, height: 30))
+        #expect(active.size == CGSize(width: 26, height: 26))
+        #expect(inactive.size == CGSize(width: 20, height: 20))
         #expect(MarkerIconFactory.icon(for: .fuel, isPullOff: false, isActive: true) === active)
     }
 
@@ -50,7 +62,9 @@ struct DesignSystemTests {
         )
         let views: [AnyView] = [
             AnyView(PlanOptionCard(option: option, isSelected: true) {}),
-            AnyView(StopIcon(kind: .lodging)),
+            AnyView(StopDot(kind: .lodging)),
+            AnyView(StopLegend(entries: [.init(kind: .origin, isPullOff: false), .init(kind: .rest, isPullOff: true)])),
+            AnyView(VehicleArrow(rotation: 45)),
             AnyView(MetricView(value: "2,631 mi", label: "Distance")),
             AnyView(WarningList(warnings: [PlanWarning(code: .estimatedPrices, message: "Some prices are estimates.")])),
             AnyView(ManeuverBannerView(

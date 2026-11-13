@@ -63,7 +63,7 @@ struct DriveScreen: View {
 
     private var driveContent: some View {
         ZStack(alignment: .top) {
-            TripMapView(
+            RouteMap(
                 paths: model.legCoordinates.isEmpty ? [] : [model.legCoordinates],
                 markers: markers,
                 camera: camera,
@@ -249,7 +249,7 @@ struct NextStopPanel<MenuContent: View>: View {
         VStack(spacing: Theme.Spacing.s) {
             HStack(spacing: Theme.Spacing.s) {
                 if let info {
-                    StopIcon(kind: info.kind, symbolName: info.symbolName, isPullOff: info.isPullOff, size: 40)
+                    StopDot(kind: info.kind, isPullOff: info.isPullOff, size: 22)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(info.kindTitle.uppercased())
                             .font(.caption.weight(.semibold))
@@ -303,7 +303,7 @@ struct ArrivalCard<MenuContent: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             HStack(spacing: Theme.Spacing.s) {
-                if let info { StopIcon(kind: info.kind, symbolName: info.symbolName, isPullOff: info.isPullOff, size: 44) }
+                if let info { StopDot(kind: info.kind, isPullOff: info.isPullOff, size: 24) }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("You've arrived")
                         .font(.caption.weight(.bold))
