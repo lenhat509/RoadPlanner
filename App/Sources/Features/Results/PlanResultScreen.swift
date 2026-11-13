@@ -63,18 +63,28 @@ struct PlanResultScreen: View {
         }
         .safeAreaInset(edge: .bottom) {
             BottomActionBar {
-                Button {
-                    Task {
-                        isStarting = true
-                        defer { isStarting = false }
-                        if let trip = await model.startTrip() { onStart(trip) }
+                VStack(spacing: Theme.Spacing.xs) {
+                    if let note = model.startDistanceNote {
+                        // The plan's start and the user's position are different places: say so
+                        // before driving (drive mode then leads to the start first).
+                        Label(note, systemImage: "location.circle")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier(AccessibilityID.Results.startNote)
                     }
-                } label: {
-                    Label("Start driving", systemImage: "car.fill")
+                    Button {
+                        Task {
+                            isStarting = true
+                            defer { isStarting = false }
+                            if let trip = await model.startTrip() { onStart(trip) }
+                        }
+                    } label: {
+                        Label("Start driving", systemImage: "car.fill")
+                    }
+                    .buttonStyle(.primary)
+                    .disabled(isStarting || model.selected == nil)
+                    .accessibilityIdentifier(AccessibilityID.Results.start)
                 }
-                .buttonStyle(.primary)
-                .disabled(isStarting || model.selected == nil)
-                .accessibilityIdentifier(AccessibilityID.Results.start)
             }
         }
         .sheet(item: $selectedStop) { stop in
@@ -92,7 +102,13 @@ struct PlanResultScreen: View {
 
     private func mapArea(_ itinerary: Itinerary) -> some View {
         ZStack(alignment: .topTrailing) {
-            RouteMap(paths: MapContent.paths(for: itinerary), markers: MapContent.markers(for: itinerary.stops), command: mapCommand)
+            RouteMap(
+                paths: MapContent.paths(for: itinerary),
+                markers: MapContent.markers(for: itinerary.stops),
+                chrome: UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 64),
+                userLocation: model.currentLocation,
+                command: mapCommand
+            )
             VStack(spacing: Theme.Spacing.xs) {
                 MapControlButton(
                     systemImage: mapExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",

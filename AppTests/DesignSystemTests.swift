@@ -61,17 +61,62 @@ struct DesignSystemTests {
         plannedAction: "Arrive with 21% · Fill about 11.1 gal", isDestination: false
     )
 
-    @Test("A framed route fills about 80 % of the map, with a minimum size for short legs")
+    @Test("A framed route fills about 80 % of the area clear of the chrome, centred in it")
     func framing() throws {
         let leg = [GeoCoordinate(latitude: 36.0, longitude: -115.0), GeoCoordinate(latitude: 36.5, longitude: -114.5)]
-        let rect = try #require(AppleRouteMap.framingRect(for: leg))
+        let size = CGSize(width: 400, height: 800)
+        let chrome = UIEdgeInsets(top: 150, left: 20, bottom: 330, right: 60)
+        let rect = try #require(MapCameraDirector.framingRect(for: leg, in: size, insets: chrome))
+        // Map points → screen points of this view.
+        let scale = rect.width / size.width
+        #expect(abs(rect.height / size.height - scale) < 1e-9, "same aspect ratio as the view: shown exactly")
         let a = MKMapPoint(leg[0].clCoordinate), b = MKMapPoint(leg[1].clCoordinate)
-        #expect(abs(abs(b.x - a.x) / rect.width - 0.8) < 0.001)
-        #expect(abs(abs(b.y - a.y) / rect.height - 0.8) < 0.001)
-        #expect(rect.contains(a) && rect.contains(b))
-        let tiny = try #require(AppleRouteMap.framingRect(for: [leg[0]]))
+        let screen = { (point: MKMapPoint) in CGPoint(x: (point.x - rect.minX) / scale, y: (point.y - rect.minY) / scale) }
+        let (pa, pb) = (screen(a), screen(b))
+        let visible = CGRect(x: 20, y: 150, width: 400 - 80, height: 800 - 480)
+        #expect(visible.contains(pa) && visible.contains(pb), "clear of the header and the sheet")
+        let boxWidth = abs(pb.x - pa.x), boxHeight = abs(pb.y - pa.y)
+        #expect(abs(max(boxWidth / visible.width, boxHeight / visible.height) - 0.8) < 0.001, "fills 80 % of the tighter side")
+        #expect(abs((pa.x + pb.x) / 2 - visible.midX) < 0.5 && abs((pa.y + pb.y) / 2 - visible.midY) < 0.5, "centred")
+        let tiny = try #require(MapCameraDirector.framingRect(for: [leg[0]], in: size, insets: .zero))
         #expect(tiny.width > 1_000 * MKMapPointsPerMeterAtLatitude(36), "a single point still shows ~1 km around it")
-        #expect(AppleRouteMap.framingRect(for: []) == nil)
+        #expect(MapCameraDirector.framingRect(for: [], in: size, insets: .zero) == nil)
+        #expect(MapCameraDirector.framingRect(for: leg, in: .zero, insets: .zero) == nil, "no size yet: nothing to frame")
+    }
+
+    @Test("Camera moves: placed once, framed with an ease, a slow fly-in to the car, then glides between fixes")
+    func cameraMotion() {
+        let car = GeoCoordinate(latitude: 36, longitude: -115)
+        let frame = TripMapView.Camera.frame([car])
+        let follow = TripMapView.Camera.follow(car, course: 90)
+        typealias Director = MapCameraDirector
+        #expect(Director.motion(from: nil, to: frame, sinceLastFix: 0, isFlyingIn: false) == .immediate)
+        #expect(Director.motion(from: nil, to: .free, sinceLastFix: 0, isFlyingIn: false) == nil)
+        #expect(Director.motion(from: frame, to: follow, sinceLastFix: 9, isFlyingIn: false) == .ease(Director.flyInDuration))
+        #expect(Director.motion(from: .free, to: follow, sinceLastFix: 9, isFlyingIn: false) == .ease(Director.flyInDuration))
+        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: true) == nil, "the fly-in isn't cut short")
+        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: false) == .linear(0.5))
+        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 30, isFlyingIn: false) == .linear(Director.maximumGlide))
+        #expect(Director.motion(from: follow, to: .free, sinceLastFix: 1, isFlyingIn: false) == nil, "the user's view is kept")
+        #expect(Director.motion(from: follow, to: frame, sinceLastFix: 1, isFlyingIn: false) == .ease(Director.framingDuration))
+    }
+
+    @Test("The follow camera looks ahead of the car along its heading")
+    func lookAhead() {
+        let car = GeoCoordinate(latitude: 36, longitude: -115)
+        let center = MapCameraDirector.followCenter(car: car, heading: 90)
+        #expect(abs(GeoMath.distance(car, center) - MapCameraDirector.followLookAhead) < 1)
+        #expect(center.longitude > car.longitude, "east of the car when heading east")
+    }
+
+    @Test("Google fit insets are the chrome plus the 80 % margin")
+    func fitInsets() {
+        let insets = MapCameraDirector.fitInsets(
+            in: CGSize(width: 400, height: 800), chrome: UIEdgeInsets(top: 100, left: 0, bottom: 300, right: 0)
+        )
+        #expect(abs(insets.top - (100 + 400 * 0.1)) < 1e-9)
+        #expect(abs(insets.bottom - (300 + 400 * 0.1)) < 1e-9)
+        #expect(abs(insets.left - 400 * 0.1) < 1e-9)
     }
 
     @Test("The legend layout wraps onto new lines when narrow")
@@ -134,6 +179,11 @@ struct DesignSystemTests {
             ) { Button("End trip") {} }),
             AnyView(ArrivalCard(info: Self.stopInfo, nextStopName: "Motel 6", onExit: {}, onContinue: {}) { Button("End trip") {} }),
             AnyView(ExitNavigationButton {}),
+            AnyView(UserLocationDot()),
+            AnyView(PreviewSheet(
+                info: Self.stopInfo, headline: "Head to the start of your trip", startTitle: "Directions to start",
+                onExit: {}, onStart: {}
+            ) { Button("Start the trip from here") {} }),
             AnyView(StatusPill(message: "Finding the route…", systemImage: "location.magnifyingglass")),
             AnyView(CompletedCard(destination: "Las Vegas", summary: "270 mi") {}),
             AnyView(SafetyNoticeView {}),

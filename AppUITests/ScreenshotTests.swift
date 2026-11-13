@@ -74,11 +74,12 @@ final class ScreenshotTests: XCTestCase {
         row.tap()
     }
 
-    /// Home → plan form → plan San Francisco → New York → results, and returns when results show.
-    private func planCrossCountry(captureForm: String?) {
+    /// Home → plan form → plan a trip to New York → results, and returns when results show. The
+    /// simulated phone is in Los Angeles.
+    private func planCrossCountry(from origin: (typing: String, pick: String), captureForm: String?) {
         XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
         app.buttons[AccessibilityID.Home.planTrip].tap()
-        choose(AccessibilityID.Plan.origin, typing: "San", pick: "San Francisco")
+        choose(AccessibilityID.Plan.origin, typing: origin.typing, pick: origin.pick)
         choose(AccessibilityID.Plan.destination, typing: "New", pick: "New York")
         if let captureForm { capture(captureForm) }
         app.buttons[AccessibilityID.Plan.submit].tap()
@@ -89,7 +90,7 @@ final class ScreenshotTests: XCTestCase {
         launch(dark: false)
         XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
         capture("00-Home")
-        planCrossCountry(captureForm: "01-Plan")
+        planCrossCountry(from: ("Los", "Los Angeles"), captureForm: "01-Plan")
         settle()
         capture("02-Options")
         app.swipeUp()
@@ -109,14 +110,18 @@ final class ScreenshotTests: XCTestCase {
         launch(dark: true)
         XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
         capture("10-Home-Dark")
-        planCrossCountry(captureForm: "11-Plan-Dark")
+        // Starts in San Francisco, far from the phone: the plan says so, and drive mode leads
+        // to the start first.
+        planCrossCountry(from: ("San", "San Francisco"), captureForm: "11-Plan-Dark")
         settle()
         capture("12-Options-Dark")
-        startDriving()
+        app.buttons[AccessibilityID.Results.start].tap()
+        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.preview].firstMatch.waitForExistence(timeout: 20))
+        settle(3)
+        capture("13-ToStart-Dark")
+        app.buttons[AccessibilityID.Drive.startNavigation].tap()
+        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.banner].firstMatch.waitForExistence(timeout: 30))
         settle(6)
-        capture("13-Drive-Dark")
-        arriveViaMenu()
-        continueToPreview()
-        capture("14-Preview-Dark")
+        capture("14-Drive-Dark")
     }
 }

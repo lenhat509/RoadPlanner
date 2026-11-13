@@ -26,12 +26,17 @@ struct AppEnvironmentTests {
         #expect(paced.mode == .uiTest)
         #expect(fastCar.parksAfterMeters == nil)
         #expect(pacedCar.parksAfterMeters != nil)
+        #expect(fastCar.departureDelay == 0, "functional tests don't wait")
+        #expect(pacedCar.departureDelay > MapCameraDirector.flyInDuration, "the camera reaches the car before it drives off")
         #expect(pacedCar.metersPerTick / pacedCar.tickInterval < fastCar.metersPerTick / fastCar.tickInterval)
     }
 
     @Test("Without an API key the app runs in demo mode instead of failing")
-    func demoMode() {
-        #expect(AppEnvironment.make(arguments: [], configuration: unconfigured).mode == .demo)
+    func demoMode() throws {
+        let demo = AppEnvironment.make(arguments: [], configuration: unconfigured)
+        #expect(demo.mode == .demo)
+        let car = try #require(demo.dependencies.location as? SimulatedLocationProvider)
+        #expect(car.departureDelay > MapCameraDirector.flyInDuration, "the demo car waits for the camera after Start")
     }
 
     @Test("With an API key the app uses production services")

@@ -41,6 +41,22 @@ struct SimulatedLocationProviderTests {
         #expect(GeoMath.distance(last, parkingSpot) < 1)
     }
 
+    @Test("Waits before driving off when a departure delay is set")
+    func departureDelay() async throws {
+        let provider = SimulatedLocationProvider(start: leg[0], autoDrive: true, metersPerTick: 20_000, tickInterval: 0.001)
+        provider.departureDelay = 0.3
+        _ = provider.startUpdates()
+        provider.follow(leg)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        #expect(GeoMath.distance(try #require(provider.lastKnownLocation), leg[0]) < 1, "still waiting")
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, GeoMath.distance(provider.lastKnownLocation ?? leg[0], leg[1]) > 1 {
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        provider.stopUpdates()
+        #expect(GeoMath.distance(try #require(provider.lastKnownLocation), leg[1]) < 1, "then drives the leg")
+    }
+
     @Test("Parks after the configured distance")
     func parks() async throws {
         let provider = SimulatedLocationProvider(autoDrive: true, metersPerTick: 20_000, tickInterval: 0.001)

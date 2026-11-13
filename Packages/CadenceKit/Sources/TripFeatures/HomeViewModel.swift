@@ -65,6 +65,9 @@ public final class HomeViewModel {
         let formatters = dependencies.formatters
         let route = "\(trip.itinerary.request.origin.name) → \(trip.itinerary.request.destination.name)"
         guard let target = trip.targetStop, trip.progress.phase != .completed else { return "\(route) · Completed" }
+        if trip.progress.phase == .notStarted {
+            return "\(route)\nNot started · Begins in \(trip.itinerary.request.origin.name)"
+        }
         let days = (trip.itinerary.stops.last?.dayIndex ?? 0) + 1
         let verb = trip.progress.phase == .atStop ? "At" : "Next"
         let day = "Day \(target.dayIndex + 1) of \(days)"

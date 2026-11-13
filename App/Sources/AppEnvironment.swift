@@ -86,11 +86,17 @@ final class AppEnvironment {
     }
 
     private static func makeDemo(configuration: AppConfiguration) -> AppEnvironment {
+        // A fast-forward car (~800 m/s) in small steps, which waits for the camera to settle on it
+        // after Start before it drives off.
+        let location = SimulatedLocationProvider(
+            start: FakeAutocompleteProvider.cities[1].coordinate, autoDrive: true, metersPerTick: 200, tickInterval: 0.25
+        )
+        location.departureDelay = 2.5
         let dependencies = SandboxEnvironment.makeDependencies(
             backend: SimulatedGoogleBackend(latency: 0.05),
             repository: FileTripRepository(directory: FileTripRepository.defaultDirectory().appendingPathComponent("Demo")),
             preferences: UserDefaultsPreferencesStore(key: "cadence.demo.preferences.v1"),
-            location: SimulatedLocationProvider(start: FakeAutocompleteProvider.cities[1].coordinate, autoDrive: true, metersPerTick: 400, tickInterval: 0.5),
+            location: location,
             speech: SpeechAnnouncer(),
             formatters: TripFormatters(),
             autocompleteDebounce: 0.2
@@ -125,6 +131,7 @@ final class AppEnvironment {
             location.metersPerTick = 2_000
             location.tickInterval = 0.25
             location.parksAfterMeters = 40_000
+            location.departureDelay = 2.5
         }
         let dependencies = SandboxEnvironment.makeDependencies(
             backend: SimulatedGoogleBackend(latency: 0.01),

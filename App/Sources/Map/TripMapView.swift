@@ -13,12 +13,12 @@ struct MapStopMarker: Hashable {
 }
 
 /// Google Maps SDK map showing the route and stops: everything (overview), a framed leg
-/// (preview), or following the driver (drive mode). Redraws only what changed.
+/// (preview), or following the driver (drive mode). Camera moves follow `MapCameraDirector`.
 struct TripMapView: UIViewRepresentable {
     enum Camera: Equatable {
         /// Everything on the map.
         case overview
-        /// These coordinates, filling about `MapMotion.frameFill` of the visible map.
+        /// These coordinates, filling about `MapCameraDirector.frameFill` of the visible map.
         case frame([GeoCoordinate])
         /// Behind the car, heading up and tilted.
         case follow(GeoCoordinate, course: Double?)
@@ -35,10 +35,12 @@ struct TripMapView: UIViewRepresentable {
     var paths: [[GeoCoordinate]]
     var markers: [MapStopMarker]
     var camera: Camera = .overview
-    var showsUserLocation = false
-    var edgeInsets = UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
+    /// The parts of the map covered by the screen's own UI.
+    var chrome = UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
     /// Drawn from the location the app navigates with (real or simulated), not the SDK's own GPS dot.
     var vehicle: Vehicle?
+    /// The user's position when it is not the car being guided.
+    var userLocation: GeoCoordinate?
     /// Zoom / fit requests from the map buttons.
     var command: MapCommand?
     /// Called when the user moves the map by hand.
@@ -53,7 +55,8 @@ struct TripMapView: UIViewRepresentable {
         mapView.settings.compassButton = false
         mapView.settings.myLocationButton = false
         mapView.settings.tiltGestures = false
-        mapView.isMyLocationEnabled = showsUserLocation
+        // Framing accounts for the chrome explicitly; padding would shift the map when it changes.
+        mapView.padding = .zero
         mapView.accessibilityIdentifier = "map"
         mapView.delegate = context.coordinator
         return mapView
@@ -62,10 +65,11 @@ struct TripMapView: UIViewRepresentable {
     func updateUIView(_ mapView: GMSMapView, context: Context) {
         let coordinator = context.coordinator
         coordinator.onUserMoved = onUserMoved
-        mapView.padding = edgeInsets
+        coordinator.chrome = chrome
         coordinator.applyStyle(colorScheme, to: mapView)
         coordinator.render(paths: paths, on: mapView)
         coordinator.render(markers: markers, on: mapView)
+        coordinator.updateUserLocation(userLocation, on: mapView)
         coordinator.updateVehicle(vehicle, on: mapView)
         coordinator.updateCamera(camera, paths: paths, markers: markers, on: mapView)
         coordinator.perform(command, camera: camera, paths: paths, markers: markers, on: mapView)
@@ -74,18 +78,22 @@ struct TripMapView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, GMSMapViewDelegate {
         var onUserMoved: (() -> Void)?
+        var chrome = UIEdgeInsets.zero
         private var pathsSignature: Int?
         private var markersSignature: Int?
-        private var framedSignature: Int?
         private var styledScheme: ColorScheme?
         private var routeCasing: GMSPolyline?
         private var routeLine: GMSPolyline?
         private var restLines: [GMSPolyline] = []
         private var stopMarkers: [GMSMarker] = []
+        private var userMarker: GMSMarker?
         private var vehicleMarker: GMSMarker?
+        private var shownVehicle: Vehicle?
         private var lastCommandID: UUID?
-        private var lastCamera: Camera?
-        private var lastFollowUpdate = Date.distantPast
+        private var appliedCamera: Camera?
+        private var framedOverview: Int?
+        private var lastFix = Date.distantPast
+        private var lastVehicleFix = Date.distantPast
         private var flyInEnds = Date.distantPast
 
         nonisolated func mapView(_ mapView: GMSMapView, willMove gesture: Bool) {
@@ -93,39 +101,160 @@ struct TripMapView: UIViewRepresentable {
             MainActor.assumeIsolated { onUserMoved?() }
         }
 
+        // MARK: Camera
+
         func perform(_ command: MapCommand?, camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView) {
             guard let command, command.id != lastCommandID else { return }
             lastCommandID = command.id
+            let target: GMSCameraUpdate?
             switch command.action {
             case .zoomIn:
-                mapView.animate(with: GMSCameraUpdate.zoomIn())
+                target = GMSCameraUpdate.zoomIn()
             case .zoomOut:
-                mapView.animate(with: GMSCameraUpdate.zoomOut())
+                target = GMSCameraUpdate.zoomOut()
             case .fitRoute:
-                framedSignature = nil
-                updateCamera(.overview, paths: paths, markers: markers, on: mapView, force: true)
+                target = cameraUpdate(for: .overview, paths: paths, markers: markers, on: mapView)
             case .reapplyCamera:
-                framedSignature = nil
-                updateCamera(camera, paths: paths, markers: markers, on: mapView, force: true)
+                target = cameraUpdate(for: camera, paths: paths, markers: markers, on: mapView)
+            }
+            let duration = command.action == .zoomIn || command.action == .zoomOut
+                ? MapCameraDirector.zoomDuration : MapCameraDirector.framingDuration
+            if let target { move(mapView, with: target, motion: .ease(duration)) }
+        }
+
+        func updateCamera(_ camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView) {
+            let overview = Self.signature(paths) ^ markers.hashValue
+            let planChanged = camera == .overview && appliedCamera == .overview && overview != framedOverview
+            // updateUIView runs on every SwiftUI update: act only on a new camera (or a new plan).
+            guard camera != appliedCamera || planChanged else { return }
+            guard mapView.bounds.width > 0, mapView.bounds.height > 0 else {
+                // Not laid out yet: place it on the next turn of the run loop.
+                DispatchQueue.main.async { [weak self, weak mapView] in
+                    guard let self, let mapView, mapView.bounds.width > 0 else { return }
+                    self.updateCamera(camera, paths: paths, markers: markers, on: mapView)
+                }
+                return
+            }
+            let now = Date()
+            var motion = MapCameraDirector.motion(
+                from: appliedCamera, to: camera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flyInEnds
+            )
+            if planChanged { motion = .ease(MapCameraDirector.framingDuration) }
+            if camera.isFollow {
+                if let previous = appliedCamera, !previous.isFollow { flyInEnds = now.addingTimeInterval(MapCameraDirector.flyInDuration) }
+                lastFix = now
+            }
+            appliedCamera = camera
+            if camera == .overview { framedOverview = overview }
+            guard let motion, let update = cameraUpdate(for: camera, paths: paths, markers: markers, on: mapView) else { return }
+            move(mapView, with: update, motion: motion)
+        }
+
+        private func cameraUpdate(
+            for camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView
+        ) -> GMSCameraUpdate? {
+            switch camera {
+            case .free:
+                return nil
+            case .overview:
+                return fit(paths.flatMap { $0 } + markers.map(\.coordinate), fill: 0.9, on: mapView)
+            case let .frame(coordinates):
+                return fit(coordinates, fill: MapCameraDirector.frameFill, on: mapView)
+            case let .follow(car, course):
+                let bearing = course ?? mapView.camera.bearing
+                return GMSCameraUpdate.setCamera(GMSCameraPosition(
+                    target: MapCameraDirector.followCenter(car: car, heading: bearing).clCoordinate,
+                    zoom: MapCameraDirector.followZoom,
+                    bearing: bearing,
+                    viewingAngle: MapCameraDirector.followPitch
+                ))
             }
         }
 
-        func updateVehicle(_ vehicle: TripMapView.Vehicle?, on mapView: GMSMapView) {
+        /// Fits `coordinates` (at least ~1 km across) to `fill` of the area clear of the chrome.
+        private func fit(_ coordinates: [GeoCoordinate], fill: Double, on mapView: GMSMapView) -> GMSCameraUpdate? {
+            guard !coordinates.isEmpty else { return nil }
+            var bounds = GMSCoordinateBounds()
+            for coordinate in coordinates { bounds = bounds.includingCoordinate(coordinate.clCoordinate) }
+            let center = GeoCoordinate(
+                latitude: (bounds.northEast.latitude + bounds.southWest.latitude) / 2,
+                longitude: (bounds.northEast.longitude + bounds.southWest.longitude) / 2
+            )
+            for bearing in [0.0, 90, 180, 270] {
+                bounds = bounds.includingCoordinate(GeoMath.destination(from: center, bearing: bearing, distance: 500).clCoordinate)
+            }
+            let insets = MapCameraDirector.fitInsets(in: mapView.bounds.size, chrome: chrome, fill: fill)
+            return GMSCameraUpdate.fit(bounds, with: insets)
+        }
+
+        private func move(_ mapView: GMSMapView, with update: GMSCameraUpdate, motion: MapCameraDirector.Motion) {
+            switch motion {
+            case .immediate:
+                mapView.moveCamera(update)
+            case let .ease(duration):
+                Self.animate(duration: duration, timing: .easeInEaseOut) { mapView.animate(with: update) }
+            case let .linear(duration):
+                Self.animate(duration: duration, timing: .linear) { mapView.animate(with: update) }
+            }
+        }
+
+        private static func animate(duration: TimeInterval, timing: CAMediaTimingFunctionName, _ changes: () -> Void) {
+            CATransaction.begin()
+            CATransaction.setAnimationDuration(duration)
+            CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: timing))
+            changes()
+            CATransaction.commit()
+        }
+
+        // MARK: Markers
+
+        /// The car glides between fixes at the same pace as the follow camera.
+        func updateVehicle(_ vehicle: Vehicle?, on mapView: GMSMapView) {
+            guard vehicle != shownVehicle else { return }
+            let previous = shownVehicle
+            shownVehicle = vehicle
+            let now = Date()
+            defer { lastVehicleFix = now }
             guard let vehicle else {
                 vehicleMarker?.map = nil
                 vehicleMarker = nil
                 return
             }
             let marker = vehicleMarker ?? GMSMarker()
-            marker.position = vehicle.coordinate.clCoordinate
             marker.icon = MarkerIconFactory.vehicleIcon()
             marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
             // Flat markers rotate with the map, so the course is an absolute bearing.
             marker.isFlat = true
-            marker.rotation = vehicle.course ?? mapView.camera.bearing
             marker.zIndex = 20
+            let glides = previous.map { GeoMath.distance($0.coordinate, vehicle.coordinate) < 5_000 } ?? false
+            let place = {
+                marker.position = vehicle.coordinate.clCoordinate
+                marker.rotation = vehicle.course ?? mapView.camera.bearing
+            }
+            if glides, vehicleMarker != nil {
+                let duration = min(MapCameraDirector.maximumGlide, max(0.05, now.timeIntervalSince(lastVehicleFix)))
+                Self.animate(duration: duration, timing: .linear, place)
+            } else {
+                place()
+            }
             marker.map = mapView
             vehicleMarker = marker
+        }
+
+        func updateUserLocation(_ location: GeoCoordinate?, on mapView: GMSMapView) {
+            guard let location else {
+                userMarker?.map = nil
+                userMarker = nil
+                return
+            }
+            let marker = userMarker ?? GMSMarker()
+            marker.position = location.clCoordinate
+            marker.icon = MarkerIconFactory.userLocationIcon()
+            marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
+            marker.title = "You are here"
+            marker.zIndex = 15
+            marker.map = mapView
+            userMarker = marker
         }
 
         func applyStyle(_ scheme: ColorScheme, to mapView: GMSMapView) {
@@ -177,84 +306,6 @@ struct TripMapView: UIViewRepresentable {
                 marker.zIndex = stop.isActive ? 10 : 5
                 marker.map = mapView
                 return marker
-            }
-        }
-
-        func updateCamera(
-            _ camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView, force: Bool = false
-        ) {
-            let previous = lastCamera
-            lastCamera = camera
-            switch camera {
-            case .free:
-                return
-            case .overview:
-                let coordinates = paths.flatMap { $0 } + markers.map(\.coordinate)
-                frame(
-                    coordinates, signature: Self.signature(paths) ^ markers.hashValue, insetFraction: 0,
-                    animated: previous != nil, force: force, on: mapView
-                )
-            case let .frame(coordinates):
-                frame(
-                    coordinates, signature: Self.signature([coordinates]), insetFraction: (1 - MapMotion.frameFill) / 2,
-                    animated: previous != nil, force: force, on: mapView
-                )
-            case let .follow(coordinate, course):
-                framedSignature = nil
-                let now = Date()
-                let position = GMSCameraPosition(
-                    target: coordinate.clCoordinate,
-                    zoom: MapMotion.followZoom,
-                    bearing: course ?? mapView.camera.bearing,
-                    viewingAngle: MapMotion.followPitch
-                )
-                if !(previous?.isFollow ?? false) || force {
-                    // From a preview or overview: glide down to the car.
-                    flyInEnds = now.addingTimeInterval(MapMotion.flyInDuration)
-                    CATransaction.begin()
-                    CATransaction.setAnimationDuration(MapMotion.flyInDuration)
-                    mapView.animate(to: position)
-                    CATransaction.commit()
-                } else if now >= flyInEnds {
-                    if now.timeIntervalSince(lastFollowUpdate) > MapMotion.minimumGlideInterval {
-                        CATransaction.begin()
-                        CATransaction.setAnimationDuration(MapMotion.followGlideDuration)
-                        mapView.animate(to: position)
-                        CATransaction.commit()
-                    } else {
-                        mapView.moveCamera(GMSCameraUpdate.setCamera(position))
-                    }
-                }
-                lastFollowUpdate = now
-            }
-        }
-
-        /// Fits `coordinates` inside the padded map, leaving `insetFraction` of each side empty.
-        private func frame(
-            _ coordinates: [GeoCoordinate], signature: Int, insetFraction: CGFloat, animated: Bool, force: Bool, on mapView: GMSMapView
-        ) {
-            guard !coordinates.isEmpty, force || signature != framedSignature else { return }
-            framedSignature = signature
-            var bounds = GMSCoordinateBounds()
-            for coordinate in coordinates {
-                bounds = bounds.includingCoordinate(coordinate.clCoordinate)
-            }
-            // Wait for layout so the map has a size to fit into.
-            DispatchQueue.main.async {
-                let size = mapView.bounds.inset(by: mapView.padding).size
-                let insets = UIEdgeInsets(
-                    top: max(24, size.height * insetFraction), left: max(24, size.width * insetFraction),
-                    bottom: max(24, size.height * insetFraction), right: max(24, size.width * insetFraction)
-                )
-                let update = GMSCameraUpdate.fit(bounds, with: insets)
-                guard animated else {
-                    mapView.moveCamera(update)
-                    return
-                }
-                CATransaction.begin()
-                CATransaction.setAnimationDuration(0.8)
-                mapView.animate(with: update)
-                CATransaction.commit()
             }
         }
 

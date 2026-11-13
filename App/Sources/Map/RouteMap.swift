@@ -36,22 +36,6 @@ struct MapCommand: Equatable {
     let id = UUID()
 }
 
-/// Camera timing shared by both map engines.
-enum MapMotion {
-    /// A framed route fills about this much of the visible map.
-    static let frameFill = 0.8
-    /// Preview → following the car: a slow glide down to the car.
-    static let flyInDuration: TimeInterval = 1.6
-    /// Glide between GPS fixes (about one a second); faster fixes (simulators) snap instead, so
-    /// the camera never trails the car.
-    static let followGlideDuration: TimeInterval = 0.8
-    static let minimumGlideInterval: TimeInterval = 0.6
-    /// Follow camera: distance (Apple) / zoom (Google) and tilt.
-    static let followDistance: Double = 1_500
-    static let followZoom: Float = 16.5
-    static let followPitch: Double = 45
-}
-
 /// Route map that renders with the configured provider.
 ///
 /// `paths[0]` is the route being driven (drawn strong, with a darker edge); any further paths are
@@ -60,8 +44,11 @@ struct RouteMap: View {
     var paths: [[GeoCoordinate]]
     var markers: [MapStopMarker]
     var camera: TripMapView.Camera = .overview
-    var edgeInsets = UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
+    /// The parts of the map covered by the screen's own UI; framed routes stay clear of them.
+    var chrome = UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
     var vehicle: TripMapView.Vehicle?
+    /// The user's position when it is not the car being guided (e.g. on the plan screen).
+    var userLocation: GeoCoordinate?
     var command: MapCommand?
     /// Called when the user pans, zooms or rotates the map by hand.
     var onUserMoved: (() -> Void)?
@@ -72,16 +59,22 @@ struct RouteMap: View {
         switch provider {
         case .google:
             TripMapView(
-                paths: paths, markers: markers, camera: camera, edgeInsets: edgeInsets,
-                vehicle: vehicle, command: command, onUserMoved: onUserMoved
+                paths: paths, markers: markers, camera: camera, chrome: chrome, vehicle: vehicle,
+                userLocation: userLocation, command: command, onUserMoved: onUserMoved
             )
         case .apple:
             AppleRouteMap(
-                paths: paths, markers: markers, camera: camera, edgeInsets: edgeInsets,
-                vehicle: vehicle, command: command, onUserMoved: onUserMoved
+                paths: paths, markers: markers, camera: camera, chrome: chrome, vehicle: vehicle,
+                userLocation: userLocation, command: command, onUserMoved: onUserMoved
             )
         }
     }
+}
+
+/// The latest camera, updated continuously without re-rendering the view (for the zoom buttons).
+@MainActor
+private final class CameraTracker {
+    var camera: MapCamera?
 }
 
 /// Apple Maps (MapKit for SwiftUI) rendering of the same route, markers and camera.
@@ -89,16 +82,40 @@ struct AppleRouteMap: View {
     var paths: [[GeoCoordinate]]
     var markers: [MapStopMarker]
     var camera: TripMapView.Camera
-    var edgeInsets: UIEdgeInsets
+    var chrome: UIEdgeInsets
     var vehicle: TripMapView.Vehicle?
+    var userLocation: GeoCoordinate?
     var command: MapCommand?
     var onUserMoved: (() -> Void)?
 
-    @State private var position: MapCameraPosition = .automatic
-    @State private var visibleCamera: MapCamera?
-    @State private var lastFollowUpdate = Date.distantPast
-    /// Follow updates wait until the fly-in from a preview has finished.
+    @State private var position: MapCameraPosition
+    @State private var shownVehicle: TripMapView.Vehicle?
+    @State private var viewSize = CGSize.zero
+    /// The map's heading after the last move (to point the car arrow along its course).
+    @State private var heading = 0.0
+    @State private var tracker = CameraTracker()
+    /// The camera last applied; nil until the map has a size and has been placed.
+    @State private var appliedCamera: TripMapView.Camera?
+    @State private var lastFix = Date.distantPast
+    @State private var lastVehicleFix = Date.distantPast
     @State private var flyInEnds = Date.distantPast
+
+    init(
+        paths: [[GeoCoordinate]], markers: [MapStopMarker], camera: TripMapView.Camera, chrome: UIEdgeInsets,
+        vehicle: TripMapView.Vehicle?, userLocation: GeoCoordinate?, command: MapCommand?, onUserMoved: (() -> Void)?
+    ) {
+        self.paths = paths
+        self.markers = markers
+        self.camera = camera
+        self.chrome = chrome
+        self.vehicle = vehicle
+        self.userLocation = userLocation
+        self.command = command
+        self.onUserMoved = onUserMoved
+        // Start close to the right place before the map knows its size (no flash of the world).
+        _position = State(initialValue: Self.approximatePosition(for: camera))
+        _shownVehicle = State(initialValue: vehicle)
+    }
 
     var body: some View {
         Map(position: $position) {
@@ -119,68 +136,108 @@ struct AppleRouteMap: View {
                 }
                 .annotationTitles(.hidden)
             }
-            if let vehicle {
-                Annotation("Your car", coordinate: vehicle.coordinate.clCoordinate, anchor: .center) {
-                    VehicleArrow(rotation: vehicleRotation(vehicle))
+            if let userLocation {
+                Annotation("You are here", coordinate: userLocation.clCoordinate, anchor: .center) {
+                    UserLocationDot()
+                }
+                .annotationTitles(.hidden)
+            }
+            if let shownVehicle {
+                Annotation("Your car", coordinate: shownVehicle.coordinate.clCoordinate, anchor: .center) {
+                    VehicleArrow(rotation: vehicleRotation(shownVehicle))
                 }
                 .annotationTitles(.hidden)
             }
         }
         .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
         .mapControls { MapCompass().mapControlVisibility(.hidden) }
-        .safeAreaPadding(EdgeInsets(top: edgeInsets.top, leading: edgeInsets.left, bottom: edgeInsets.bottom, trailing: edgeInsets.right))
-        .onMapCameraChange(frequency: .onEnd) { context in visibleCamera = context.camera }
+        .onMapCameraChange(frequency: .continuous) { context in tracker.camera = context.camera }
+        .onMapCameraChange(frequency: .onEnd) { context in heading = context.camera.heading }
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { resized(to: proxy.size) }
+                    .onChange(of: proxy.size) { _, size in resized(to: size) }
+            }
+        }
+        .onChange(of: camera) { _, newValue in update(to: newValue) }
+        .onChange(of: vehicle) { _, newValue in moveVehicle(to: newValue) }
+        .onChange(of: pathsSignature) { _, _ in
+            // A different plan selected: frame it.
+            if camera == .overview, appliedCamera != nil { apply(.overview, motion: .ease(MapCameraDirector.framingDuration)) }
+        }
         .onChange(of: position.positionedByUser) { _, byUser in
             if byUser { onUserMoved?() }
         }
         .onChange(of: command) { _, newValue in
             if let newValue { perform(newValue.action) }
         }
-        .onAppear { apply(camera, duration: nil) }
-        .onChange(of: camera) { oldValue, newValue in move(from: oldValue, to: newValue) }
-        .onChange(of: paths.first?.count) { _, _ in
-            if camera == .overview { position = .automatic }
-        }
         .accessibilityIdentifier("map")
     }
 
-    /// The arrow points along the course, relative to the map's own rotation.
-    private func vehicleRotation(_ vehicle: TripMapView.Vehicle) -> Double {
-        if case .follow = camera { return 0 }
-        return (vehicle.course ?? 0) - (visibleCamera?.heading ?? 0)
+    // MARK: Camera
+
+    private func resized(to size: CGSize) {
+        viewSize = size
+        // First placement once the map has a size; later size changes are handled by the screen.
+        if appliedCamera == nil, size.width > 0, size.height > 0 { update(to: camera) }
     }
 
-    private func move(from oldCamera: TripMapView.Camera, to newCamera: TripMapView.Camera) {
+    private func update(to newCamera: TripMapView.Camera) {
+        guard viewSize.width > 0, viewSize.height > 0 else { return }
         let now = Date()
-        switch newCamera {
-        case .free:
-            return
-        case .follow:
-            if !oldCamera.isFollow {
-                // From a preview or overview: glide down to the car.
-                flyInEnds = now.addingTimeInterval(MapMotion.flyInDuration)
-                apply(newCamera, duration: MapMotion.flyInDuration)
-            } else if now >= flyInEnds {
-                let glides = now.timeIntervalSince(lastFollowUpdate) > MapMotion.minimumGlideInterval
-                apply(newCamera, duration: glides ? MapMotion.followGlideDuration : nil)
-            }
-            lastFollowUpdate = now
-        case .overview, .frame:
-            apply(newCamera, duration: 0.8)
+        let motion = MapCameraDirector.motion(
+            from: appliedCamera, to: newCamera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flyInEnds
+        )
+        if newCamera.isFollow {
+            if let previous = appliedCamera, !previous.isFollow { flyInEnds = now.addingTimeInterval(MapCameraDirector.flyInDuration) }
+            lastFix = now
+        }
+        appliedCamera = newCamera
+        if let motion { apply(newCamera, motion: motion) }
+    }
+
+    private func apply(_ camera: TripMapView.Camera, motion: MapCameraDirector.Motion) {
+        guard let target = target(for: camera) else { return }
+        switch motion {
+        case .immediate:
+            position = target
+        case let .ease(duration):
+            withAnimation(.easeInOut(duration: duration)) { position = target }
+        case let .linear(duration):
+            withAnimation(.linear(duration: duration)) { position = target }
         }
     }
 
+    private func target(for camera: TripMapView.Camera) -> MapCameraPosition? {
+        switch camera {
+        case .free:
+            return nil
+        case .overview:
+            let everything = paths.flatMap { $0 } + markers.map(\.coordinate)
+            return MapCameraDirector.framingRect(for: everything, in: viewSize, insets: chrome, fill: 0.9).map { .rect($0) } ?? .automatic
+        case let .frame(coordinates):
+            return MapCameraDirector.framingRect(for: coordinates, in: viewSize, insets: chrome).map { .rect($0) }
+        case let .follow(car, course):
+            let direction = course ?? tracker.camera?.heading ?? self.heading
+            return .camera(MapCamera(
+                centerCoordinate: MapCameraDirector.followCenter(car: car, heading: direction).clCoordinate,
+                distance: MapCameraDirector.followDistance,
+                heading: direction,
+                pitch: MapCameraDirector.followPitch
+            ))
+        }
+    }
+
+    /// Zoom from the view on screen, keeping its centre, heading and tilt.
     private func perform(_ action: MapCommand.Action) {
         switch action {
         case .fitRoute:
-            withAnimation(.easeInOut(duration: 0.5)) { position = .automatic }
+            apply(.overview, motion: .ease(MapCameraDirector.framingDuration))
         case .reapplyCamera:
-            apply(camera, duration: 0.5)
+            apply(camera, motion: .ease(MapCameraDirector.framingDuration))
         case .zoomIn, .zoomOut:
-            guard let current = visibleCamera else {
-                withAnimation(.easeInOut(duration: 0.5)) { position = .automatic }
-                return
-            }
+            guard let current = tracker.camera else { return }
             let factor = action == .zoomIn ? 0.5 : 2
             let zoomed = MapCamera(
                 centerCoordinate: current.centerCoordinate,
@@ -188,59 +245,55 @@ struct AppleRouteMap: View {
                 heading: current.heading,
                 pitch: current.pitch
             )
-            withAnimation(.easeInOut(duration: 0.35)) { position = .camera(zoomed) }
+            withAnimation(.easeInOut(duration: MapCameraDirector.zoomDuration)) { position = .camera(zoomed) }
         }
     }
 
-    /// Moves the camera; `duration` nil means without animation.
-    private func apply(_ camera: TripMapView.Camera, duration: TimeInterval?) {
-        let target: MapCameraPosition
-        switch camera {
-        case .free:
+    // MARK: Car
+
+    /// The car glides between fixes at the same pace as the follow camera.
+    private func moveVehicle(to newVehicle: TripMapView.Vehicle?) {
+        let now = Date()
+        defer { lastVehicleFix = now }
+        guard let newVehicle, let old = shownVehicle,
+              GeoMath.distance(old.coordinate, newVehicle.coordinate) < 5_000 else {
+            shownVehicle = newVehicle
             return
-        case .overview:
-            target = .automatic
+        }
+        let duration = min(MapCameraDirector.maximumGlide, max(0.05, now.timeIntervalSince(lastVehicleFix)))
+        withAnimation(.linear(duration: duration)) { shownVehicle = newVehicle }
+    }
+
+    /// The arrow points along the course, relative to the map's own rotation.
+    private func vehicleRotation(_ vehicle: TripMapView.Vehicle) -> Double {
+        if case .follow = camera { return 0 }
+        return (vehicle.course ?? 0) - heading
+    }
+
+    private var pathsSignature: Int {
+        var hasher = Hasher()
+        for path in paths {
+            hasher.combine(path.count)
+            hasher.combine(path.first)
+            hasher.combine(path.last)
+        }
+        return hasher.finalize()
+    }
+
+    /// A rough starting position (for a phone-sized map) until the real size is known.
+    static func approximatePosition(for camera: TripMapView.Camera) -> MapCameraPosition {
+        switch camera {
+        case .overview, .free:
+            return .automatic
         case let .frame(coordinates):
-            guard let rect = Self.framingRect(for: coordinates) else { return }
-            target = .rect(rect)
-        case let .follow(coordinate, course):
-            target = .camera(MapCamera(
-                centerCoordinate: coordinate.clCoordinate,
-                distance: MapMotion.followDistance,
-                heading: course ?? visibleCamera?.heading ?? 0,
-                pitch: MapMotion.followPitch
+            let phone = CGSize(width: 393, height: 852)
+            return MapCameraDirector.framingRect(for: coordinates, in: phone, insets: .zero).map { .rect($0) } ?? .automatic
+        case let .follow(car, course):
+            return .camera(MapCamera(
+                centerCoordinate: MapCameraDirector.followCenter(car: car, heading: course ?? 0).clCoordinate,
+                distance: MapCameraDirector.followDistance, heading: course ?? 0, pitch: MapCameraDirector.followPitch
             ))
         }
-        if let duration {
-            withAnimation(.easeInOut(duration: duration)) { position = target }
-        } else {
-            position = target
-        }
-    }
-
-    /// A map rect in which `coordinates` fill about `MapMotion.frameFill` of each dimension.
-    static func framingRect(for coordinates: [GeoCoordinate]) -> MKMapRect? {
-        guard !coordinates.isEmpty else { return nil }
-        let points = coordinates.map { MKMapPoint($0.clCoordinate) }
-        let minX = points.map(\.x).min() ?? 0, maxX = points.map(\.x).max() ?? 0
-        let minY = points.map(\.y).min() ?? 0, maxY = points.map(\.y).max() ?? 0
-        // At least ~1 km across, so a very short leg isn't zoomed in to street level.
-        let minimumSide = 1_000 * MKMapPointsPerMeterAtLatitude(coordinates[0].latitude)
-        let width = max(maxX - minX, minimumSide), height = max(maxY - minY, minimumSide)
-        let margin = (1 / MapMotion.frameFill - 1) / 2
-        return MKMapRect(
-            x: (minX + maxX) / 2 - width * (0.5 + margin),
-            y: (minY + maxY) / 2 - height * (0.5 + margin),
-            width: width * (1 + 2 * margin),
-            height: height * (1 + 2 * margin)
-        )
-    }
-}
-
-extension TripMapView.Camera {
-    var isFollow: Bool {
-        if case .follow = self { return true }
-        return false
     }
 }
 

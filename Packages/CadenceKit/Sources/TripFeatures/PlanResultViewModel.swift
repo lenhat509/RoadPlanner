@@ -118,6 +118,18 @@ public final class PlanResultViewModel {
 
     public var warnings: [PlanWarning] { selected?.warnings ?? [] }
 
+    /// Where the user is, when known: drawn on the map, distinct from the plan's start.
+    public var currentLocation: GeoCoordinate? { dependencies.location.lastKnownLocation }
+
+    /// "Starts in San Francisco · 348 mi from you" when the plan starts far from the user (who may
+    /// just be looking at it, or will drive to the start first).
+    public var startDistanceNote: String? {
+        guard let origin = selected?.request.origin, let here = currentLocation else { return nil }
+        let distance = GeoMath.distance(here, origin.coordinate)
+        guard distance > DriveViewModel.farFromStartDistance else { return nil }
+        return "Starts in \(origin.name) · \(dependencies.formatters.distance(distance)) from you"
+    }
+
     public var costBreakdownText: String {
         guard let totals = selected?.totals else { return "" }
         let cost = totals.cost

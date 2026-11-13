@@ -96,6 +96,31 @@ struct HomeViewModelTests {
         #expect(try await harness.repository.loadActiveTrip() == nil)
     }
 
+    @Test("A plan starting far from the user says so; one starting nearby doesn't")
+    func farStartNote() async throws {
+        let harness = FeatureHarness() // the user is in Los Angeles
+        let far = PlanResultViewModel(result: try await Plans.sfToVegas(), dependencies: harness.dependencies)
+        let note = try #require(far.startDistanceNote)
+        #expect(note.hasPrefix("Starts in San Francisco · "))
+        #expect(note.hasSuffix(" mi from you"))
+        #expect(far.currentLocation != nil)
+        let near = PlanResultViewModel(result: try await Plans.laToVegas(), dependencies: harness.dependencies)
+        #expect(near.startDistanceNote == nil)
+        let unknown = PlanResultViewModel(result: try await Plans.sfToVegas(), dependencies: FeatureHarness(startLocation: nil).dependencies)
+        #expect(unknown.startDistanceNote == nil)
+    }
+
+    @Test("A trip waiting to be driven to its start is described as such on Home")
+    func resumeNotStarted() async throws {
+        let harness = FeatureHarness()
+        let itinerary = try #require(try await Plans.sfToVegas().recommended)
+        try await harness.repository.saveActiveTrip(ActiveTrip(itinerary: itinerary))
+        let model = HomeViewModel(dependencies: harness.dependencies)
+        await model.load()
+        let summary = model.resumeSummary(for: try #require(model.activeTrip))
+        #expect(summary == "San Francisco → Las Vegas\nNot started · Begins in San Francisco")
+    }
+
     @Test("Starts a saved plan")
     func startSaved() async throws {
         let harness = FeatureHarness()

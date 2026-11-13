@@ -19,6 +19,16 @@ struct GeoMathTests {
         #expect(GeoMath.distance(sanFrancisco, sanFrancisco) == 0)
     }
 
+    @Test("Destination along a bearing lands at that distance and bearing", arguments: [0.0, 45, 90, 180, 271])
+    func destination(bearing: Double) {
+        let start = GeoCoordinate(latitude: 37.77, longitude: -122.42)
+        let end = GeoMath.destination(from: start, bearing: bearing, distance: 2_500)
+        #expect(abs(GeoMath.distance(start, end) - 2_500) < 1)
+        let measured = GeoMath.bearing(from: start, to: end)
+        let difference = abs((measured - bearing + 540).truncatingRemainder(dividingBy: 360) - 180)
+        #expect(difference < 0.1)
+    }
+
     @Test("Bearing due north and due east")
     func bearing() {
         let origin = GeoCoordinate(latitude: 0, longitude: 0)

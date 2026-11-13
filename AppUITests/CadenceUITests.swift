@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 /// End-to-end UI tests in the offline sandbox (`-UITestSandbox`): simulated Google services,
@@ -223,4 +224,101 @@ final class CadenceUITests: XCTestCase {
     private func elementWithLabel(containing text: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
+
+    // MARK: Plan start vs. current location
+
+    func testATripStartingFarAwayLeadsToItsStartFirst() {
+        launch() // the simulated phone is in Los Angeles
+        app.buttons[AccessibilityID.Home.planTrip].tap()
+        choosePlace(field: AccessibilityID.Plan.origin, typing: "San", pick: "San Francisco")
+        choosePlace(field: AccessibilityID.Plan.destination, typing: "Vegas", pick: "Las Vegas")
+        app.buttons[AccessibilityID.Plan.submit].tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 30))
+        let note = element(AccessibilityID.Results.startNote)
+        XCTAssertTrue(note.exists, "the plan says it starts far from the user")
+        XCTAssertTrue(note.label.hasPrefix("Starts in San Francisco"), note.label)
+
+        app.buttons[AccessibilityID.Results.start].tap()
+        let accept = app.buttons[AccessibilityID.Drive.safetyAccept]
+        if accept.waitForExistence(timeout: 5) { accept.tap() }
+        XCTAssertTrue(element(AccessibilityID.Drive.preview).waitForExistence(timeout: 15),
+                      "drive mode previews the way to the start; on screen: \(visibleIdentifiers())")
+        XCTAssertTrue(app.buttons["Directions to start"].exists)
+        XCTAssertTrue(elementWithLabel(containing: "Trip start · San Francisco").exists, "the header names the trip's start")
+
+        // Or start the trip from here: the preview switches to the first stop.
+        app.buttons[AccessibilityID.Drive.menu].firstMatch.tap()
+        let startHere = app.buttons["Start the trip from here"].firstMatch
+        XCTAssertTrue(startHere.waitForExistence(timeout: 3))
+        startHere.tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Drive.startNavigation].waitForExistence(timeout: 10))
+        let deadline = Date().addingTimeInterval(10)
+        while app.buttons["Directions to start"].exists && Date() < deadline { _ = app.buttons["Start"].waitForExistence(timeout: 1) }
+        XCTAssertFalse(app.buttons["Directions to start"].exists)
+        startFromPreview()
+    }
+
+    // MARK: Map
+
+    func testZoomButtonsZoomFromTheCurrentViewAndBack() throws {
+        launch()
+        planLosAngelesToVegas()
+        let map = element(AccessibilityID.Results.map)
+        XCTAssertTrue(map.waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 2) // tiles and the first framing
+        let before = try XCTUnwrap(RouteTrace(map.screenshot().image), "the route is visible on the map")
+
+        app.buttons["Zoom in"].tap()
+        Thread.sleep(forTimeInterval: 1.2)
+        let zoomed = RouteTrace(map.screenshot().image)
+        XCTAssertNotEqual(zoomed, before, "zooming in changes the view")
+
+        app.buttons["Zoom out"].tap()
+        Thread.sleep(forTimeInterval: 1.5)
+        let after = try XCTUnwrap(RouteTrace(map.screenshot().image))
+        // Zooming happens around the view on screen: in and back out returns to the same view.
+        XCTAssertLessThan(after.distance(to: before), 0.03, "the view drifted: \(before) → \(after)")
+    }
+}
+
+/// Where the blue route line is in a map screenshot: the centroid of route-blue pixels, as
+/// fractions of the image size, and how many there are.
+struct RouteTrace: Equatable, CustomStringConvertible {
+    let x: Double
+    let y: Double
+    let pixels: Int
+
+    init?(_ image: UIImage) {
+        guard let cgImage = image.cgImage else { return nil }
+        let width = 160, height = max(1, Int(Double(cgImage.height) / Double(cgImage.width) * 160))
+        var data = [UInt8](repeating: 0, count: width * height * 4)
+        guard let context = CGContext(
+            data: &data, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        var sumX = 0.0, sumY = 0.0, count = 0
+        for row in 0..<height {
+            for column in 0..<width {
+                let offset = (row * width + column) * 4
+                let red = Int(data[offset]), green = Int(data[offset + 1]), blue = Int(data[offset + 2])
+                // The route's blue (and its darker edge): strongly blue, little red.
+                if blue > 150 && red < 80 && green > 60 && green < 160 && blue - green > 70 {
+                    sumX += Double(column)
+                    sumY += Double(row)
+                    count += 1
+                }
+            }
+        }
+        guard count >= 20 else { return nil }
+        x = sumX / Double(count) / Double(width)
+        y = sumY / Double(count) / Double(height)
+        pixels = count
+    }
+
+    func distance(to other: RouteTrace) -> Double {
+        ((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y)).squareRoot()
+    }
+
+    var description: String { String(format: "(%.3f, %.3f; %d px)", x, y, pixels) }
 }

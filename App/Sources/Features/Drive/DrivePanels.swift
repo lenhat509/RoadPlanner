@@ -113,6 +113,11 @@ struct NextStopPanel<MenuContent: View>: View {
 struct PreviewHeader: View {
     let destination: DriveViewModel.NextStopInfo
 
+    /// The plan's start is named as such, so it isn't mistaken for where the user is.
+    private var title: String {
+        destination.kind == .origin ? "Trip start · \(destination.name)" : destination.name
+    }
+
     var body: some View {
         HStack(spacing: Theme.Spacing.s) {
             VStack(spacing: 3) {
@@ -129,7 +134,7 @@ struct PreviewHeader: View {
                 Text("Your location")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(destination.name)
+                Text(title)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
             }
@@ -139,13 +144,16 @@ struct PreviewHeader: View {
         .padding(.vertical, Theme.Spacing.s)
         .driveSheet(cornerRadius: 20)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Route from your location to \(destination.name)")
+        .accessibilityLabel("Route from your location to \(title)")
     }
 }
 
 /// Bottom of the preview: how long the next leg takes, what happens at the stop, and Start.
 struct PreviewSheet<MenuContent: View>: View {
     let info: DriveViewModel.NextStopInfo?
+    /// Shown above the time, e.g. when the leg leads to the trip's start.
+    var headline: String?
+    var startTitle = "Start"
     let onExit: () -> Void
     let onStart: () -> Void
     @ViewBuilder let menu: () -> MenuContent
@@ -154,6 +162,10 @@ struct PreviewSheet<MenuContent: View>: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
+                    if let headline {
+                        Text(headline)
+                            .font(.subheadline.weight(.semibold))
+                    }
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(info?.durationText ?? "")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -196,7 +208,7 @@ struct PreviewSheet<MenuContent: View>: View {
             HStack(spacing: Theme.Spacing.s) {
                 ExitNavigationButton(action: onExit)
                 Button(action: onStart) {
-                    Label("Start", systemImage: "location.north.fill")
+                    Label(startTitle, systemImage: "location.north.fill")
                 }
                 .buttonStyle(.primary)
                 .accessibilityIdentifier(AccessibilityID.Drive.startNavigation)

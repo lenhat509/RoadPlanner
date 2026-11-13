@@ -44,6 +44,11 @@ enum Plans {
     static func laToVegas(goal: OptimizationGoal = .fastest) async throws -> PlanResult {
         try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "la", to: "lv", goal: goal)) { _ in }
     }
+
+    /// San Francisco → Las Vegas: starts ~550 km from the harness car (in LA).
+    static func sfToVegas() async throws -> PlanResult {
+        try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "sf", to: "lv")) { _ in }
+    }
 }
 
 /// Fixes every `spacing` meters along an encoded leg.

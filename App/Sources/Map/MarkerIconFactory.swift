@@ -36,6 +36,23 @@ enum MarkerIconFactory {
         return image
     }
 
+    /// "You are here": a blue dot with a white ring and a soft halo (not the guided car).
+    static func userLocationIcon() -> UIImage {
+        if let cached = cache["user"] { return cached }
+        let size = CGSize(width: 34, height: 34)
+        let image = UIGraphicsImageRenderer(size: size).image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            UIColor.systemBlue.withAlphaComponent(0.18).setFill()
+            UIBezierPath(ovalIn: rect).fill()
+            UIColor.white.setFill()
+            UIBezierPath(ovalIn: rect.insetBy(dx: 8, dy: 8)).fill()
+            UIColor.systemBlue.setFill()
+            UIBezierPath(ovalIn: rect.insetBy(dx: 11, dy: 11)).fill()
+        }
+        cache["user"] = image
+        return image
+    }
+
     static func render(symbolName: String, color: UIColor, diameter: CGFloat) -> UIImage {
         let size = CGSize(width: diameter, height: diameter)
         return UIGraphicsImageRenderer(size: size).image { _ in

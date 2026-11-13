@@ -155,6 +155,88 @@ struct DriveViewModelTests {
         #expect(GeoMath.distance(try #require(model.routeToTarget.first), away) < 1)
     }
 
+    // MARK: Plan start vs. the car
+
+    private func farStartModel(_ harness: FeatureHarness) async throws -> DriveViewModel {
+        let itinerary = try #require(try await Plans.sfToVegas().recommended)
+        return DriveViewModel(trip: ActiveTrip(itinerary: itinerary), dependencies: harness.dependencies)
+    }
+
+    @Test("Opening a trip far from its start previews the way to the start; the trip hasn't begun")
+    func farFromStartPreview() async throws {
+        let harness = FeatureHarness()
+        let model = try await farStartModel(harness)
+        #expect(model.isHeadingToStart)
+        #expect(model.stage == .preview)
+        #expect(model.previewFrame.count >= 2, "the map can frame car → start before directions load")
+        await model.start()
+        #expect(model.trip.progress.phase == .notStarted)
+        #expect(model.isHeadingToStart)
+        #expect(harness.speech.spoken.isEmpty)
+        let start = model.trip.itinerary.stops[0]
+        #expect(model.nextStop?.kind == .origin)
+        #expect(model.nextStop?.kindTitle == "Trip start")
+        #expect(model.nextStop?.name == start.place.name)
+        let car = try #require(model.currentLocation)
+        #expect(GeoMath.distance(try #require(model.routeToTarget.first), car) < 1)
+        #expect(GeoMath.distance(try #require(model.routeToTarget.last), start.place.coordinate) < 500)
+        #expect(!model.routeAfterTarget.isEmpty, "the planned trip is drawn beyond the start")
+        #expect(model.trip.rerouteLegs.isEmpty, "directions to the start are not part of the plan")
+        #expect(try await harness.repository.loadActiveTrip()?.progress.phase == .notStarted, "kept for resuming")
+    }
+
+    @Test("Driving to the start begins the trip and guidance carries on to the first stop")
+    func reachingTheStart() async throws {
+        let harness = FeatureHarness()
+        let model = try await farStartModel(harness)
+        await model.start()
+        model.beginNavigation()
+        #expect(model.stage == .navigating)
+        #expect(model.banner != nil)
+        let toStart = PolylineGeometry(coordinates: model.legCoordinates)
+        for distance in Array(stride(from: 0, to: toStart.totalLength, by: 500)) + [toStart.totalLength] where model.isHeadingToStart {
+            await model.handle(LocationSample(coordinate: toStart.coordinate(atDistance: distance), speed: 30, timestamp: testNow))
+        }
+        #expect(!model.isHeadingToStart)
+        #expect(model.trip.progress.phase == .enRoute)
+        #expect(model.trip.progress.targetStopIndex == 1)
+        #expect(model.stage == .navigating)
+        #expect(model.nextStop?.name == model.trip.itinerary.stops[1].place.name)
+        #expect(harness.speech.spoken.contains("You've reached the start of your trip."))
+        #expect(try await harness.repository.loadActiveTrip()?.progress.phase == .enRoute)
+    }
+
+    @Test("The driver can start the trip from where they are instead")
+    func startFromHere() async throws {
+        let harness = FeatureHarness()
+        let model = try await farStartModel(harness)
+        await model.start()
+        await model.startTripFromHere()
+        #expect(!model.isHeadingToStart)
+        #expect(model.trip.progress.phase == .enRoute)
+        #expect(model.stage == .preview, "still a preview: the new route is shown before Start")
+        #expect(model.trip.rerouteLegs[0] != nil, "directions to the first stop come from the car")
+        let car = try #require(model.currentLocation)
+        #expect(GeoMath.distance(try #require(model.legCoordinates.first), car) < 300)
+    }
+
+    @Test("\"I've arrived\" while heading to the start begins the trip")
+    func confirmStart() async throws {
+        let model = try await farStartModel(FeatureHarness())
+        await model.start()
+        await model.confirmArrival()
+        #expect(!model.isHeadingToStart)
+        #expect(model.trip.progress.phase == .enRoute)
+    }
+
+    @Test("A trip opened near its start begins right away")
+    func nearStart() async throws {
+        let model = try await makeModel(FeatureHarness())
+        #expect(!model.isHeadingToStart)
+        #expect(model.stage == .navigating)
+        #expect(!model.previewFrame.isEmpty, "the planned first leg frames the map before directions load")
+    }
+
     @Test("At a stop the map shows the next leg")
     func atStopShowsNextLeg() async throws {
         let model = try await makeModel(FeatureHarness())

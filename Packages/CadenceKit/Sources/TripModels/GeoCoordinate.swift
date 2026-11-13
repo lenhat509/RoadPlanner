@@ -60,6 +60,17 @@ public enum GeoMath {
         return (degrees + 360).truncatingRemainder(dividingBy: 360)
     }
 
+    /// The point `distance` meters from `origin` along the initial `bearing` (degrees from north).
+    public static func destination(from origin: GeoCoordinate, bearing: Double, distance: Double) -> GeoCoordinate {
+        let angular = distance / earthRadiusMeters
+        let theta = bearing.radians
+        let lat1 = origin.latitude.radians, lon1 = origin.longitude.radians
+        let lat2 = asin(sin(lat1) * cos(angular) + cos(lat1) * sin(angular) * cos(theta))
+        let lon2 = lon1 + atan2(sin(theta) * sin(angular) * cos(lat1), cos(angular) - sin(lat1) * sin(lat2))
+        let longitude = (lon2.degrees + 540).truncatingRemainder(dividingBy: 360) - 180
+        return GeoCoordinate(latitude: lat2.degrees, longitude: longitude)
+    }
+
     /// Linear interpolation in latitude/longitude space (adequate for short segments).
     public static func interpolate(_ from: GeoCoordinate, _ to: GeoCoordinate, fraction: Double) -> GeoCoordinate {
         if fraction <= 0 { return from }

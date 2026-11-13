@@ -16,6 +16,9 @@ public final class SimulatedLocationProvider: RouteFollowingLocationProvider {
     /// When set, the simulated car parks after driving this far on each leg (screenshots need a
     /// still screen).
     public var parksAfterMeters: Double?
+    /// Seconds the car waits before driving off on a new leg (lets the app's camera settle on it,
+    /// as a real driver pressing Start is still standing).
+    public var departureDelay: TimeInterval = 0
     public private(set) var isUpdating = false
 
     private var continuation: AsyncStream<LocationSample>.Continuation?
@@ -73,7 +76,9 @@ public final class SimulatedLocationProvider: RouteFollowingLocationProvider {
             startDistance = projection.distanceAlong
         }
         let end = min(geometry.totalLength, startDistance + (parksAfterMeters ?? .infinity))
+        let delay = departureDelay
         driveTask = Task { [weak self] in
+            if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1e9)) }
             var distance = startDistance
             while !Task.isCancelled {
                 let point = geometry.coordinate(atDistance: distance)

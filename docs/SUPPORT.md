@@ -19,6 +19,10 @@ enough) and keep the trip active. Check that the ringer volume is up.
 is saved automatically. Cadence shows the route from where you are to your next stop; tap
 **Start** when you're ready. The red **✕** in drive mode leaves navigation without ending the trip.
 
+**My trip starts somewhere else.** Plans can start anywhere. The plan screen shows how far the
+start is from you; when you start driving, Cadence first offers directions to the start (the trip
+begins when you get there), or choose **Start the trip from here** in the ••• menu.
+
 **Can I use Google Maps for navigation instead?** Yes: in drive mode open the menu (•••) and
 choose **Open in Google Maps** for the current leg.
 

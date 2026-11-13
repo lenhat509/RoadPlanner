@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- A plan's start and your current location are now kept apart. The plan screen shows where you
+  are (blue dot) and says when the trip starts far away ("Starts in San Francisco · 348 mi from
+  you"). Starting such a trip first previews the way to its start ("Directions to start");
+  reaching the start begins the trip. You can also choose "Start the trip from here".
+- Smoother map motion: zoom buttons zoom from the view on screen; Start glides from the preview
+  down to the car in one movement; drive mode opens on the next leg and then glides to the car;
+  the camera and the car move continuously between GPS fixes; the follow camera looks ahead so
+  the car sits low on the screen with more road ahead. Framing no longer uses map padding, so
+  the map never jumps when panels change.
 - Drive mode follows the layout of familiar navigation apps: the next turn at the very top (with a
   "Then" turn when two come close together), mute and "show route" buttons on the right,
   "Re-center" after panning, and a bottom sheet with the time left, distance, arrival time, the next

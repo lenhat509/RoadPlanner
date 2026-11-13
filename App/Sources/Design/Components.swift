@@ -267,6 +267,20 @@ struct DashedLine: Shape {
 }
 
 /// The car's position: an arrow pointing in the direction of travel.
+/// "You are here": the user's position when it isn't the car being guided (plan screens). Blue,
+/// like the system location dot, so it never reads as a stop.
+struct UserLocationDot: View {
+    var body: some View {
+        Circle()
+            .fill(Color.blue)
+            .frame(width: 14, height: 14)
+            .overlay(Circle().strokeBorder(.white, lineWidth: 3))
+            .padding(8)
+            .background(Color.blue.opacity(0.18), in: Circle())
+            .accessibilityLabel("You are here")
+    }
+}
+
 struct VehicleArrow: View {
     /// Rotation in degrees relative to the screen's up direction.
     let rotation: Double
