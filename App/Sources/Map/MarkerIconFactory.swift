@@ -17,6 +17,14 @@ enum MarkerIconFactory {
         return image
     }
 
+    /// Heading arrow for the car's position in drive mode.
+    static func vehicleIcon() -> UIImage {
+        if let cached = cache["vehicle"] { return cached }
+        let image = render(symbolName: "location.north.fill", color: UIColor(Theme.accent), diameter: 36)
+        cache["vehicle"] = image
+        return image
+    }
+
     static func render(symbolName: String, color: UIColor, diameter: CGFloat) -> UIImage {
         let size = CGSize(width: diameter, height: diameter)
         return UIGraphicsImageRenderer(size: size).image { _ in

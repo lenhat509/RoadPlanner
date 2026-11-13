@@ -22,7 +22,7 @@ struct PlanResultScreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.l) {
                 if let itinerary = model.selected {
-                    TripMapView(paths: MapContent.paths(for: itinerary), markers: MapContent.markers(for: itinerary.stops), showsUserLocation: false)
+                    TripMapView(paths: MapContent.paths(for: itinerary), markers: MapContent.markers(for: itinerary.stops))
                         .frame(height: 260)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                         .accessibilityIdentifier(AccessibilityID.Results.map)

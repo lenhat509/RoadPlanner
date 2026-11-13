@@ -20,11 +20,19 @@ struct TripMapView: UIViewRepresentable {
         case follow(GeoCoordinate, course: Double?)
     }
 
+    /// The car's position, drawn as a heading arrow (drive mode).
+    struct Vehicle: Equatable {
+        let coordinate: GeoCoordinate
+        let course: Double?
+    }
+
     var paths: [[GeoCoordinate]]
     var markers: [MapStopMarker]
     var camera: Camera = .overview
-    var showsUserLocation = true
+    var showsUserLocation = false
     var edgeInsets = UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
+    /// Drawn from the location the app navigates with (real or simulated), not the SDK's own GPS dot.
+    var vehicle: Vehicle?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -44,6 +52,7 @@ struct TripMapView: UIViewRepresentable {
         mapView.padding = edgeInsets
         context.coordinator.applyStyle(colorScheme, to: mapView)
         context.coordinator.render(paths: paths, markers: markers, on: mapView)
+        context.coordinator.updateVehicle(vehicle, on: mapView)
         context.coordinator.updateCamera(camera, paths: paths, markers: markers, on: mapView)
     }
 
@@ -54,6 +63,24 @@ struct TripMapView: UIViewRepresentable {
         private var styledScheme: ColorScheme?
         private var polylines: [GMSPolyline] = []
         private var stopMarkers: [GMSMarker] = []
+        private var vehicleMarker: GMSMarker?
+
+        func updateVehicle(_ vehicle: TripMapView.Vehicle?, on mapView: GMSMapView) {
+            guard let vehicle else {
+                vehicleMarker?.map = nil
+                vehicleMarker = nil
+                return
+            }
+            let marker = vehicleMarker ?? GMSMarker()
+            marker.position = CLLocationCoordinate2D(latitude: vehicle.coordinate.latitude, longitude: vehicle.coordinate.longitude)
+            marker.icon = MarkerIconFactory.vehicleIcon()
+            marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
+            marker.isFlat = true
+            marker.rotation = vehicle.course ?? 0
+            marker.zIndex = 20
+            marker.map = mapView
+            vehicleMarker = marker
+        }
 
         func applyStyle(_ scheme: ColorScheme, to mapView: GMSMapView) {
             guard styledScheme != scheme else { return }

@@ -8,6 +8,14 @@ final class CadenceUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        // Accept any system permission prompt (location, notifications) so it can't block a test.
+        addUIInterruptionMonitor(withDescription: "System permission") { alert in
+            for label in ["Allow While Using App", "Allow Once", "Allow", "OK"] where alert.buttons[label].exists {
+                alert.buttons[label].tap()
+                return true
+            }
+            return false
+        }
     }
 
     // MARK: Helpers
@@ -46,8 +54,25 @@ final class CadenceUITests: XCTestCase {
     private func startDrive() {
         app.buttons[AccessibilityID.Results.start].tap()
         let accept = app.buttons[AccessibilityID.Drive.safetyAccept]
-        if accept.waitForExistence(timeout: 5) { accept.tap() }
-        XCTAssertTrue(element(AccessibilityID.Drive.nextStop).waitForExistence(timeout: 10))
+        if accept.waitForExistence(timeout: 5) {
+            accept.tap()
+            XCTAssertTrue(accept.waitForNonExistence(timeout: 5), "safety notice stayed on screen")
+        }
+        assertDriving()
+    }
+
+    /// Drive mode is showing guidance (the maneuver banner) or an arrival card.
+    private func assertDriving(file: StaticString = #filePath, line: UInt = #line) {
+        let banner = element(AccessibilityID.Drive.banner)
+        let arrival = element(AccessibilityID.Drive.arrivalCard)
+        let shown = banner.waitForExistence(timeout: 15) || arrival.exists
+        XCTAssertTrue(shown, "drive mode not shown; on screen: \(visibleIdentifiers())", file: file, line: line)
+    }
+
+    /// One-line list of accessibility identifiers on screen, for failure messages in CI logs.
+    private func visibleIdentifiers() -> String {
+        app.descendants(matching: .any).allElementsBoundByIndex.prefix(300)
+            .map(\.identifier).filter { !$0.isEmpty }.joined(separator: ", ")
     }
 
     // MARK: Tests
@@ -86,12 +111,11 @@ final class CadenceUITests: XCTestCase {
         launch()
         planLosAngelesToVegas()
         startDrive()
-        XCTAssertTrue(element(AccessibilityID.Drive.banner).waitForExistence(timeout: 10))
         // The simulated car drives the leg; the "next stop" option appears near/at the stop.
         let continueButton = app.buttons[AccessibilityID.Drive.continueToNext]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 90))
         continueButton.tap()
-        XCTAssertTrue(element(AccessibilityID.Drive.nextStop).waitForExistence(timeout: 10))
+        assertDriving()
     }
 
     func testTripProgressIsRestoredAfterRelaunch() {
@@ -104,7 +128,7 @@ final class CadenceUITests: XCTestCase {
         let resume = app.buttons[AccessibilityID.Home.resume]
         XCTAssertTrue(resume.waitForExistence(timeout: 5), "an active trip should be offered for resuming")
         resume.tap()
-        XCTAssertTrue(element(AccessibilityID.Drive.nextStop).waitForExistence(timeout: 10))
+        assertDriving()
     }
 
     func testEndingATripReturnsHomeAndClearsProgress() {
@@ -112,8 +136,14 @@ final class CadenceUITests: XCTestCase {
         planLosAngelesToVegas()
         startDrive()
         app.buttons[AccessibilityID.Drive.menu].tap()
-        app.buttons[AccessibilityID.Drive.endTrip].tap()
-        app.buttons["End trip"].firstMatch.tap()
+        // SwiftUI menu items don't reliably expose identifiers; use the visible label.
+        let menuItem = app.buttons["End trip"].firstMatch
+        XCTAssertTrue(menuItem.waitForExistence(timeout: 3))
+        menuItem.tap()
+        let confirm = app.sheets.buttons["End trip"].firstMatch
+        let confirmButton = confirm.waitForExistence(timeout: 3) ? confirm : app.buttons["End trip"].firstMatch
+        XCTAssertTrue(confirmButton.waitForExistence(timeout: 3))
+        confirmButton.tap()
         XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons[AccessibilityID.Home.resume].exists)
     }

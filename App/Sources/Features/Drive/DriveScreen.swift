@@ -22,12 +22,53 @@ struct DriveScreen: View {
     }
 
     var body: some View {
+        Group {
+            if showsSafetyNotice {
+                // Shown inline rather than as a sheet: presenting a sheet while the full-screen
+                // cover is still animating in can be dropped by UIKit.
+                SafetyNoticeView {
+                    var preferences = dependencies.preferences.load()
+                    preferences.hasAcceptedSafetyNotice = true
+                    dependencies.preferences.save(preferences)
+                    withAnimation { showsSafetyNotice = false }
+                }
+            } else {
+                driveContent
+            }
+        }
+        .task(id: showsSafetyNotice) {
+            if !showsSafetyNotice { await model.start() }
+        }
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            Task { await model.stop() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Guidance keeps running in the background; nothing to pause. Progress is auto-saved.
+            if phase == .active { UIApplication.shared.isIdleTimerDisabled = true }
+        }
+        .confirmationDialog("End this trip?", isPresented: $confirmsEnd, titleVisibility: .visible) {
+            Button("End trip", role: .destructive) {
+                Task {
+                    await model.endTrip()
+                    onFinish()
+                }
+            }
+            Button("Keep driving", role: .cancel) {}
+        } message: {
+            Text("Your progress on this trip will be cleared.")
+        }
+    }
+
+    private var driveContent: some View {
         ZStack(alignment: .top) {
             TripMapView(
                 paths: model.legCoordinates.isEmpty ? [] : [model.legCoordinates],
                 markers: markers,
                 camera: camera,
-                edgeInsets: UIEdgeInsets(top: 170, left: 16, bottom: 240, right: 16)
+                edgeInsets: UIEdgeInsets(top: 170, left: 16, bottom: 240, right: 16),
+                vehicle: model.currentLocation.map { TripMapView.Vehicle(coordinate: $0, course: model.currentCourse) }
             )
             .ignoresSafeArea()
 
@@ -46,38 +87,6 @@ struct DriveScreen: View {
             .padding(.horizontal, Theme.Spacing.s)
             .padding(.bottom, Theme.Spacing.xs)
             .animation(.easeInOut(duration: 0.25), value: model.mode)
-        }
-        .task(id: showsSafetyNotice) {
-            if !showsSafetyNotice { await model.start() }
-        }
-        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
-        .onDisappear {
-            UIApplication.shared.isIdleTimerDisabled = false
-            Task { await model.stop() }
-        }
-        .onChange(of: scenePhase) { _, phase in
-            // Guidance keeps running in the background; nothing to pause. Progress is auto-saved.
-            if phase == .active { UIApplication.shared.isIdleTimerDisabled = true }
-        }
-        .sheet(isPresented: $showsSafetyNotice) {
-            SafetyNoticeView {
-                var preferences = dependencies.preferences.load()
-                preferences.hasAcceptedSafetyNotice = true
-                dependencies.preferences.save(preferences)
-                showsSafetyNotice = false
-            }
-            .interactiveDismissDisabled()
-        }
-        .confirmationDialog("End this trip?", isPresented: $confirmsEnd, titleVisibility: .visible) {
-            Button("End trip", role: .destructive) {
-                Task {
-                    await model.endTrip()
-                    onFinish()
-                }
-            }
-            Button("Keep driving", role: .cancel) {}
-        } message: {
-            Text("Your progress on this trip will be cleared.")
         }
     }
 
@@ -419,6 +428,7 @@ struct SafetyNoticeView: View {
                 .accessibilityIdentifier(AccessibilityID.Drive.safetyAccept)
         }
         .padding(Theme.Spacing.l)
-        .presentationDetents([.large])
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Theme.background.ignoresSafeArea())
     }
 }
