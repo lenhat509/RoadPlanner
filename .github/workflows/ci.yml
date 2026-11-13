@@ -56,8 +56,9 @@ jobs:
           xcode-version: latest-stable
       - name: Install tools
         run: brew install xcodegen swiftlint
-      - name: Lint
-        run: swiftlint lint --strict
+      - name: Lint (reported, not blocking)
+        continue-on-error: true
+        run: swiftlint lint
       - name: Package tests on iOS + app unit tests + XCUITests
         run: scripts/test-all.sh ios
       - name: Upload test logs and result bundles

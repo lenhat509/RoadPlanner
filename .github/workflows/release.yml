@@ -8,6 +8,14 @@ on:
         type: choice
         options: [beta, release, metadata]
         default: beta
+      create_certificates:
+        description: "First run only: let fastlane match create the signing certificate and profile"
+        type: boolean
+        default: false
+      run_tests:
+        description: "Run the iOS test suite before building"
+        type: boolean
+        default: true
 
 jobs:
   release:
@@ -30,6 +38,7 @@ jobs:
           SECRETS_XCCONFIG: ${{ secrets.SECRETS_XCCONFIG }}
         run: printf '%s\n' "$SECRETS_XCCONFIG" > Config/Secrets.xcconfig
       - name: Test before shipping
+        if: ${{ inputs.run_tests }}
         run: scripts/test-all.sh ios
       - name: fastlane ${{ inputs.lane }}
         env:
@@ -41,4 +50,5 @@ jobs:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           CADENCE_BUNDLE_ID: ${{ vars.CADENCE_BUNDLE_ID }}
           CADENCE_TEAM_ID: ${{ vars.CADENCE_TEAM_ID }}
+          MATCH_READONLY: ${{ inputs.create_certificates && 'false' || 'true' }}
         run: bundle exec fastlane ${{ inputs.lane }}

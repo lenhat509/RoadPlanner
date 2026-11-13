@@ -1,0 +1,90 @@
+name: Preview (Appetize)
+
+# Builds an unsigned iOS Simulator build (no Apple account needed) and publishes it to
+# Appetize.io, which streams it to any browser — including Safari on an iPhone.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   APPETIZE_API_TOKEN  required to publish (https://appetize.io → Account → API token)
+#   SECRETS_XCCONFIG    optional; contents of Config/Secrets.xcconfig for real Google maps/places.
+#                       Without it the app runs in demo mode on offline sample data.
+# Variables:
+#   APPETIZE_PUBLIC_KEY optional; set after the first run to keep updating the same link.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "test-logs/**", "Backend/**"]
+
+concurrency:
+  group: preview
+  cancel-in-progress: true
+
+jobs:
+  simulator-build:
+    name: Simulator build → Appetize
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+      APPETIZE_PUBLIC_KEY: ${{ vars.APPETIZE_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Optional build secrets
+        env:
+          SECRETS_XCCONFIG: ${{ secrets.SECRETS_XCCONFIG }}
+        run: |
+          if [ -n "$SECRETS_XCCONFIG" ]; then
+            printf '%s\n' "$SECRETS_XCCONFIG" > Config/Secrets.xcconfig
+            echo "Building with Config/Secrets.xcconfig from repository secrets."
+          else
+            echo "No SECRETS_XCCONFIG secret: building in demo mode (offline sample data)."
+          fi
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build for iOS Simulator (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Cadence.xcodeproj -scheme Cadence -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
+            | tee build.log | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)" || true
+          test -d build/Build/Products/Debug-iphonesimulator/Cadence.app
+      - name: Package the app
+        run: ditto -c -k --sequesterRsrc --keepParent build/Build/Products/Debug-iphonesimulator/Cadence.app Cadence-simulator.zip
+      - name: Keep the build as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cadence-simulator
+          path: |
+            Cadence-simulator.zip
+            build.log
+      - name: Publish to Appetize
+        if: ${{ env.APPETIZE_API_TOKEN != '' }}
+        run: |
+          endpoint="https://api.appetize.io/v1/apps"
+          if [ -n "$APPETIZE_PUBLIC_KEY" ]; then endpoint="$endpoint/$APPETIZE_PUBLIC_KEY"; fi
+          response=$(curl -sS --fail-with-body -X POST "$endpoint" \
+            -H "X-API-KEY: $APPETIZE_API_TOKEN" \
+            -F "file=@Cadence-simulator.zip" -F "platform=ios" -F "note=${GITHUB_SHA::7}")
+          key=$(printf '%s' "$response" | python3 -c 'import json,sys; print(json.load(sys.stdin)["publicKey"])')
+          {
+            echo "### Try Cadence on your iPhone"
+            echo
+            echo "Open in Safari on your iPhone: https://appetize.io/app/$key"
+            echo
+            if [ -z "$APPETIZE_PUBLIC_KEY" ]; then
+              echo "To keep this same link for future builds, add a repository *variable* \`APPETIZE_PUBLIC_KEY\` = \`$key\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Explain how to publish
+        if: ${{ env.APPETIZE_API_TOKEN == '' }}
+        run: |
+          echo "### Build succeeded" >> "$GITHUB_STEP_SUMMARY"
+          echo "Add the \`APPETIZE_API_TOKEN\` repository secret and re-run this workflow to get a link you can open on your iPhone." >> "$GITHUB_STEP_SUMMARY"
