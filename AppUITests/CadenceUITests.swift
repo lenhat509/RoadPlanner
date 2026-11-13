@@ -144,10 +144,18 @@ final class CadenceUITests: XCTestCase {
         launch()
         planLosAngelesToVegas()
         startDrive()
-        app.buttons[AccessibilityID.Drive.menu].tap()
-        // SwiftUI menu items don't reliably expose identifiers; use the visible label.
+        // SwiftUI menu items don't reliably expose identifiers; use the visible label. The
+        // simulated car drives fast, so the panel holding the menu can swap (driving → at a stop)
+        // while the menu is open, which closes it: open it again if so.
         let menuItem = app.buttons["End trip"].firstMatch
-        XCTAssertTrue(menuItem.waitForExistence(timeout: 3))
+        var opened = false
+        for _ in 0..<3 where !opened {
+            let menu = app.buttons[AccessibilityID.Drive.menu].firstMatch
+            guard menu.waitForExistence(timeout: 5) else { break }
+            menu.tap()
+            opened = menuItem.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(opened, "trip menu did not open; on screen: \(visibleIdentifiers())")
         menuItem.tap()
         let confirm = app.sheets.buttons["End trip"].firstMatch
         let confirmButton = confirm.waitForExistence(timeout: 3) ? confirm : app.buttons["End trip"].firstMatch

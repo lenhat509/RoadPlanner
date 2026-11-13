@@ -64,6 +64,7 @@ struct AppleRouteMap: View {
 
     @State private var position: MapCameraPosition = .automatic
     @State private var visibleCamera: MapCamera?
+    @State private var lastFollowUpdate = Date.distantPast
 
     var body: some View {
         Map(position: $position) {
@@ -95,12 +96,24 @@ struct AppleRouteMap: View {
             if let newValue { perform(newValue.action) }
         }
         .onAppear { apply(camera, animated: false) }
-        .onChange(of: camera) { _, newValue in apply(newValue, animated: true) }
+        .onChange(of: camera) { _, newValue in
+            if case .follow = newValue {
+                // Glide between GPS fixes (about one a second); when fixes come faster (the demo
+                // and test simulators), snap so the camera never falls behind the car.
+                let now = Date()
+                apply(newValue, animated: now.timeIntervalSince(lastFollowUpdate) > Self.minimumGlideInterval)
+                lastFollowUpdate = now
+            } else {
+                apply(newValue, animated: true)
+            }
+        }
         .onChange(of: paths.first?.count) { _, _ in
             if camera == .overview { position = .automatic }
         }
         .accessibilityIdentifier("map")
     }
+
+    static let minimumGlideInterval: TimeInterval = 0.6
 
     /// In follow mode the map is rotated to the direction of travel, so the arrow points up.
     private func vehicleRotation(_ vehicle: TripMapView.Vehicle) -> Double {
