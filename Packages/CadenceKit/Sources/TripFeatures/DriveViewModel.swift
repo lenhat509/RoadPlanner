@@ -13,6 +13,12 @@ public final class DriveViewModel {
         public var symbolName: String
         public var distanceText: String
         public var instruction: String
+
+        public init(symbolName: String, distanceText: String, instruction: String) {
+            self.symbolName = symbolName
+            self.distanceText = distanceText
+            self.instruction = instruction
+        }
     }
 
     public struct NextStopInfo: Equatable, Sendable {
@@ -25,6 +31,28 @@ public final class DriveViewModel {
         public var remainingText: String
         public var plannedAction: String?
         public var isDestination: Bool
+
+        public init(
+            kind: StopKind,
+            isPullOff: Bool,
+            name: String,
+            kindTitle: String,
+            symbolName: String,
+            etaText: String,
+            remainingText: String,
+            plannedAction: String?,
+            isDestination: Bool
+        ) {
+            self.kind = kind
+            self.isPullOff = isPullOff
+            self.name = name
+            self.kindTitle = kindTitle
+            self.symbolName = symbolName
+            self.etaText = etaText
+            self.remainingText = remainingText
+            self.plannedAction = plannedAction
+            self.isDestination = isDestination
+        }
     }
 
     public enum Mode: Equatable, Sendable {

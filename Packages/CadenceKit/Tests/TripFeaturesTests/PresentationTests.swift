@@ -14,7 +14,9 @@ struct PresentationTests {
 
     @Test("Distances")
     func distances() {
-        #expect(formatters.distance(Units.meters(fromMiles: 2_631.2)) == "2,631 mi")
+        // en_US (not POSIX): POSIX grouping differs between Apple and Linux Foundation.
+        let usd = TripFormatters(locale: Locale(identifier: "en_US"))
+        #expect(usd.distance(Units.meters(fromMiles: 2_631.2)) == "2,631 mi")
         #expect(formatters.distance(Units.meters(fromMiles: 12.44)) == "12.4 mi")
         #expect(formatters.distance(100) == "330 ft")
     }

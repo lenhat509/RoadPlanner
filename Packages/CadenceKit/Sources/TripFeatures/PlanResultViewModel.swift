@@ -15,6 +15,26 @@ public struct PlanOption: Hashable, Sendable, Identifiable {
     /// "Fastest" / "Lowest cost" when this option wins on that metric.
     public var badges: [String]
     public var id: OptimizationGoal { goal }
+
+    public init(
+        goal: OptimizationGoal,
+        title: String,
+        durationText: String,
+        costText: String,
+        nightsText: String,
+        arrivalText: String,
+        isRecommended: Bool,
+        badges: [String]
+    ) {
+        self.goal = goal
+        self.title = title
+        self.durationText = durationText
+        self.costText = costText
+        self.nightsText = nightsText
+        self.arrivalText = arrivalText
+        self.isRecommended = isRecommended
+        self.badges = badges
+    }
 }
 
 /// A day of the itinerary for the timeline.
@@ -24,6 +44,13 @@ public struct DaySection: Hashable, Sendable, Identifiable {
     public var summary: String
     public var stops: [StopPresentation]
     public var id: Int { index }
+
+    public init(index: Int, title: String, summary: String, stops: [StopPresentation]) {
+        self.index = index
+        self.title = title
+        self.summary = summary
+        self.stops = stops
+    }
 }
 
 /// Compare plans, inspect the timeline, save or start the trip.
