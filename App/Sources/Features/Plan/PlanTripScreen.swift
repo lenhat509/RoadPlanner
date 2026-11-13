@@ -315,6 +315,12 @@ struct PlanTripScreen: View {
     }
 
     private var submitBar: some View {
+        BottomActionBar {
+            submitContent
+        }
+    }
+
+    private var submitContent: some View {
         VStack(spacing: Theme.Spacing.xs) {
             if let first = model.validationErrors.first, model.origin.place != nil, model.destination.place != nil {
                 Text(first.message)
@@ -331,10 +337,6 @@ struct PlanTripScreen: View {
             .disabled(!model.canPlan)
             .accessibilityIdentifier(AccessibilityID.Plan.submit)
         }
-        .padding(.horizontal, Theme.Spacing.m)
-        .padding(.top, Theme.Spacing.s)
-        .padding(.bottom, Theme.Spacing.xs)
-        .background(Theme.canvas.opacity(0.94).ignoresSafeArea())
     }
 
     // MARK: Helpers

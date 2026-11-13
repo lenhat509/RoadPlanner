@@ -32,6 +32,37 @@ struct PlanTripViewModelTests {
         #expect(!model.canPlan)
     }
 
+    @Test("Late at night, the default departure is the next morning")
+    func defaultDepartureAtNight() {
+        // 06:00 UTC = 23:00 PDT the evening before.
+        let night = Date(timeIntervalSince1970: 1_809_324_000)
+        let dependencies = SandboxEnvironment.makeDependencies(timeZone: TimeZone(identifier: "America/Los_Angeles")!, now: { night })
+        let model = PlanTripViewModel(dependencies: dependencies)
+        #expect(model.departure == Date(timeIntervalSince1970: 1_809_356_400)) // 08:00 PDT = 15:00 UTC
+    }
+
+    @Test("Choosing a start re-evaluates the default departure in that place's time zone")
+    func defaultDepartureFollowsOrigin() async {
+        // 08:40 UTC: daytime for a phone on UTC, but 00:40 in San Francisco (UTC−8 in the sandbox).
+        let early = Date(timeIntervalSince1970: 1_809_333_600)
+        let dependencies = SandboxEnvironment.makeDependencies(timeZone: TimeZone(identifier: "UTC")!, now: { early })
+        let model = PlanTripViewModel(dependencies: dependencies)
+        #expect(model.departure == Date(timeIntervalSince1970: 1_809_333_900)) // next quarter hour (08:45 UTC)
+        await model.select(PlaceSuggestion(placeID: "sf", primaryText: "San Francisco", secondaryText: ""), for: .origin)
+        #expect(model.departure == Date(timeIntervalSince1970: 1_809_360_000)) // 08:00 in San Francisco
+    }
+
+    @Test("A departure the user picked is never changed")
+    func editedDepartureIsKept() async {
+        let early = Date(timeIntervalSince1970: 1_809_333_600)
+        let dependencies = SandboxEnvironment.makeDependencies(timeZone: TimeZone(identifier: "UTC")!, now: { early })
+        let model = PlanTripViewModel(dependencies: dependencies)
+        let chosen = Date(timeIntervalSince1970: 1_809_400_000)
+        model.departure = chosen
+        await model.select(PlaceSuggestion(placeID: "sf", primaryText: "San Francisco", secondaryText: ""), for: .origin)
+        #expect(model.departure == chosen)
+    }
+
     @Test("Requires both places before planning")
     func requiresPlaces() {
         let model = PlanTripViewModel(dependencies: FeatureHarness().dependencies)

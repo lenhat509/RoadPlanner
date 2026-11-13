@@ -13,6 +13,9 @@ All notable changes to this project are documented here. The format follows
   rhythm strip.
 - The route preview map no longer scrolls with the page (pinch/pan work), and has zoom in/out,
   "whole route" and expand buttons.
+- The plan form suggests a departure in daytime at the start location (the next quarter hour,
+  or 8 AM the next morning when it is late) until you pick a time yourself.
+- The map legend wraps instead of scrolling; bottom action bars are opaque with a soft fade.
 
 ### Fixed
 - Choosing an autocomplete suggestion needed two taps: a search still in flight re-opened the list.

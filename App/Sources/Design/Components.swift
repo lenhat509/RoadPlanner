@@ -44,6 +44,71 @@ extension ButtonStyle where Self == SecondaryButtonStyle {
     static var secondary: SecondaryButtonStyle { SecondaryButtonStyle() }
 }
 
+// MARK: - Bars
+
+/// The bar holding a screen's primary action: opaque, with a soft fade so scrolled content
+/// slides under it cleanly.
+struct BottomActionBar<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .padding(.horizontal, Theme.Spacing.m)
+            .padding(.top, Theme.Spacing.xs)
+            .padding(.bottom, Theme.Spacing.xs)
+            .frame(maxWidth: .infinity)
+            .background(alignment: .top) {
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [Theme.canvas.opacity(0), Theme.canvas], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 28)
+                        .offset(y: -28)
+                        .padding(.bottom, -28)
+                    Theme.canvas
+                }
+                .ignoresSafeArea(edges: .bottom)
+                .allowsHitTesting(false)
+            }
+    }
+}
+
+/// Wraps its children onto new lines (used for the map legend).
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+    var lineSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, lineHeight: CGFloat = 0, widest: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > maxWidth {
+                y += lineHeight + lineSpacing
+                x = 0
+                lineHeight = 0
+            }
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+            widest = max(widest, x - spacing)
+        }
+        return CGSize(width: proposal.width ?? widest, height: y + lineHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, lineHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                y += lineHeight + lineSpacing
+                x = bounds.minX
+                lineHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+    }
+}
+
 // MARK: - Surfaces
 
 /// A soft white card on the warm canvas.
@@ -123,23 +188,18 @@ struct StopLegend: View {
     }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.s) {
-                ForEach(entries) { entry in
-                    HStack(spacing: 6) {
-                        StopDot(kind: entry.kind, isPullOff: entry.isPullOff, size: 12)
-                        Text(Theme.legendTitle(for: entry.kind, isPullOff: entry.isPullOff))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Theme.card, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Theme.cardStroke, lineWidth: 1))
+        FlowLayout(spacing: 14, lineSpacing: 6) {
+            ForEach(entries) { entry in
+                HStack(spacing: 6) {
+                    StopDot(kind: entry.kind, isPullOff: entry.isPullOff, size: 12)
+                    Text(Theme.legendTitle(for: entry.kind, isPullOff: entry.isPullOff))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, Theme.Spacing.m)
         }
+        .padding(.horizontal, Theme.Spacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Map legend: " + entries.map { Theme.legendTitle(for: $0.kind, isPullOff: $0.isPullOff) }.joined(separator: ", "))
         .accessibilityIdentifier(AccessibilityID.Results.legend)

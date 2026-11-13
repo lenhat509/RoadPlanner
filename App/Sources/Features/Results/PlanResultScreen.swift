@@ -26,7 +26,8 @@ struct PlanResultScreen: View {
             if let itinerary = model.selected {
                 mapArea(itinerary)
                 StopLegend(entries: StopLegend.entries(for: itinerary.stops))
-                    .padding(.vertical, Theme.Spacing.s)
+                    .padding(.top, Theme.Spacing.s)
+                    .padding(.bottom, Theme.Spacing.xs)
             }
             if !mapExpanded {
                 ScrollView { details }
@@ -55,28 +56,26 @@ struct PlanResultScreen: View {
                         .accessibilityIdentifier(AccessibilityID.Results.openInGoogleMaps)
                     }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
                 }
                 .accessibilityLabel("More actions")
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button {
-                Task {
-                    isStarting = true
-                    defer { isStarting = false }
-                    if let trip = await model.startTrip() { onStart(trip) }
+            BottomActionBar {
+                Button {
+                    Task {
+                        isStarting = true
+                        defer { isStarting = false }
+                        if let trip = await model.startTrip() { onStart(trip) }
+                    }
+                } label: {
+                    Label("Start driving", systemImage: "car.fill")
                 }
-            } label: {
-                Label("Start driving", systemImage: "car.fill")
+                .buttonStyle(.primary)
+                .disabled(isStarting || model.selected == nil)
+                .accessibilityIdentifier(AccessibilityID.Results.start)
             }
-            .buttonStyle(.primary)
-            .disabled(isStarting || model.selected == nil)
-            .padding(.horizontal, Theme.Spacing.m)
-            .padding(.top, Theme.Spacing.s)
-            .padding(.bottom, Theme.Spacing.xs)
-            .background(Theme.canvas.opacity(0.94).ignoresSafeArea())
-            .accessibilityIdentifier(AccessibilityID.Results.start)
         }
         .sheet(item: $selectedStop) { stop in
             StopDetailSheet(
@@ -188,6 +187,9 @@ struct PlanOptionCard: View {
                     Image(systemName: PlanTripScreen.symbol(for: option.goal))
                     Text(option.title)
                         .textCase(.uppercase)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Spacer(minLength: 0)
                     if option.isRecommended {
                         Image(systemName: "star.fill")
                             .accessibilityLabel("Your preference")

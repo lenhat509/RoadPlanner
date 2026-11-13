@@ -49,11 +49,6 @@ struct HomeView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Text("Cadence")
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(Theme.accent)
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onOpenSettings) {
                     Image(systemName: "slider.horizontal.3")
@@ -76,7 +71,12 @@ struct HomeView: View {
                 .padding(.top, 14)
                 .padding(.trailing, 6)
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Spacer(minLength: 64)
+                Text("CADENCE")
+                    .font(.caption.weight(.heavy))
+                    .tracking(2.5)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .accessibilityHidden(true)
+                Spacer(minLength: 44)
                 Text(model.greeting)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.white.opacity(0.75))

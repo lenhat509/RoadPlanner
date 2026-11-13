@@ -16,6 +16,11 @@ final class ScreenshotTests: XCTestCase {
         app.launch()
     }
 
+    /// Gives map tiles a moment to load before a capture.
+    private func settle(_ seconds: TimeInterval = 4) {
+        Thread.sleep(forTimeInterval: seconds)
+    }
+
     private func capture(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
@@ -49,12 +54,14 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
         capture("00-Home")
         planCrossCountry(captureForm: "01-Plan")
+        settle()
         capture("02-Options")
         app.swipeUp()
         capture("03-Timeline")
 
         app.buttons[AccessibilityID.Results.start].tap()
         XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.banner].firstMatch.waitForExistence(timeout: 15))
+        settle(3)
         capture("04-Drive")
         if app.buttons[AccessibilityID.Drive.continueToNext].waitForExistence(timeout: 90) {
             capture("05-Arrival")
@@ -66,9 +73,11 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
         capture("10-Home-Dark")
         planCrossCountry(captureForm: "11-Plan-Dark")
+        settle()
         capture("12-Options-Dark")
         app.buttons[AccessibilityID.Results.start].tap()
         XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.banner].firstMatch.waitForExistence(timeout: 15))
+        settle(3)
         capture("13-Drive-Dark")
     }
 }

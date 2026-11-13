@@ -88,6 +88,7 @@ struct AppleRouteMap: View {
             }
         }
         .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
+        .mapControls { MapCompass().mapControlVisibility(.hidden) }
         .safeAreaPadding(EdgeInsets(top: edgeInsets.top, leading: edgeInsets.left, bottom: edgeInsets.bottom, trailing: edgeInsets.right))
         .onMapCameraChange(frequency: .onEnd) { context in visibleCamera = context.camera }
         .onChange(of: command) { _, newValue in

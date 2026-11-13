@@ -54,6 +54,18 @@ struct DesignSystemTests {
         #expect(PlanTripScreen.hoursText(0.75) == "45 min")
     }
 
+    @Test("The legend layout wraps onto new lines when narrow")
+    func flowLayoutWraps() throws {
+        let items = ForEach(0..<6) { _ in Color.red.frame(width: 100, height: 20) }
+        let narrow = ImageRenderer(content: FlowLayout(spacing: 10, lineSpacing: 5) { items }.frame(width: 230))
+        let wide = ImageRenderer(content: FlowLayout(spacing: 10, lineSpacing: 5) { items }.frame(width: 700))
+        narrow.scale = 1
+        wide.scale = 1
+        // 2 per line at 230 pt → 3 lines (20 + 5 + 20 + 5 + 20); all 6 fit on one line at 700 pt.
+        #expect(narrow.uiImage?.size.height == 70)
+        #expect(wide.uiImage?.size.height == 20)
+    }
+
     @Test("Components render without layout errors")
     func componentsRender() throws {
         let option = PlanOption(
@@ -81,6 +93,7 @@ struct DesignSystemTests {
             AnyView(MapControlButton(systemImage: "plus", label: "Zoom in") {}),
             AnyView(DecorativeRoute().frame(width: 170, height: 110)),
             AnyView(SectionLabel(title: "Your car")),
+            AnyView(BottomActionBar { Button("Start driving") {}.buttonStyle(.primary) }),
             AnyView(MetricView(value: "2,631 mi", label: "Distance")),
             AnyView(WarningList(warnings: [PlanWarning(code: .estimatedPrices, message: "Some prices are estimates.")])),
             AnyView(ManeuverBannerView(

@@ -35,7 +35,9 @@ public final class PlanTripViewModel {
     // Form state
     public var origin = LocationInput()
     public var destination = LocationInput()
-    public var departure: Date
+    public var departure: Date {
+        didSet { if !isApplyingDefaultDeparture { departureEditedByUser = true } }
+    }
     public var arriveByEnabled = false
     public var arriveBy: Date
     public var mpgText: String
@@ -56,6 +58,8 @@ public final class PlanTripViewModel {
     public private(set) var result: PlanResult?
 
     private let dependencies: AppDependencies
+    @ObservationIgnored private var isApplyingDefaultDeparture = false
+    @ObservationIgnored private var departureEditedByUser = false
     private var searchTasks: [Field: Task<Void, Never>] = [:]
     private var planTask: Task<Void, Never>?
     private var sessionToken = UUID().uuidString
@@ -64,7 +68,9 @@ public final class PlanTripViewModel {
         self.dependencies = dependencies
         let preferences = dependencies.preferences.load()
         let now = dependencies.now()
-        departure = PlanTripViewModel.nextQuarterHour(after: now)
+        departure = PlanTripViewModel.defaultDeparture(
+            now: now, utcOffsetSeconds: dependencies.timeZone.secondsFromGMT(for: now), policy: preferences.policy
+        )
         arriveBy = now.addingTimeInterval(3 * 86_400)
         mpgText = PlanTripViewModel.format(preferences.vehicle.milesPerGallon)
         tankGallonsText = PlanTripViewModel.format(preferences.vehicle.tankCapacityGallons)
@@ -142,6 +148,7 @@ public final class PlanTripViewModel {
                 $0.text = place.name
                 $0.isResolving = false
             }
+            if field == .origin { refreshDefaultDeparture(for: place) }
         } catch {
             update(field) { $0.isResolving = false }
             status = .failed("Couldn't load that place. Check your connection and try again.")
@@ -177,6 +184,17 @@ public final class PlanTripViewModel {
             $0.text = place.name
             $0.suggestions = []
         }
+        if field == .origin { refreshDefaultDeparture(for: place) }
+    }
+
+    /// Re-evaluates the suggested departure in the start's time zone (unless the user picked one).
+    private func refreshDefaultDeparture(for origin: Place) {
+        guard !departureEditedByUser else { return }
+        isApplyingDefaultDeparture = true
+        defer { isApplyingDefaultDeparture = false }
+        departure = PlanTripViewModel.defaultDeparture(
+            now: dependencies.now(), utcOffsetSeconds: origin.utcOffsetSeconds, policy: dependencies.preferences.load().policy
+        )
     }
 
     public func swapLocations() {
@@ -337,6 +355,21 @@ public final class PlanTripViewModel {
 
     static func format(_ value: Double) -> String {
         value.rounded() == value ? String(Int(value)) : String(format: "%.1f", value)
+    }
+
+    /// The next quarter hour, unless that is outside the driving day at the start (late evening
+    /// or night): then the start of the next driving day, e.g. 8:00 AM.
+    static func defaultDeparture(now: Date, utcOffsetSeconds: Int, policy: DrivingPolicy) -> Date {
+        let candidate = nextQuarterHour(after: now)
+        let local = candidate.timeIntervalSince1970 + Double(utcOffsetSeconds)
+        let midnight = floor(local / 86_400) * 86_400
+        let timeOfDay = local - midnight
+        let latestStart = policy.dayEnd.secondsFromMidnight - 3_600
+        if timeOfDay >= policy.dayStart.secondsFromMidnight && timeOfDay <= latestStart { return candidate }
+        let nextDayStart = timeOfDay < policy.dayStart.secondsFromMidnight
+            ? midnight + policy.dayStart.secondsFromMidnight
+            : midnight + 86_400 + policy.dayStart.secondsFromMidnight
+        return Date(timeIntervalSince1970: nextDayStart - Double(utcOffsetSeconds))
     }
 
     static func nextQuarterHour(after date: Date) -> Date {
