@@ -116,17 +116,21 @@ final class AppEnvironment {
             stored.hasAcceptedSafetyNotice = true
             preferences.save(stored)
         }
+        let location = SimulatedLocationProvider(
+            start: FakeAutocompleteProvider.cities[1].coordinate, autoDrive: true, metersPerTick: 4_000, tickInterval: 0.05
+        )
+        if screenshotPace {
+            // Drive a little way into each leg, then park: UI tests read the screen only once the
+            // app is idle, which a moving map never is.
+            location.metersPerTick = 2_000
+            location.tickInterval = 0.25
+            location.parksAfterMeters = 40_000
+        }
         let dependencies = SandboxEnvironment.makeDependencies(
             backend: SimulatedGoogleBackend(latency: 0.01),
             repository: FileTripRepository(directory: directory),
             preferences: preferences,
-            location: SimulatedLocationProvider(
-                start: FakeAutocompleteProvider.cities[1].coordinate,
-                autoDrive: true,
-                // Screenshots: ~4 km/s, about a minute to the first stop. Tests: ~80 km/s.
-                metersPerTick: screenshotPace ? 2_000 : 4_000,
-                tickInterval: screenshotPace ? 0.5 : 0.05
-            ),
+            location: location,
             speech: RecordingSpeechAnnouncer(),
             formatters: TripFormatters(locale: Locale(identifier: "en_US")),
             autocompleteDebounce: 0.05

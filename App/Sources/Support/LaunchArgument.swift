@@ -10,7 +10,7 @@ enum LaunchArgument {
     static let skipSafetyNotice = "-SkipSafetyNotice"
     /// Force dark appearance (screenshot runs).
     static let darkMode = "-DarkMode"
-    /// Simulated car drives at a pace where drive mode holds still for a capture (screenshot runs);
-    /// otherwise it drives very fast so tests reach stops quickly.
+    /// Simulated car drives a short way into each leg and parks, so drive mode holds still for a
+    /// capture (screenshot runs); otherwise it drives very fast so tests reach stops quickly.
     static let screenshotPace = "-ScreenshotPace"
 }

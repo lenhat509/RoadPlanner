@@ -78,11 +78,18 @@ final class ScreenshotTests: XCTestCase {
         capture("03-Timeline")
 
         startDriving()
-        settle(3)
+        settle(6) // the car parks a little way into the leg
         capture("04-Drive")
-        if app.buttons[AccessibilityID.Drive.continueToNext].waitForExistence(timeout: 150) {
-            capture("05-Arrival")
-        }
+
+        // Arrival card: "I've arrived" from the trip menu.
+        app.buttons[AccessibilityID.Drive.menu].firstMatch.tap()
+        let byID = app.buttons[AccessibilityID.Drive.arrived].firstMatch
+        let arrived = byID.waitForExistence(timeout: 3) ? byID : app.buttons["I've arrived"].firstMatch
+        XCTAssertTrue(arrived.waitForExistence(timeout: 3))
+        arrived.tap()
+        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.arrivalCard].firstMatch.waitForExistence(timeout: 10))
+        settle(2)
+        capture("05-Arrival")
     }
 
     func testCaptureDarkModeScreenshots() {
@@ -93,7 +100,7 @@ final class ScreenshotTests: XCTestCase {
         settle()
         capture("12-Options-Dark")
         startDriving()
-        settle(3)
+        settle(6)
         capture("13-Drive-Dark")
     }
 }

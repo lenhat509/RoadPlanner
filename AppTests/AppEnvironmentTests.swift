@@ -17,14 +17,16 @@ struct AppEnvironmentTests {
         #expect(environment.mode == .uiTest)
     }
 
-    @Test("Screenshot pace slows the simulated car so drive mode can be captured")
+    @Test("Screenshot pace parks the simulated car so drive mode can be captured")
     func screenshotPace() throws {
         let fast = AppEnvironment.make(arguments: [LaunchArgument.uiTestSandbox], configuration: unconfigured)
         let paced = AppEnvironment.make(arguments: [LaunchArgument.uiTestSandbox, LaunchArgument.screenshotPace], configuration: unconfigured)
         let fastCar = try #require(fast.dependencies.location as? SimulatedLocationProvider)
         let pacedCar = try #require(paced.dependencies.location as? SimulatedLocationProvider)
         #expect(paced.mode == .uiTest)
-        #expect(pacedCar.metersPerTick / pacedCar.tickInterval < fastCar.metersPerTick / fastCar.tickInterval / 10)
+        #expect(fastCar.parksAfterMeters == nil)
+        #expect(pacedCar.parksAfterMeters != nil)
+        #expect(pacedCar.metersPerTick / pacedCar.tickInterval < fastCar.metersPerTick / fastCar.tickInterval)
     }
 
     @Test("Without an API key the app runs in demo mode instead of failing")
