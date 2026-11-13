@@ -98,12 +98,30 @@ public struct FakeRegionalFuelPriceProvider: RegionalFuelPriceProvider {
 /// Offline autocomplete with a few well-known cities.
 public struct FakeAutocompleteProvider: PlaceAutocompleteProvider {
     public static let cities: [Place] = [
-        Place(id: "sf", name: "San Francisco", address: "San Francisco, CA, USA", coordinate: GeoCoordinate(latitude: 37.7749, longitude: -122.4194), utcOffsetMinutes: -480),
-        Place(id: "la", name: "Los Angeles", address: "Los Angeles, CA, USA", coordinate: GeoCoordinate(latitude: 34.0522, longitude: -118.2437), utcOffsetMinutes: -480),
-        Place(id: "lv", name: "Las Vegas", address: "Las Vegas, NV, USA", coordinate: GeoCoordinate(latitude: 36.1699, longitude: -115.1398), utcOffsetMinutes: -480),
-        Place(id: "den", name: "Denver", address: "Denver, CO, USA", coordinate: GeoCoordinate(latitude: 39.7392, longitude: -104.9903), utcOffsetMinutes: -420),
-        Place(id: "chi", name: "Chicago", address: "Chicago, IL, USA", coordinate: GeoCoordinate(latitude: 41.8781, longitude: -87.6298), utcOffsetMinutes: -360),
-        Place(id: "nyc", name: "New York", address: "New York, NY, USA", coordinate: GeoCoordinate(latitude: 40.7128, longitude: -74.0060), utcOffsetMinutes: -300),
+        Place(
+            id: "sf", name: "San Francisco", address: "San Francisco, CA, USA",
+            coordinate: GeoCoordinate(latitude: 37.7749, longitude: -122.4194), utcOffsetMinutes: -480
+        ),
+        Place(
+            id: "la", name: "Los Angeles", address: "Los Angeles, CA, USA",
+            coordinate: GeoCoordinate(latitude: 34.0522, longitude: -118.2437), utcOffsetMinutes: -480
+        ),
+        Place(
+            id: "lv", name: "Las Vegas", address: "Las Vegas, NV, USA",
+            coordinate: GeoCoordinate(latitude: 36.1699, longitude: -115.1398), utcOffsetMinutes: -480
+        ),
+        Place(
+            id: "den", name: "Denver", address: "Denver, CO, USA",
+            coordinate: GeoCoordinate(latitude: 39.7392, longitude: -104.9903), utcOffsetMinutes: -420
+        ),
+        Place(
+            id: "chi", name: "Chicago", address: "Chicago, IL, USA",
+            coordinate: GeoCoordinate(latitude: 41.8781, longitude: -87.6298), utcOffsetMinutes: -360
+        ),
+        Place(
+            id: "nyc", name: "New York", address: "New York, NY, USA",
+            coordinate: GeoCoordinate(latitude: 40.7128, longitude: -74.0060), utcOffsetMinutes: -300
+        ),
     ]
 
     public init() {}

@@ -159,10 +159,15 @@ public final class TripPlanningService: TripPlanning, Sendable {
             routes.insert(tollFree, at: min(1, routes.count))
         }
         var unique: [ComputedRoute] = []
-        for route in routes where !unique.contains(where: { abs($0.distanceMeters - route.distanceMeters) < 1_000 && abs($0.duration - route.duration) < 120 }) {
+        for route in routes where !unique.contains(where: { Self.isSameRoute($0, route) }) {
             unique.append(route)
         }
         return Array(unique.prefix(configuration.maxRoutes))
+    }
+
+    /// Alternatives within 1 km and 2 minutes of each other are treated as the same route.
+    private static func isSameRoute(_ lhs: ComputedRoute, _ rhs: ComputedRoute) -> Bool {
+        abs(lhs.distanceMeters - rhs.distanceMeters) < 1_000 && abs(lhs.duration - rhs.duration) < 120
     }
 
     // MARK: - Candidate discovery
@@ -238,7 +243,7 @@ public final class TripPlanningService: TripPlanning, Sendable {
             let fuelType = request.vehicle.fuelType
             let prices = await concurrentMap(midpoints, limit: configuration.maxConcurrentRequests) { point in
                 defer { counter.increment() }
-                return (try? await fuelPrices.averagePrice(near: point, fuelType: fuelType)) ?? nil
+                return try? await fuelPrices.averagePrice(near: point, fuelType: fuelType)
             }
             regionalPrices = zip(midpoints, prices).compactMap { point, price in price.map { (point, $0) } }
         }

@@ -1,3 +1,4 @@
+@testable import Cadence
 import SwiftUI
 import Testing
 import TripFeatures
@@ -5,7 +6,6 @@ import TripModels
 import TripPlanner
 import TripSandbox
 import UIKit
-@testable import Cadence
 
 @MainActor
 @Suite("Design system and components")

@@ -80,7 +80,10 @@ struct SettingsScreen: View {
             } header: {
                 Text("About")
             } footer: {
-                Text("Maps, directions and places by Google. Hotel rates via Expedia. Regional fuel price averages from the U.S. Energy Information Administration. Prices are estimates.")
+                Text(
+                    "Maps, directions and places by Google. Hotel rates via Expedia. Regional fuel price averages "
+                        + "from the U.S. Energy Information Administration. Prices are estimates."
+                )
             }
 
             Section {

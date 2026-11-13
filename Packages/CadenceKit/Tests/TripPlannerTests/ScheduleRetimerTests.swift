@@ -10,7 +10,10 @@ struct ScheduleRetimerTests {
     private func makeItinerary(includeLodging: Bool) -> Itinerary {
         let place = Place(name: "P", coordinate: GeoCoordinate(latitude: 40, longitude: -100), utcOffsetMinutes: -480)
         var stops = [
-            ItineraryStop(id: "o", kind: .origin, place: place, arrival: nil, departure: start, distanceFromStartMeters: 0, fuelOnArrivalGallons: 14, dayIndex: 0),
+            ItineraryStop(
+                id: "o", kind: .origin, place: place, arrival: nil, departure: start,
+                distanceFromStartMeters: 0, fuelOnArrivalGallons: 14, dayIndex: 0
+            ),
             ItineraryStop(
                 id: "f", kind: .fuel, place: place,
                 arrival: start.addingTimeInterval(2 * 3_600), departure: start.addingTimeInterval(2.25 * 3_600),
@@ -25,7 +28,10 @@ struct ScheduleRetimerTests {
                 distanceFromStartMeters: 0, lodging: LodgingStay(nightlyRate: 100, isRateEstimated: false), dayIndex: 0
             ))
         }
-        stops.append(ItineraryStop(id: "d", kind: .destination, place: place, arrival: start.addingTimeInterval(8 * 3_600), departure: nil, distanceFromStartMeters: 0, dayIndex: includeLodging ? 1 : 0))
+        stops.append(ItineraryStop(
+            id: "d", kind: .destination, place: place, arrival: start.addingTimeInterval(8 * 3_600), departure: nil,
+            distanceFromStartMeters: 0, dayIndex: includeLodging ? 1 : 0
+        ))
         return Itinerary(
             goal: .fastest,
             request: TripRequest(

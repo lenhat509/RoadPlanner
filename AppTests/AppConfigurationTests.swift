@@ -1,6 +1,6 @@
+@testable import Cadence
 import Foundation
 import Testing
-@testable import Cadence
 
 @Suite("AppConfiguration")
 struct AppConfigurationTests {
@@ -41,7 +41,7 @@ struct AppConfigurationTests {
     @Test("The shipped Info.plist declares every required key")
     func infoPlist() throws {
         let info = try #require(Bundle.main.infoDictionary)
-        #expect(info["NSLocationWhenInUseUsageDescription"] as? String != nil)
+        #expect(info["NSLocationWhenInUseUsageDescription"] is String)
         #expect((info["UIBackgroundModes"] as? [String])?.contains("location") == true)
         #expect((info["LSApplicationQueriesSchemes"] as? [String])?.contains("comgooglemaps") == true)
         #expect(info["ITSAppUsesNonExemptEncryption"] as? Bool == false)

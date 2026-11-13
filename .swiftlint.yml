@@ -21,13 +21,16 @@ opt_in_rules:
 disabled_rules:
   - todo
   - nesting
+  # Trailing commas are the house style (diff-friendly; allowed everywhere since Swift 6.1).
+  - trailing_comma
 line_length:
-  warning: 140
-  error: 180
+  warning: 160
+  error: 200
   ignores_urls: true
   ignores_comments: true
 identifier_name:
-  excluded: [id, x, y, z, a, b, dx, dy, ax, ay, bx, by, px, py, t, t0, t1, d0, d1, lat, lon, lng, rng, key, row, url]
+  # Geometry math names and design-token sizes (Theme.Spacing.xs … xl).
+  excluded: [id, x, y, z, a, b, s, m, l, dx, dy, ax, ay, bx, by, px, py, t, t0, t1, d0, d1, to, xs, xl, xxs, lat, lon, lng, rng, key, row, url]
 type_body_length:
   warning: 400
   error: 600
@@ -35,10 +38,12 @@ file_length:
   warning: 600
   error: 900
 function_body_length:
-  warning: 80
+  warning: 100
   error: 140
 cyclomatic_complexity:
   warning: 15
   error: 25
+  # Exhaustive switches that map API enums are simple despite many cases.
+  ignores_case_statements: true
 large_tuple:
   warning: 4

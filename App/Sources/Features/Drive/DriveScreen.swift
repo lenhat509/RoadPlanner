@@ -404,7 +404,10 @@ struct SafetyNoticeView: View {
             Text("Before you drive")
                 .font(.largeTitle.bold())
             VStack(alignment: .leading, spacing: Theme.Spacing.m) {
-                Label("Set up your trip before you start moving. Cadence is designed to be glanced at, not operated, while driving.", systemImage: "hand.raised")
+                Label(
+                    "Set up your trip before you start moving. Cadence is designed to be glanced at, not operated, while driving.",
+                    systemImage: "hand.raised"
+                )
                 Label("Always follow traffic laws, road signs and conditions. Directions can be wrong.", systemImage: "exclamationmark.triangle")
                 Label("Prices, hours and availability come from Google and partners and may change. Confirm before relying on them.", systemImage: "tag")
                 Label("Rest whenever you feel tired, even if no break is planned.", systemImage: "bed.double")

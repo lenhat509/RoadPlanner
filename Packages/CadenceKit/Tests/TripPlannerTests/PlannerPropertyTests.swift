@@ -1,8 +1,8 @@
 import Foundation
 import Testing
 import TripModels
-import TripSandbox
 @testable import TripPlanner
+import TripSandbox
 
 /// Randomized ("property-based") tests: whatever the route, stop density, vehicle, policy,
 /// goal or deadline, every plan must satisfy the safety rules checked by `ScheduleValidator`.

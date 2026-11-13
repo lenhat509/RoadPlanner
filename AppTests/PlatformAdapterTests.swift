@@ -1,9 +1,9 @@
+@testable import Cadence
 import CoreLocation
 import Foundation
 import Testing
 import TripFeatures
 import TripModels
-@testable import Cadence
 
 @MainActor
 @Suite("Platform adapters")

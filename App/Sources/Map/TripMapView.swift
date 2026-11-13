@@ -31,7 +31,7 @@ struct TripMapView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> GMSMapView {
-        let mapView = GMSMapView(frame: .zero)
+        let mapView = GMSMapView()
         mapView.settings.compassButton = true
         mapView.settings.myLocationButton = false
         mapView.settings.tiltGestures = false

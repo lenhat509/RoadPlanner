@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import TripModels
 @testable import TripFeatures
+import TripModels
 
 @Suite("Formatting and presentation")
 struct PresentationTests {

@@ -1,8 +1,8 @@
 import Foundation
 import Testing
 import TripModels
-import TripSandbox
 @testable import TripPersistence
+import TripSandbox
 
 @Suite("FileTripRepository")
 struct FileTripRepositoryTests {
@@ -15,8 +15,15 @@ struct FileTripRepositoryTests {
         return Itinerary(
             goal: .fastest, request: request,
             stops: [
-                ItineraryStop(id: "o", kind: .origin, place: request.origin, arrival: nil, departure: request.departure, distanceFromStartMeters: 0, dayIndex: 0),
-                ItineraryStop(id: "d", kind: .destination, place: request.destination, arrival: request.departure.addingTimeInterval(14_400), departure: nil, distanceFromStartMeters: 400_000, dayIndex: 0),
+                ItineraryStop(
+                    id: "o", kind: .origin, place: request.origin, arrival: nil, departure: request.departure,
+                    distanceFromStartMeters: 0, dayIndex: 0
+                ),
+                ItineraryStop(
+                    id: "d", kind: .destination, place: request.destination,
+                    arrival: request.departure.addingTimeInterval(14_400), departure: nil,
+                    distanceFromStartMeters: 400_000, dayIndex: 0
+                ),
             ],
             legs: [],
             totals: TripTotals(distanceMeters: 400_000, drivingDuration: 14_400, elapsedDuration: 14_400, cost: CostBreakdown(fuel: 40, lodging: 0, tolls: 0)),
@@ -32,7 +39,12 @@ struct FileTripRepositoryTests {
         #expect(try await repository.loadActiveTrip() == nil)
 
         var trip = ActiveTrip(itinerary: sampleItinerary())
-        trip.progress = TripProgress(phase: .atStop, targetStopIndex: 1, actualArrivals: ["d": Date(timeIntervalSince1970: 1_800_000_123.5)], skippedStopIDs: ["x"])
+        trip.progress = TripProgress(
+            phase: .atStop,
+            targetStopIndex: 1,
+            actualArrivals: ["d": Date(timeIntervalSince1970: 1_800_000_123.5)],
+            skippedStopIDs: ["x"]
+        )
         try await repository.saveActiveTrip(trip)
 
         // A fresh instance (e.g. after the app relaunches) sees the same trip.

@@ -70,10 +70,16 @@ jobs:
         run: |
           endpoint="https://api.appetize.io/v1/apps"
           if [ -n "$APPETIZE_PUBLIC_KEY" ]; then endpoint="$endpoint/$APPETIZE_PUBLIC_KEY"; fi
-          response=$(curl -sS --fail-with-body -X POST "$endpoint" \
+          status=$(curl -sS -o response.json -w '%{http_code}' -X POST "$endpoint" \
             -H "X-API-KEY: $APPETIZE_API_TOKEN" \
             -F "file=@Cadence-simulator.zip" -F "platform=ios" -F "note=${GITHUB_SHA::7}")
-          key=$(printf '%s' "$response" | python3 -c 'import json,sys; print(json.load(sys.stdin)["publicKey"])')
+          if [ "$status" -ge 300 ]; then
+            echo "::error::Appetize upload failed (HTTP $status)"
+            cat response.json
+            echo "Fallback: download the Cadence-simulator artifact from this run and upload Cadence-simulator.zip on the Appetize website."
+            exit 1
+          fi
+          key=$(python3 -c 'import json; print(json.load(open("response.json"))["publicKey"])')
           {
             echo "### Try Cadence on your iPhone"
             echo

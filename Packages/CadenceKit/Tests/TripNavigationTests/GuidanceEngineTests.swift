@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 import TripModels
+@testable import TripNavigation
 import TripPlanner
 import TripSandbox
-@testable import TripNavigation
 
 @Suite("GuidanceEngine")
 struct GuidanceEngineTests {

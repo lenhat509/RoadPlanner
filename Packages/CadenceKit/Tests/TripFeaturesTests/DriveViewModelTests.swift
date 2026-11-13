@@ -1,10 +1,10 @@
 import Foundation
 import Testing
+@testable import TripFeatures
 import TripModels
 import TripNavigation
 import TripPlanner
 import TripSandbox
-@testable import TripFeatures
 
 @MainActor
 @Suite("DriveViewModel")
