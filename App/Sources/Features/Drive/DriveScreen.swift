@@ -164,12 +164,15 @@ struct DriveScreen: View {
         }
     }
 
+    /// The stops still ahead; while heading to the trip's start, the start too.
     private var markers: [MapStopMarker] {
         let trip = model.trip
+        let first = model.isHeadingToStart ? 0 : trip.progress.targetStopIndex
         let remaining = trip.itinerary.stops.enumerated()
-            .filter { $0.offset >= trip.progress.targetStopIndex && !trip.progress.skippedStopIDs.contains($0.element.id) }
+            .filter { $0.offset >= first && !trip.progress.skippedStopIDs.contains($0.element.id) }
             .map(\.element)
-        return MapContent.markers(for: remaining, activeID: trip.targetStop?.id)
+        let active = model.isHeadingToStart ? trip.itinerary.stops.first?.id : trip.targetStop?.id
+        return MapContent.markers(for: remaining, activeID: active)
     }
 
     private func userMovedMap() {

@@ -95,8 +95,12 @@ struct DesignSystemTests {
         #expect(Director.motion(from: frame, to: follow, sinceLastFix: 9, isFlyingIn: false) == .ease(Director.flyInDuration))
         #expect(Director.motion(from: .free, to: follow, sinceLastFix: 9, isFlyingIn: false) == .ease(Director.flyInDuration))
         #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: true) == nil, "the fly-in isn't cut short")
-        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: false) == .linear(0.5))
-        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 30, isFlyingIn: false) == .linear(Director.maximumGlide))
+        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: false) == .linear(0.5 * Director.glideShare),
+                "a glide ends before the next fix is due")
+        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 30, isFlyingIn: false) == .linear(Director.maximumGlide * Director.glideShare))
+        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: false, lag: 5_000) == .immediate,
+                "a camera far behind the car jumps to it")
+        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: false, lag: 50) == .linear(0.5 * Director.glideShare))
         #expect(Director.motion(from: follow, to: .free, sinceLastFix: 1, isFlyingIn: false) == nil, "the user's view is kept")
         #expect(Director.motion(from: follow, to: frame, sinceLastFix: 1, isFlyingIn: false) == .ease(Director.framingDuration))
     }

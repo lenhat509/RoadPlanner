@@ -136,8 +136,14 @@ struct TripMapView: UIViewRepresentable {
                 return
             }
             let now = Date()
+            var lag: Double?
+            if case let .follow(car, course) = camera {
+                let target = MapCameraDirector.followCenter(car: car, heading: course ?? mapView.camera.bearing)
+                let shown = mapView.camera.target
+                lag = GeoMath.distance(GeoCoordinate(latitude: shown.latitude, longitude: shown.longitude), target)
+            }
             var motion = MapCameraDirector.motion(
-                from: appliedCamera, to: camera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flyInEnds
+                from: appliedCamera, to: camera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flyInEnds, lag: lag
             )
             if planChanged { motion = .ease(MapCameraDirector.framingDuration) }
             if camera.isFollow {
@@ -233,7 +239,7 @@ struct TripMapView: UIViewRepresentable {
             }
             if glides, vehicleMarker != nil {
                 let duration = min(MapCameraDirector.maximumGlide, max(0.05, now.timeIntervalSince(lastVehicleFix)))
-                Self.animate(duration: duration, timing: .linear, place)
+                Self.animate(duration: duration * MapCameraDirector.glideShare, timing: .linear, place)
             } else {
                 place()
             }

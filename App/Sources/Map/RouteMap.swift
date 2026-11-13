@@ -186,8 +186,13 @@ struct AppleRouteMap: View {
     private func update(to newCamera: TripMapView.Camera) {
         guard viewSize.width > 0, viewSize.height > 0 else { return }
         let now = Date()
+        var lag: Double?
+        if case let .follow(car, course) = newCamera, let shown = tracker.camera {
+            let target = MapCameraDirector.followCenter(car: car, heading: course ?? shown.heading)
+            lag = GeoMath.distance(GeoCoordinate(latitude: shown.centerCoordinate.latitude, longitude: shown.centerCoordinate.longitude), target)
+        }
         let motion = MapCameraDirector.motion(
-            from: appliedCamera, to: newCamera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flyInEnds
+            from: appliedCamera, to: newCamera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flyInEnds, lag: lag
         )
         if newCamera.isFollow {
             if let previous = appliedCamera, !previous.isFollow { flyInEnds = now.addingTimeInterval(MapCameraDirector.flyInDuration) }
@@ -260,7 +265,7 @@ struct AppleRouteMap: View {
             shownVehicle = newVehicle
             return
         }
-        let duration = min(MapCameraDirector.maximumGlide, max(0.05, now.timeIntervalSince(lastVehicleFix)))
+        let duration = min(MapCameraDirector.maximumGlide, max(0.05, now.timeIntervalSince(lastVehicleFix))) * MapCameraDirector.glideShare
         withAnimation(.linear(duration: duration)) { shownVehicle = newVehicle }
     }
 

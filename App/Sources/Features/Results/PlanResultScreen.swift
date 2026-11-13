@@ -70,6 +70,8 @@ struct PlanResultScreen: View {
                         Label(note, systemImage: "location.circle")
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(.secondary)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(note)
                             .accessibilityIdentifier(AccessibilityID.Results.startNote)
                     }
                     Button {

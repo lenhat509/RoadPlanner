@@ -30,6 +30,11 @@ enum MapCameraDirector {
     static let zoomDuration: TimeInterval = 0.4
     /// Longest glide between two fixes (a longer gap just catches up within this time).
     static let maximumGlide: TimeInterval = 1.0
+    /// A glide takes this share of the time since the previous fix, so it ends before the next
+    /// fix arrives instead of being interrupted by it.
+    static let glideShare = 0.8
+    /// If the camera is this far behind the car anyway, it jumps to it.
+    static let catchUpDistance: Double = 1_000
     /// Follow camera: distance (Apple) / zoom (Google) and tilt.
     static let followDistance: Double = 1_500
     static let followZoom: Float = 16.5
@@ -42,8 +47,10 @@ enum MapCameraDirector {
     /// - Parameters:
     ///   - sinceLastFix: seconds since the previous follow update.
     ///   - isFlyingIn: a fly-in to the car is still running.
+    ///   - lag: how far the camera on screen is from where it should be, in meters, if known.
     static func motion(
-        from old: TripMapView.Camera?, to new: TripMapView.Camera, sinceLastFix: TimeInterval, isFlyingIn: Bool
+        from old: TripMapView.Camera?, to new: TripMapView.Camera, sinceLastFix: TimeInterval, isFlyingIn: Bool,
+        lag: Double? = nil
     ) -> Motion? {
         guard let old else { return new == .free ? nil : .immediate }
         switch new {
@@ -54,7 +61,8 @@ enum MapCameraDirector {
         case .follow:
             if !old.isFollow { return .ease(flyInDuration) }
             if isFlyingIn { return nil }
-            return .linear(min(maximumGlide, max(0.05, sinceLastFix)))
+            if let lag, lag > catchUpDistance { return .immediate }
+            return .linear(min(maximumGlide, max(0.05, sinceLastFix)) * glideShare)
         }
     }
 
