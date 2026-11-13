@@ -61,11 +61,17 @@ final class CadenceUITests: XCTestCase {
         assertDriving()
     }
 
-    /// Drive mode is showing guidance (the maneuver banner) or an arrival card.
+    /// Drive mode is showing guidance (the maneuver banner), an arrival card, or — because the
+    /// simulated car drives very fast — the trip-completed card.
     private func assertDriving(file: StaticString = #filePath, line: UInt = #line) {
-        let banner = element(AccessibilityID.Drive.banner)
-        let arrival = element(AccessibilityID.Drive.arrivalCard)
-        let shown = banner.waitForExistence(timeout: 15) || arrival.exists
+        let states = [AccessibilityID.Drive.banner, AccessibilityID.Drive.arrivalCard, AccessibilityID.Drive.completedCard]
+            .map(element)
+        let deadline = Date().addingTimeInterval(15)
+        var shown = false
+        while !shown && Date() < deadline {
+            shown = states.contains { $0.exists }
+            if !shown { _ = states[0].waitForExistence(timeout: 1) }
+        }
         XCTAssertTrue(shown, "drive mode not shown; on screen: \(visibleIdentifiers())", file: file, line: line)
     }
 
