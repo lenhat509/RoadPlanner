@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Renders the App Store product-page header in both accepted sizes (RGB, no alpha).
+"""Renders the App Store product-page header (both accepted sizes) and the search-results asset
+(3840 x 2560), all RGB with no alpha.
 
 One long driving day as a panorama: daylight on the left turns to sunset in the middle and night
 on the right. A road winds from the foreground into the distance, toward a city lit up on the horizon (the
@@ -17,7 +18,7 @@ import sys
 import numpy as np
 from PIL import Image, ImageDraw
 
-SIZES = [(5244, 2950), (3840, 1646)]
+SIZES = [("header", 5244, 2950), ("header", 3840, 1646), ("search", 3840, 2560)]
 SS = 3  # supersampling for the shape masks
 HORIZON = 0.60  # as a share of the height
 
@@ -332,8 +333,8 @@ def render(width, height):
 
 def main(directory):
     os.makedirs(directory, exist_ok=True)
-    for width, height in SIZES:
-        path = os.path.join(directory, f"header-{width}x{height}.png")
+    for name, width, height in SIZES:
+        path = os.path.join(directory, f"{name}-{width}x{height}.png")
         image = render(width, height)
         image.save(path, "PNG", optimize=True)
         print(f"wrote {path} ({image.size[0]}x{image.size[1]}, mode {image.mode}, {os.path.getsize(path) // 1024} KB)")
