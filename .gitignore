@@ -42,3 +42,7 @@ Backend/gateway/test-results/
 
 # Website build output (scripts/build_site.py)
 _site/
+
+# Python bytecode caches
+__pycache__/
+*.pyc
