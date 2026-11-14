@@ -9,20 +9,67 @@ public enum PlanningPhase: Equatable, Sendable {
     case finalizing
 }
 
-/// Plans for every optimization goal; the UI lets the user compare and pick one.
-public struct PlanResult: Sendable {
+/// One way to drive the trip, planned for every optimization goal.
+public struct RoutePlan: Sendable, Identifiable {
+    public var id: String
+    /// "via Salt Lake City"; nil when it is the only route (or no place sets it apart).
+    public var name: String?
+    /// The routing provider's description of the route, e.g. "I-80 E".
+    public var summary: String
+    /// Where to label the route on a map: where it is farthest from the other routes.
+    public var labelCoordinate: GeoCoordinate
     public var itineraries: [OptimizationGoal: Itinerary]
+
+    public init(
+        id: String, name: String?, summary: String, labelCoordinate: GeoCoordinate,
+        itineraries: [OptimizationGoal: Itinerary]
+    ) {
+        self.id = id
+        self.name = name
+        self.summary = summary
+        self.labelCoordinate = labelCoordinate
+        self.itineraries = itineraries
+    }
+
+    /// Plans in display order (fastest, cheapest, balanced).
+    public var options: [Itinerary] { OptimizationGoal.allCases.compactMap { itineraries[$0] } }
+
+    /// The middle of an itinerary's route (its start when it has no geometry).
+    static func middle(of itinerary: Itinerary) -> GeoCoordinate? {
+        let geometry = PolylineGeometry(coordinates: (try? PolylineCodec.decode(itinerary.overviewPolyline)) ?? [])
+        guard geometry.totalLength > 0 else { return itinerary.stops.first?.place.coordinate }
+        return geometry.coordinate(atDistance: geometry.totalLength / 2)
+    }
+}
+
+/// A search's outcome: one to three different routes, best first, each planned for every goal.
+/// The UI shows them all and the user picks one route and one plan; only that plan is saved.
+public struct PlanResult: Sendable {
+    public var routes: [RoutePlan]
     public var recommendedGoal: OptimizationGoal
 
-    public init(itineraries: [OptimizationGoal: Itinerary], recommendedGoal: OptimizationGoal) {
-        self.itineraries = itineraries
+    public init(routes: [RoutePlan], recommendedGoal: OptimizationGoal) {
+        self.routes = routes
         self.recommendedGoal = recommendedGoal
     }
 
+    /// A single route's plans (e.g. a saved plan reopened).
+    public init(itineraries: [OptimizationGoal: Itinerary], recommendedGoal: OptimizationGoal) {
+        let shown = itineraries[recommendedGoal] ?? OptimizationGoal.allCases.compactMap { itineraries[$0] }.first
+        let label = shown.flatMap(RoutePlan.middle) ?? GeoCoordinate(latitude: 0, longitude: 0)
+        self.init(
+            routes: [RoutePlan(id: "route-1", name: nil, summary: "", labelCoordinate: label, itineraries: itineraries)],
+            recommendedGoal: recommendedGoal
+        )
+    }
+
+    /// The best route's plans.
+    public var itineraries: [OptimizationGoal: Itinerary] { routes.first?.itineraries ?? [:] }
+
     public var recommended: Itinerary? { itineraries[recommendedGoal] }
 
-    /// Options in display order (fastest, cheapest, balanced).
-    public var options: [Itinerary] { OptimizationGoal.allCases.compactMap { itineraries[$0] } }
+    /// The best route's plans in display order (fastest, cheapest, balanced).
+    public var options: [Itinerary] { routes.first?.options ?? [] }
 }
 
 public enum PlanningError: Error, Equatable, Sendable {
@@ -47,9 +94,11 @@ public protocol TripPlanning: Sendable {
 public struct TripPlanningConfiguration: Sendable {
     /// Route sections searched per Places request.
     public var searchChunkDuration: TimeInterval = 2 * 3_600
-    /// Route alternatives evaluated (each costs extra place searches).
-    public var maxRoutes = 2
+    /// Which different routes are offered (each costs extra place searches).
+    public var alternatives = RouteAlternatives()
+    /// Requests in flight per route, and routes analysed at once.
     public var maxConcurrentRequests = 4
+    public var maxConcurrentRoutes = 3
     public var lodgingSearchRadiusMeters = 25_000.0
     /// Google Routes API limit on intermediate waypoints per request.
     public var maxIntermediatesPerRequest = 25
@@ -97,27 +146,88 @@ public final class TripPlanningService: TripPlanning, Sendable {
         guard errors.isEmpty else { throw PlanningError.invalidRequest(errors) }
 
         progress(.findingRoute)
-        let routes = try await candidateRoutes(for: request)
+        let corridors = try await candidateCorridors(for: request)
 
-        var analyses: [RouteAnalysis] = []
-        for (index, route) in routes.enumerated() {
-            try Task.checkCancellation()
-            analyses.append(await analyze(route, request: request, routeIndex: index, routeCount: routes.count, progress: progress))
+        // Stops along every route (each corridor's route and any toll-free version), in parallel.
+        let prepared = corridors.flatMap(\.routes).map { prepare($0, request: request) }
+        let counter = ProgressCounter(total: prepared.reduce(0) { $0 + $1.requestCount }, offset: 0, report: progress)
+        let analyses = await concurrentMap(prepared, limit: configuration.maxConcurrentRoutes) { [self] route in
+            await analyze(route, request: request, counter: counter)
         }
+        try Task.checkCancellation()
 
         progress(.optimizing)
-        var drafts: [OptimizationGoal: (Itinerary, RouteAnalysis)] = [:]
-        for goal in OptimizationGoal.allCases {
-            try Task.checkCancellation()
-            drafts[goal] = bestDraft(for: goal, request: request, analyses: analyses)
+        var groups: [[RouteAnalysis]] = []
+        var next = 0
+        for corridor in corridors {
+            groups.append(Array(analyses[next..<next + corridor.routes.count]))
+            next += corridor.routes.count
         }
 
         progress(.finalizing)
+        let planned = await concurrentMap(groups, limit: configuration.maxConcurrentRoutes) { [self] group in
+            await plans(along: group, request: request)
+        }
+        try Task.checkCancellation()
+
+        let shapes = corridors.map { RouteAlternatives.coordinates(of: $0.primary) }
+        let names = Self.routeNames(
+            places: configuration.alternatives.names(for: shapes), summaries: corridors.map(\.primary.summary)
+        )
+        let labels = configuration.alternatives.labelPoints(for: shapes)
+        let routes = planned.enumerated().compactMap { index, itineraries -> RoutePlan? in
+            guard !itineraries.isEmpty else { return nil }
+            return RoutePlan(
+                id: "route-\(index + 1)",
+                name: names[index],
+                summary: corridors[index].primary.summary,
+                labelCoordinate: labels.indices.contains(index) ? labels[index] : (shapes[index].first ?? request.origin.coordinate),
+                itineraries: itineraries
+            )
+        }
+        guard !routes.isEmpty else { throw PlanningError.noRoute }
+        // Best first, for the plan style the user prefers (ties keep the quicker route first).
+        let goal = request.goal
+        let value = request.policy.valueOfTimePerHour
+        let ranked = routes.enumerated().sorted { lhs, rhs in
+            let left = lhs.element.itineraries[goal].map { Self.rank($0, for: goal, valueOfTimePerHour: value) }
+            let right = rhs.element.itineraries[goal].map { Self.rank($0, for: goal, valueOfTimePerHour: value) }
+            switch (left, right) {
+            case let (left?, right?): return left != right ? left < right : lhs.offset < rhs.offset
+            case (.some, .none): return true
+            case (.none, .some): return false
+            case (.none, .none): return lhs.offset < rhs.offset
+            }
+        }.map(\.element)
+        return PlanResult(routes: ranked, recommendedGoal: goal)
+    }
+
+    /// Names for the routes shown together: a place only that route passes ("via Las Vegas"),
+    /// else the provider's description if no other route shares it ("via I-80 E"), else its
+    /// number. A single route needs no name.
+    static func routeNames(places: [String?], summaries: [String]) -> [String?] {
+        guard summaries.count > 1 else { return summaries.map { _ in nil } }
+        return summaries.indices.map { index in
+            if places.indices.contains(index), let place = places[index] { return place }
+            let summary = summaries[index].trimmingCharacters(in: .whitespaces)
+            if !summary.isEmpty, summaries.filter({ $0.trimmingCharacters(in: .whitespaces) == summary }).count == 1 {
+                return "via \(summary)"
+            }
+            return "Route \(index + 1)"
+        }
+    }
+
+    /// Every goal's plan along one corridor (its route, or its toll-free version where cheaper).
+    private func plans(along analyses: [RouteAnalysis], request: TripRequest) async -> [OptimizationGoal: Itinerary] {
+        var drafts: [OptimizationGoal: (Itinerary, RouteAnalysis)] = [:]
+        for goal in OptimizationGoal.allCases {
+            drafts[goal] = bestDraft(for: goal, request: request, analyses: analyses)
+        }
         var finalized: [OptimizationGoal: Itinerary] = [:]
         var cache: [String: Itinerary] = [:]
         for goal in OptimizationGoal.allCases {
             guard let (draft, analysis) = drafts[goal] else { continue }
-            let signature = draft.stops.map(\.id).joined(separator: "|") + "#\(analysis.route.summary)"
+            let signature = draft.stops.map(\.id).joined(separator: "|") + "#\(analysis.route.summary)#\(analysis.route.distanceMeters)"
             if let cached = cache[signature] {
                 var copy = cached
                 copy.id = UUID()
@@ -129,10 +239,34 @@ public final class TripPlanningService: TripPlanning, Sendable {
             cache[signature] = itinerary
             finalized[goal] = itinerary
         }
-        return PlanResult(
-            itineraries: Self.consistentOptions(finalized, valueOfTimePerHour: request.policy.valueOfTimePerHour),
-            recommendedGoal: request.goal
+        return Self.consistentOptions(finalized, valueOfTimePerHour: request.policy.valueOfTimePerHour)
+    }
+
+    /// How good a plan is for `goal`: a met deadline first, then fewer relaxed preferences, then
+    /// the goal's objective. Lower is better.
+    static func rank(_ itinerary: Itinerary, for goal: OptimizationGoal, valueOfTimePerHour: Double) -> PlanRank {
+        let hours = itinerary.totals.elapsedDuration / Units.secondsPerHour
+        let cost = itinerary.totals.cost.total
+        let objective: Double = switch goal {
+        case .fastest: hours + cost * 1e-6
+        case .cheapest: cost + hours * 1e-6
+        case .balanced: cost + hours * valueOfTimePerHour
+        }
+        return PlanRank(
+            missedDeadline: itinerary.warnings.contains { $0.code == .deadlineMissed } ? 1 : 0,
+            relaxations: itinerary.warnings.filter { relaxationCodes.contains($0.code) }.count,
+            objective: objective
         )
+    }
+
+    struct PlanRank: Comparable {
+        var missedDeadline: Int
+        var relaxations: Int
+        var objective: Double
+
+        static func < (lhs: PlanRank, rhs: PlanRank) -> Bool {
+            (lhs.missedDeadline, lhs.relaxations, lhs.objective) < (rhs.missedDeadline, rhs.relaxations, rhs.objective)
+        }
     }
 
     /// Re-timing with real directions can reorder plans slightly, so each option is replaced by
@@ -146,19 +280,13 @@ public final class TripPlanningService: TripPlanning, Sendable {
         let all = itineraries.values.sorted { $0.goal.rawValue < $1.goal.rawValue }
         var result: [OptimizationGoal: Itinerary] = [:]
         for (goal, own) in itineraries {
-            func rank(_ itinerary: Itinerary) -> (Int, Int, Double, Int) {
-                let hours = itinerary.totals.elapsedDuration / Units.secondsPerHour
-                let cost = itinerary.totals.cost.total
-                let objective: Double = switch goal {
-                case .fastest: hours + cost * 1e-6
-                case .cheapest: cost + hours * 1e-6
-                case .balanced: cost + hours * valueOfTimePerHour
-                }
-                let missedDeadline = itinerary.warnings.contains { $0.code == .deadlineMissed } ? 1 : 0
-                let relaxations = itinerary.warnings.filter { relaxationCodes.contains($0.code) }.count
-                return (missedDeadline, relaxations, objective, itinerary.goal == goal ? 0 : 1)
+            func isBetter(_ lhs: Itinerary, _ rhs: Itinerary) -> Bool {
+                let left = rank(lhs, for: goal, valueOfTimePerHour: valueOfTimePerHour)
+                let right = rank(rhs, for: goal, valueOfTimePerHour: valueOfTimePerHour)
+                if left != right { return left < right }
+                return lhs.goal == goal && rhs.goal != goal
             }
-            let best = all.min { rank($0) < rank($1) } ?? own
+            let best = all.min(by: isBetter) ?? own
             if best.goal == goal {
                 result[goal] = best
             } else {
@@ -177,51 +305,56 @@ public final class TripPlanningService: TripPlanning, Sendable {
 
     // MARK: - Routing
 
-    private func candidateRoutes(for request: TripRequest) async throws -> [ComputedRoute] {
+    /// The routes worth planning: the provider's route and alternatives, a toll-free version, and
+    /// routes through highway hubs off those, narrowed to a few different, reasonable corridors.
+    private func candidateCorridors(for request: TripRequest) async throws -> [RouteAlternatives.Corridor] {
+        let origin = request.origin.coordinate, destination = request.destination.coordinate
         var routes: [ComputedRoute]
         do {
             routes = try await routing.computeRoutes(RouteQuery(
-                origin: request.origin.coordinate,
-                destination: request.destination.coordinate,
-                departure: request.departure,
-                computeAlternatives: true
+                origin: origin, destination: destination, departure: request.departure, computeAlternatives: true
             ))
         } catch {
             throw PlanningError.routingFailed(String(describing: error))
         }
         guard !routes.isEmpty else { throw PlanningError.noRoute }
 
-        // Tolls matter to cost-conscious goals: also consider a toll-free alternative.
+        // Tolls matter to cost-conscious goals: also consider a toll-free version.
         if routes.contains(where: { ($0.tollCostUSD ?? 0) > 0 }),
            let tollFree = try? await routing.computeRoutes(RouteQuery(
-               origin: request.origin.coordinate,
-               destination: request.destination.coordinate,
-               departure: request.departure,
-               avoidTolls: true
+               origin: origin, destination: destination, departure: request.departure, avoidTolls: true
            )).first {
-            routes.insert(tollFree, at: min(1, routes.count))
+            routes.append(tollFree)
         }
-        var unique: [ComputedRoute] = []
-        for route in routes where !unique.contains(where: { Self.isSameRoute($0, route) }) {
-            unique.append(route)
-        }
-        return Array(unique.prefix(configuration.maxRoutes))
-    }
 
-    /// Alternatives within 1 km and 2 minutes of each other are treated as the same route.
-    private static func isSameRoute(_ lhs: ComputedRoute, _ rhs: ComputedRoute) -> Bool {
-        abs(lhs.distanceMeters - rhs.distanceMeters) < 1_000 && abs(lhs.duration - rhs.duration) < 120
+        // Other corridors: through highway hubs away from the routes found so far.
+        let alternatives = configuration.alternatives
+        let hubs = alternatives.viaHubs(from: origin, to: destination, avoiding: routes.map(RouteAlternatives.coordinates(of:)))
+        let routing = routing
+        let departure = request.departure
+        let viaRoutes = await concurrentMap(hubs, limit: configuration.maxConcurrentRequests) { hub in
+            try? await routing.computeRoutes(RouteQuery(origin: origin, destination: destination, vias: [hub.coordinate], departure: departure)).first
+        }
+        routes += viaRoutes.compactMap { $0 }
+
+        let corridors = alternatives.select(routes)
+        return corridors.isEmpty ? [RouteAlternatives.Corridor(primary: routes[0])] : corridors
     }
 
     // MARK: - Candidate discovery
 
-    private func analyze(
-        _ route: ComputedRoute,
-        request: TripRequest,
-        routeIndex: Int,
-        routeCount: Int,
-        progress: @escaping @Sendable (PlanningPhase) -> Void
-    ) async -> RouteAnalysis {
+    /// A route with the searches its stops need.
+    struct PreparedRoute: Sendable {
+        var route: ComputedRoute
+        var profile: RouteProfile
+        var chunks: [RouteProfile.Chunk]
+        var windows: [LodgingWindow]
+        var searches: [(AlongRouteSearch, ClosedRange<Double>)]
+        /// Requests the analysis will make (for progress).
+        var requestCount: Int
+    }
+
+    private func prepare(_ route: ComputedRoute, request: TripRequest) -> PreparedRoute {
         let profile = route.profile()
         let chunks = profile.chunks(maxDuration: configuration.searchChunkDuration)
         let windows = LodgingWindowEstimator().windows(
@@ -230,7 +363,6 @@ public final class TripPlanningService: TripPlanning, Sendable {
             utcOffset: request.origin.utcOffsetSeconds,
             policy: request.policy
         )
-
         var searches: [(AlongRouteSearch, ClosedRange<Double>)] = []
         for chunk in chunks where chunk.coordinates.count >= 2 {
             let polyline = PolylineCodec.encode(GeoMath.simplify(chunk.coordinates, minimumSpacingMeters: 250))
@@ -244,9 +376,13 @@ public final class TripPlanningService: TripPlanning, Sendable {
                 searches.append((AlongRouteSearch(category: .lodging, encodedPolyline: polyline, origin: origin, sectionDuration: duration), range))
             }
         }
+        let requestCount = searches.count + (lodging == nil ? 0 : windows.count) + (fuelPrices == nil ? 0 : chunks.count)
+        return PreparedRoute(route: route, profile: profile, chunks: chunks, windows: windows, searches: searches, requestCount: requestCount)
+    }
 
-        let total = searches.count + windows.count + chunks.count
-        let counter = ProgressCounter(total: total * routeCount, offset: total * routeIndex, report: progress)
+    private func analyze(_ prepared: PreparedRoute, request: TripRequest, counter: ProgressCounter) async -> RouteAnalysis {
+        let route = prepared.route, profile = prepared.profile, chunks = prepared.chunks, windows = prepared.windows
+        let searches = prepared.searches
         let placesProvider = places
         let placeResults: [Result<[FoundPlace], Error>] = await concurrentMap(searches, limit: configuration.maxConcurrentRequests) { search, range in
             defer { counter.increment() }

@@ -53,6 +53,10 @@ struct RouteMap: View {
     var command: MapCommand?
     /// Called when the user pans, zooms or rotates the map by hand.
     var onUserMoved: (() -> Void)?
+    /// Travel-time tags of the routes found (plan results).
+    var badges: [MapRouteBadge] = []
+    /// Called with a tag's route ID when it is tapped.
+    var onSelectBadge: ((String) -> Void)?
 
     @Environment(\.mapProvider) private var provider
 
@@ -61,12 +65,14 @@ struct RouteMap: View {
         case .google:
             TripMapView(
                 paths: paths, markers: markers, camera: camera, chrome: chrome, vehicle: vehicle,
-                userLocation: userLocation, command: command, onUserMoved: onUserMoved
+                userLocation: userLocation, command: command, onUserMoved: onUserMoved,
+                badges: badges, onSelectBadge: onSelectBadge
             )
         case .apple:
             AppleRouteMap(
                 paths: paths, markers: markers, camera: camera, chrome: chrome, vehicle: vehicle,
-                userLocation: userLocation, command: command, onUserMoved: onUserMoved
+                userLocation: userLocation, command: command, onUserMoved: onUserMoved,
+                badges: badges, onSelectBadge: onSelectBadge
             )
         }
     }
@@ -125,6 +131,8 @@ struct AppleRouteMap: View {
     var userLocation: GeoCoordinate?
     var command: MapCommand?
     var onUserMoved: (() -> Void)?
+    var badges: [MapRouteBadge]
+    var onSelectBadge: ((String) -> Void)?
 
     @State private var position: MapCameraPosition
     @State private var shownVehicle: TripMapView.Vehicle?
@@ -143,7 +151,8 @@ struct AppleRouteMap: View {
 
     init(
         paths: [[GeoCoordinate]], markers: [MapStopMarker], camera: TripMapView.Camera, chrome: UIEdgeInsets,
-        vehicle: TripMapView.Vehicle?, userLocation: GeoCoordinate?, command: MapCommand?, onUserMoved: (() -> Void)?
+        vehicle: TripMapView.Vehicle?, userLocation: GeoCoordinate?, command: MapCommand?, onUserMoved: (() -> Void)?,
+        badges: [MapRouteBadge] = [], onSelectBadge: ((String) -> Void)? = nil
     ) {
         self.paths = paths
         self.markers = markers
@@ -153,6 +162,8 @@ struct AppleRouteMap: View {
         self.userLocation = userLocation
         self.command = command
         self.onUserMoved = onUserMoved
+        self.badges = badges
+        self.onSelectBadge = onSelectBadge
         // Start close to the right place before the map knows its size (no flash of the world).
         _position = State(initialValue: Self.approximatePosition(for: camera))
         _shownVehicle = State(initialValue: vehicle)
@@ -180,6 +191,20 @@ struct AppleRouteMap: View {
             if let userLocation {
                 Annotation("You are here", coordinate: userLocation.clCoordinate, anchor: .center) {
                     UserLocationDot()
+                }
+                .annotationTitles(.hidden)
+            }
+            ForEach(MapRouteBadge.drawingOrder(badges)) { badge in
+                Annotation(badge.accessibilityLabel, coordinate: badge.coordinate.clCoordinate, anchor: .center) {
+                    Button {
+                        onSelectBadge?(badge.id)
+                    } label: {
+                        RouteBadgeLabel(text: badge.text, isSelected: badge.isSelected, isBest: badge.isBest)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(badge.accessibilityLabel)
+                    .accessibilityAddTraits(badge.isSelected ? [.isSelected] : [])
+                    .accessibilityIdentifier("map.routeBadge.\(badge.id)")
                 }
                 .annotationTitles(.hidden)
             }

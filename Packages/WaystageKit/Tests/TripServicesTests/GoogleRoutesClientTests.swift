@@ -48,6 +48,39 @@ struct GoogleRoutesClientTests {
         #expect(originLatLng?["latitude"] as? Double == origin.latitude)
     }
 
+    @Test("Pass-through points are sent as via waypoints, which add no legs")
+    func viaWaypoints() throws {
+        let hub = GeoCoordinate(latitude: 37.9, longitude: -122.1)
+        let request = try client(StubHTTPTransport()).makeRequest(for: RouteQuery(
+            origin: origin, destination: destination, vias: [hub], computeAlternatives: true
+        ))
+        let body = try #require(request.body).jsonObject()
+        let intermediates = try #require(body["intermediates"] as? [[String: Any]])
+        #expect(intermediates.count == 1)
+        #expect(intermediates[0]["via"] as? Bool == true)
+        #expect(body["computeAlternativeRoutes"] as? Bool == false, "Google computes no alternatives through waypoints")
+
+        let stopover = try client(StubHTTPTransport()).makeRequest(for: RouteQuery(
+            origin: origin, destination: destination, intermediates: [hub]
+        ))
+        let stopoverBody = try #require(stopover.body).jsonObject()
+        #expect((stopoverBody["intermediates"] as? [[String: Any]])?.first?["via"] == nil, "a stop is not a via waypoint")
+    }
+
+    @Test("The sandbox backend routes through via waypoints in a single leg")
+    func sandboxVia() async throws {
+        let hub = GeoCoordinate(latitude: 36.17, longitude: -115.14) // Las Vegas
+        let sanFrancisco = GeoCoordinate(latitude: 37.77, longitude: -122.42)
+        let denver = GeoCoordinate(latitude: 39.74, longitude: -104.99)
+        let backend = SimulatedGoogleBackend()
+        let routes = try await GoogleRoutesClient(configuration: configuration, transport: backend, now: { [now] in now })
+            .computeRoutes(RouteQuery(origin: sanFrancisco, destination: denver, vias: [hub]))
+        let route = try #require(routes.first)
+        #expect(route.legs.count == 1)
+        let geometry = PolylineGeometry(coordinates: try PolylineCodec.decode(route.encodedPolyline))
+        #expect(try #require(geometry.project(hub)).offsetMeters < 5_000, "passes through the via point")
+    }
+
     @Test("Omits past departure times and disables alternatives with intermediates")
     func requestBodyConstraints() throws {
         let request = try client(StubHTTPTransport()).makeRequest(for: RouteQuery(

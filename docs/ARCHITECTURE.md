@@ -48,8 +48,12 @@ graph TD
 
 1. `PlanTripViewModel` validates the form and calls `TripPlanning.plan(_:)`.
 2. `TripPlanningService` requests routes (with alternatives, plus a toll-free route when tolls
-   exist) from the **Routes API**.
-3. For each route it builds a `RouteProfile` (geometry + time along the route from step durations),
+   exist) from the **Routes API**, then routes through up to three highway hubs off those
+   (`RouteAlternatives.viaHubs`: in the middle of the trip, at most 12 % out of the way, on both
+   sides of the direct line; sent as `via` waypoints). `RouteAlternatives.select` keeps up to
+   three corridors at most 10 % slower than the quickest, of which no more than 60 % runs within
+   15 km of another; a toll-free near-copy stays with its corridor for cost-conscious plans.
+3. For each route of each corridor (in parallel) it builds a `RouteProfile` (geometry + time along the route from step durations),
    splits it into ~2-hour sections and runs **Places "search along route"** for gas stations and
    rest areas, and for hotels only where a night is likely (`LodgingWindowEstimator`). Live fuel
    prices come from Places `fuelOptions`; hotel rates from the gateway (Expedia); regional fuel
@@ -58,7 +62,10 @@ graph TD
    estimates), merges duplicates, thins clusters and adds roadside pull-offs / lodging search
    areas so a feasible plan always exists.
 5. `FeasibilityPlanner` runs the `ItineraryOptimizer` for each goal through the relaxation ladder
-   (see [PLANNING_ALGORITHM.md](PLANNING_ALGORITHM.md)) and picks the best route.
+   (see [PLANNING_ALGORITHM.md](PLANNING_ALGORITHM.md)), per corridor. The result is a
+   `PlanResult` of `RoutePlan`s, best first for the user's goal, each named after a place only it
+   passes ("via Las Vegas") and labelled on the map where it differs most. The user picks one
+   route and one plan; only that `Itinerary` is saved (`TripRepository`), never the alternatives.
 6. Final directions for the chosen stops are fetched (batched by 25 waypoints), the schedule is
    re-timed with real leg durations and re-validated; if real detours broke a limit, it re-plans
    once with a safety margin.

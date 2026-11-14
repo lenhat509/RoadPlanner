@@ -23,6 +23,60 @@ struct PlanResultViewModelTests {
         #expect(model.routeTitle == "Los Angeles → Las Vegas")
     }
 
+    @Test("Offers each route with its travel time, the best one selected")
+    func routeChoices() async throws {
+        let result = try await Plans.sfToDenver()
+        let model = PlanResultViewModel(result: result, dependencies: FeatureHarness().dependencies)
+        let choices = model.routeChoices
+        #expect(choices.count == result.routes.count)
+        #expect(choices.count >= 2)
+        #expect(choices[0].isBest && choices[0].isSelected)
+        #expect(choices.dropFirst().allSatisfy { !$0.isBest && !$0.isSelected })
+        #expect(Set(choices.map(\.title)).count == choices.count, "each route has its own name")
+        for (choice, route) in zip(choices, result.routes) {
+            let itinerary = try #require(route.itineraries[model.selectedGoal])
+            #expect(choice.durationText == FeatureHarness().dependencies.formatters.duration(itinerary.totals.elapsedDuration))
+            #expect(choice.labelCoordinate == route.labelCoordinate)
+        }
+        #expect(model.selected == result.routes[0].itineraries[model.selectedGoal])
+    }
+
+    @Test("Choosing a route shows its plans and keeps the plan style")
+    func chooseRoute() async throws {
+        let result = try await Plans.sfToDenver()
+        let model = PlanResultViewModel(result: result, dependencies: FeatureHarness().dependencies)
+        model.selectedGoal = .cheapest
+        let second = result.routes[1]
+        model.selectRoute(second.id)
+        #expect(model.selectedGoal == .cheapest)
+        #expect(model.selected == second.itineraries[.cheapest])
+        #expect(model.routeChoices[1].isSelected && !model.routeChoices[0].isSelected)
+        #expect(model.routeChoices[0].isBest, "the best route stays marked")
+        #expect(model.options.count == second.options.count)
+        #expect(model.itinerary(onRoute: result.routes[0].id) == result.routes[0].itineraries[.cheapest])
+    }
+
+    @Test("Only the chosen route's plan is saved, never the alternatives")
+    func savesOnlyTheChosenRoute() async throws {
+        let harness = FeatureHarness()
+        let result = try await Plans.sfToDenver()
+        let model = PlanResultViewModel(result: result, dependencies: harness.dependencies)
+        model.selectRoute(result.routes[1].id)
+        let chosen = try #require(model.selected)
+        let trip = try #require(await model.startTrip())
+        #expect(trip.itinerary == chosen)
+        let saved = try await harness.repository.savedItineraries()
+        #expect(saved == [chosen])
+        #expect(try await harness.repository.loadActiveTrip()?.itinerary == chosen)
+    }
+
+    @Test("A single route is shown without a choice to make")
+    func singleRoute() async throws {
+        let model = PlanResultViewModel(result: try await Plans.laToVegas(), dependencies: FeatureHarness().dependencies)
+        #expect(model.routeChoices.count == 1)
+        #expect(!model.hasRouteChoice)
+    }
+
     @Test("Builds a day-by-day timeline for the selected plan")
     func timeline() async throws {
         let model = PlanResultViewModel(result: try await Plans.laToVegas(), dependencies: FeatureHarness().dependencies)

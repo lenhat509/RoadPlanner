@@ -39,6 +39,8 @@ enum AccessibilityID {
         static let warnings = "results.warnings"
         static let timeline = "results.timeline"
         static func option(_ goal: String) -> String { "results.option.\(goal)" }
+        /// The routes found, best first.
+        static func route(_ index: Int) -> String { "results.route.\(index)" }
         static func day(_ index: Int) -> String { "results.day.\(index)" }
     }
 

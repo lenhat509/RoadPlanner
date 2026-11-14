@@ -216,6 +216,29 @@ final class WaystageUITests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
 
+    // MARK: Route alternatives
+
+    func testALongTripOffersDifferentRoutesAndTheChosenOneIsDriven() {
+        launch()
+        app.buttons[AccessibilityID.Home.planTrip].tap()
+        choosePlace(field: AccessibilityID.Plan.origin, typing: "San", pick: "San Francisco")
+        choosePlace(field: AccessibilityID.Plan.destination, typing: "Den", pick: "Denver")
+        app.buttons[AccessibilityID.Plan.submit].tap()
+        let best = app.buttons[AccessibilityID.Results.route(0)]
+        XCTAssertTrue(best.waitForExistence(timeout: 60), "routes are offered; on screen: \(app.visibleIdentifiers())")
+        let second = app.buttons[AccessibilityID.Results.route(1)]
+        XCTAssertTrue(second.exists, "at least two different routes")
+        XCTAssertTrue(best.isSelected, "the best route is chosen first")
+        XCTAssertTrue(best.label.contains("best route"), best.label)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map.routeBadge.'")).count >= 2,
+                      "every route has a travel-time tag on the map")
+
+        second.tap()
+        XCTAssertTrue(second.isSelected)
+        XCTAssertFalse(best.isSelected)
+        startDrive()
+    }
+
     // MARK: Plan start vs. current location
 
     func testATripStartingFarAwayLeadsToItsStartFirst() {

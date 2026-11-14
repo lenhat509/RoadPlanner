@@ -85,11 +85,13 @@ public struct SimulatedGoogleBackend: HTTPTransport {
         guard let origin = coordinate(body["origin"]), let destination = coordinate(body["destination"]) else {
             return Self.json(["error": ["code": 400, "message": "origin and destination are required", "status": "INVALID_ARGUMENT"]], status: 400)
         }
-        let intermediates = (body["intermediates"] as? [Any] ?? []).compactMap(coordinate)
+        let waypoints = body["intermediates"] as? [[String: Any]] ?? []
+        let intermediates = waypoints.filter { ($0["via"] as? Bool) != true }.compactMap(coordinate)
+        let vias = waypoints.filter { ($0["via"] as? Bool) == true }.compactMap(coordinate)
         let avoidTolls = ((body["routeModifiers"] as? [String: Any])?["avoidTolls"] as? Bool) ?? false
         let alternatives = (body["computeAlternativeRoutes"] as? Bool) ?? false
         let routes = try await routing.computeRoutes(RouteQuery(
-            origin: origin, destination: destination, intermediates: intermediates,
+            origin: origin, destination: destination, intermediates: intermediates, vias: vias,
             avoidTolls: avoidTolls, computeAlternatives: alternatives
         ))
         return Self.json(["routes": routes.map(Self.encode)])

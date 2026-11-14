@@ -45,6 +45,11 @@ enum Plans {
         try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "la", to: "lv", goal: goal)) { _ in }
     }
 
+    /// San Francisco → Denver: long enough for a few different routes.
+    static func sfToDenver() async throws -> PlanResult {
+        try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "sf", to: "den")) { _ in }
+    }
+
     /// San Francisco → Las Vegas: starts ~550 km from the harness car (in LA).
     static func sfToVegas() async throws -> PlanResult {
         try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "sf", to: "lv")) { _ in }

@@ -108,6 +108,15 @@ struct DesignSystemTests {
         #expect(Director.motion(from: follow, to: frame, sinceLastFix: 1, isFlyingIn: false) == .flight(.frame))
     }
 
+    @Test("Route tags draw the chosen route's on top")
+    func badgeOrder() {
+        let place = GeoCoordinate(latitude: 36, longitude: -115)
+        let badges = ["a", "b", "c"].map {
+            MapRouteBadge(id: $0, coordinate: place, text: "1 h", accessibilityLabel: $0, isSelected: $0 == "a", isBest: $0 == "a")
+        }
+        #expect(MapRouteBadge.drawingOrder(badges).map(\.id) == ["b", "c", "a"])
+    }
+
     @Test("The follow camera looks ahead of the car along its heading")
     func lookAhead() {
         let car = GeoCoordinate(latitude: 36, longitude: -115)
@@ -194,6 +203,12 @@ struct DesignSystemTests {
             AnyView(StatusPill(message: "Finding the route…", systemImage: "location.magnifyingglass")),
             AnyView(CompletedCard(destination: "Las Vegas", summary: "270 mi") {}),
             AnyView(SafetyNoticeView {}),
+            AnyView(RouteChoiceRow(choice: RouteChoice(
+                id: "route-1", title: "via Salt Lake City", durationText: "1 d 4 h", distanceText: "1,270 mi",
+                isBest: true, isSelected: true, labelCoordinate: GeoCoordinate(latitude: 40.8, longitude: -111.9)
+            )) {}),
+            AnyView(RouteBadgeLabel(text: "1 d 4 h", isSelected: true, isBest: true)),
+            AnyView(RouteBadgeLabel(text: "1 d 6 h", isSelected: false, isBest: false)),
         ]
         for view in views {
             let renderer = ImageRenderer(content: view.frame(width: 390))

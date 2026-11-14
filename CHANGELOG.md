@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Route choices.** A search now looks for up to three noticeably different, reasonable routes
+  (e.g. San Jose → Denver through Salt Lake City or through Las Vegas, but not through Idaho),
+  each with its own breaks, fuel stops and nights. The map shows them all, the chosen one in
+  blue and the others lighter, each tagged with its travel time; tap a tag or a route in the
+  list to choose it. When there's no reasonable alternative, the single best route is shown.
+  Only the route and plan you choose is saved.
+
 ### Changed
 - The app is now called **Waystage**, with a new icon: the road running to the horizon at dusk,
   with your rest, fuel and overnight stops along it. Settings in `Secrets.xcconfig` now use the

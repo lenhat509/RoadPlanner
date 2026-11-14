@@ -18,6 +18,13 @@ public struct FakeRoutingProvider: RoutingProvider {
 
     public func computeRoutes(_ query: RouteQuery) async throws -> [ComputedRoute] {
         if let failure { throw failure }
+        if let via = query.vias.first {
+            // A different corridor gets a different highway name.
+            return [SyntheticRoute.make(
+                via: [query.origin] + query.vias + [query.destination], speedMPH: speedMPH,
+                summary: "US-\(Int(abs(via.longitude).rounded()))"
+            )]
+        }
         if query.intermediates.isEmpty {
             var routes = [SyntheticRoute.make(
                 from: query.origin, to: query.destination, speedMPH: speedMPH, summary: summary,

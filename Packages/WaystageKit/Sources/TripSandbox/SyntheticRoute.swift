@@ -55,6 +55,26 @@ public enum SyntheticRoute {
         )
     }
 
+    /// Builds a single-leg route that passes through `points` (first = origin, last =
+    /// destination) without stopping.
+    public static func make(via points: [GeoCoordinate], speedMPH: Double = 62, summary: String = "I-80") -> ComputedRoute {
+        precondition(points.count >= 2, "A route needs at least two points")
+        var path: [GeoCoordinate] = []
+        for index in 1..<points.count {
+            let section = curvedPath(from: points[index - 1], to: points[index], spacing: 1_000, curvature: 0.02)
+            path += path.isEmpty ? section : Array(section.dropFirst())
+        }
+        let speed = speedMPH * Units.metersPerMile / 3_600
+        let leg = makeLeg(path: path, speed: speed, stepLength: 40_000, summary: summary, tollCostUSD: nil)
+        return ComputedRoute(
+            summary: summary,
+            distanceMeters: leg.distanceMeters,
+            duration: leg.duration,
+            encodedPolyline: PolylineCodec.encode(GeoMath.simplify(path, minimumSpacingMeters: 2_000)),
+            legs: [leg]
+        )
+    }
+
     static func curvedPath(from origin: GeoCoordinate, to destination: GeoCoordinate, spacing: Double, curvature: Double) -> [GeoCoordinate] {
         let distance = GeoMath.distance(origin, destination)
         let count = max(2, Int((distance / spacing).rounded(.up)) + 1)

@@ -46,6 +46,9 @@ struct TripMapView: UIViewRepresentable {
     var command: MapCommand?
     /// Called when the user moves the map by hand.
     var onUserMoved: (() -> Void)?
+    /// Travel-time tags of the routes found; tapping one calls `onSelectBadge` with its route ID.
+    var badges: [MapRouteBadge] = []
+    var onSelectBadge: ((String) -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -66,10 +69,12 @@ struct TripMapView: UIViewRepresentable {
     func updateUIView(_ mapView: GMSMapView, context: Context) {
         let coordinator = context.coordinator
         coordinator.onUserMoved = onUserMoved
+        coordinator.onSelectBadge = onSelectBadge
         coordinator.chrome = chrome
         coordinator.applyStyle(colorScheme, to: mapView)
         coordinator.render(paths: paths, on: mapView)
         coordinator.render(markers: markers, on: mapView)
+        coordinator.render(badges: badges, on: mapView)
         coordinator.updateUserLocation(userLocation, on: mapView)
         coordinator.updateVehicle(vehicle, on: mapView)
         coordinator.updateCamera(camera, paths: paths, markers: markers, on: mapView)
@@ -79,7 +84,10 @@ struct TripMapView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, GMSMapViewDelegate {
         var onUserMoved: (() -> Void)?
+        var onSelectBadge: ((String) -> Void)?
         var chrome = UIEdgeInsets.zero
+        private var badgeMarkers: [GMSMarker] = []
+        private var renderedBadges: [MapRouteBadge]?
         private var pathsSignature: Int?
         private var markersSignature: Int?
         private var styledScheme: ColorScheme?
@@ -100,6 +108,15 @@ struct TripMapView: UIViewRepresentable {
         private var flight: (plan: CameraFlight, began: CFTimeInterval, duration: TimeInterval)?
         private var flightLink: CADisplayLink?
         private weak var flightMap: GMSMapView?
+
+        /// A route's travel-time tag chooses that route; other markers behave as usual.
+        nonisolated func mapView(_ mapView: GMSMapView, didTap marker: GMSMarker) -> Bool {
+            MainActor.assumeIsolated {
+                guard let id = marker.userData as? String, let onSelectBadge else { return false }
+                onSelectBadge(id)
+                return true
+            }
+        }
 
         nonisolated func mapView(_ mapView: GMSMapView, willMove gesture: Bool) {
             guard gesture else { return }
@@ -367,6 +384,7 @@ struct TripMapView: UIViewRepresentable {
             styledScheme = scheme
             mapView.mapStyle = scheme == .dark ? MapStyles.night : nil
             pathsSignature = nil // colours are resolved per appearance
+            renderedBadges = nil
         }
 
         /// The route being driven (strong, with a darker edge) over the rest of the trip (light).
@@ -412,6 +430,30 @@ struct TripMapView: UIViewRepresentable {
                 marker.map = mapView
                 return marker
             }
+        }
+
+        func render(badges: [MapRouteBadge], on mapView: GMSMapView) {
+            guard badges != renderedBadges else { return }
+            renderedBadges = badges
+            badgeMarkers.forEach { $0.map = nil }
+            let scheme = styledScheme ?? .light
+            badgeMarkers = MapRouteBadge.drawingOrder(badges).enumerated().map { index, badge in
+                let marker = GMSMarker(position: badge.coordinate.clCoordinate)
+                marker.icon = Self.image(for: badge, scheme: scheme)
+                marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
+                marker.zIndex = Int32(30 + index)
+                marker.userData = badge.id
+                marker.accessibilityLabel = badge.accessibilityLabel
+                marker.map = mapView
+                return marker
+            }
+        }
+
+        private static func image(for badge: MapRouteBadge, scheme: ColorScheme) -> UIImage? {
+            let renderer = ImageRenderer(content: RouteBadgeLabel(text: badge.text, isSelected: badge.isSelected, isBest: badge.isBest)
+                .environment(\.colorScheme, scheme))
+            renderer.scale = UITraitCollection.current.displayScale
+            return renderer.uiImage
         }
 
         private static func path(_ coordinates: [GeoCoordinate]) -> GMSMutablePath {

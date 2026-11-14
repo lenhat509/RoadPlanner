@@ -10,6 +10,9 @@ public struct RouteQuery: Hashable, Sendable {
     public var destination: GeoCoordinate
     /// Stop-over waypoints, in order. Each produces a separate leg.
     public var intermediates: [GeoCoordinate]
+    /// Pass-through points, in order: the route goes through them without stopping (one leg).
+    /// Used to ask for a route along a different corridor ("via Las Vegas").
+    public var vias: [GeoCoordinate]
     /// Departure time used for traffic-aware estimates (`nil` = now).
     public var departure: Date?
     public var avoidTolls: Bool
@@ -19,6 +22,7 @@ public struct RouteQuery: Hashable, Sendable {
         origin: GeoCoordinate,
         destination: GeoCoordinate,
         intermediates: [GeoCoordinate] = [],
+        vias: [GeoCoordinate] = [],
         departure: Date? = nil,
         avoidTolls: Bool = false,
         computeAlternatives: Bool = false
@@ -26,6 +30,7 @@ public struct RouteQuery: Hashable, Sendable {
         self.origin = origin
         self.destination = destination
         self.intermediates = intermediates
+        self.vias = vias
         self.departure = departure
         self.avoidTolls = avoidTolls
         self.computeAlternatives = computeAlternatives

@@ -53,12 +53,30 @@ public struct DaySection: Hashable, Sendable, Identifiable {
     }
 }
 
-/// Compare plans, inspect the timeline, save or start the trip.
+/// One of the routes found, as offered on the map and in the list.
+public struct RouteChoice: Equatable, Identifiable, Sendable {
+    public var id: String
+    /// "via Salt Lake City"; "Best route" when it's the only one.
+    public var title: String
+    /// Total travel time with the selected plan style ("1 d 4 h").
+    public var durationText: String
+    public var distanceText: String
+    public var isBest: Bool
+    public var isSelected: Bool
+    /// Where to put the route's travel-time tag on the map.
+    public var labelCoordinate: GeoCoordinate
+}
+
+/// Compare routes and plans, inspect the timeline, save or start the trip.
+///
+/// A search can find a few different routes; the best is selected first. The user picks one
+/// route and one plan style, and only that plan is ever saved.
 @MainActor
 @Observable
 public final class PlanResultViewModel {
     public let result: PlanResult
     public var selectedGoal: OptimizationGoal
+    public private(set) var selectedRouteID: String
     public private(set) var isSaved = false
 
     private let dependencies: AppDependencies
@@ -67,16 +85,56 @@ public final class PlanResultViewModel {
         self.result = result
         self.dependencies = dependencies
         currentLocation = dependencies.location.lastKnownLocation
+        selectedRouteID = result.routes.first?.id ?? ""
         selectedGoal = result.itineraries[result.recommendedGoal] != nil
             ? result.recommendedGoal
             : (result.options.first?.goal ?? .balanced)
     }
 
-    public var selected: Itinerary? { result.itineraries[selectedGoal] ?? result.options.first }
+    public var selectedRoute: RoutePlan? { result.routes.first { $0.id == selectedRouteID } ?? result.routes.first }
+
+    public var selected: Itinerary? {
+        guard let route = selectedRoute else { return nil }
+        return route.itineraries[selectedGoal] ?? route.options.first
+    }
+
+    /// Whether there is more than one route to choose from.
+    public var hasRouteChoice: Bool { result.routes.count > 1 }
+
+    /// Chooses a route; the plan style stays.
+    public func selectRoute(_ id: String) {
+        guard result.routes.contains(where: { $0.id == id }) else { return }
+        selectedRouteID = id
+        isSaved = false
+    }
+
+    /// The plan with the selected style on a route (for drawing every route on the map).
+    public func itinerary(onRoute id: String) -> Itinerary? {
+        guard let route = result.routes.first(where: { $0.id == id }) else { return nil }
+        return route.itineraries[selectedGoal] ?? route.options.first
+    }
+
+    /// Every route found, best first, with its travel time for the selected plan style.
+    public var routeChoices: [RouteChoice] {
+        let formatters = dependencies.formatters
+        let selectedID = selectedRoute?.id
+        return result.routes.enumerated().compactMap { index, route in
+            guard let itinerary = route.itineraries[selectedGoal] ?? route.options.first else { return nil }
+            return RouteChoice(
+                id: route.id,
+                title: route.name ?? (index == 0 ? "Best route" : "Route \(index + 1)"),
+                durationText: formatters.duration(itinerary.totals.elapsedDuration),
+                distanceText: formatters.distance(itinerary.totals.distanceMeters),
+                isBest: index == 0,
+                isSelected: route.id == selectedID,
+                labelCoordinate: route.labelCoordinate
+            )
+        }
+    }
 
     public var options: [PlanOption] {
         let formatters = dependencies.formatters
-        let itineraries = result.options
+        let itineraries = selectedRoute?.options ?? []
         let fastest = itineraries.map(\.totals.elapsedDuration).min() ?? 0
         let cheapest = itineraries.map(\.totals.cost.total).min() ?? 0
         return itineraries.map { itinerary in

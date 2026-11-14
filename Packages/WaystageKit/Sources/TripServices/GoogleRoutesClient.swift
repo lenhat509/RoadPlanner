@@ -47,16 +47,17 @@ public struct GoogleRoutesClient: RoutingProvider {
     }
 
     func makeRequest(for query: RouteQuery) throws -> HTTPRequest {
+        let waypoints = query.intermediates.map { Waypoint($0) } + query.vias.map { Waypoint($0, via: true) }
         let body = ComputeRoutesRequest(
             origin: .init(query.origin),
             destination: .init(query.destination),
-            intermediates: query.intermediates.isEmpty ? nil : query.intermediates.map(Waypoint.init),
+            intermediates: waypoints.isEmpty ? nil : waypoints,
             travelMode: "DRIVE",
             routingPreference: "TRAFFIC_AWARE",
             // The API rejects departure times in the past; omit them and get "now".
             departureTime: query.departure.flatMap { $0 > now().addingTimeInterval(60) ? Self.timestamp($0) : nil },
             // Alternatives are not supported together with intermediate waypoints.
-            computeAlternativeRoutes: query.computeAlternatives && query.intermediates.isEmpty,
+            computeAlternativeRoutes: query.computeAlternatives && waypoints.isEmpty,
             routeModifiers: query.avoidTolls ? .init(avoidTolls: true) : nil,
             extraComputations: ["TOLLS"],
             polylineQuality: "HIGH_QUALITY",
@@ -137,9 +138,12 @@ struct ComputeRoutesRequest: Encodable {
 struct Waypoint: Encodable {
     struct Location: Encodable { var latLng: GoogleLatLng }
     var location: Location
+    /// A pass-through point (no stop, no extra leg). Omitted for stop-overs.
+    var via: Bool?
 
-    init(_ coordinate: GeoCoordinate) {
+    init(_ coordinate: GeoCoordinate, via: Bool = false) {
         location = Location(latLng: GoogleLatLng(coordinate))
+        self.via = via ? true : nil
     }
 }
 

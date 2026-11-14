@@ -106,11 +106,13 @@ struct PlanResultScreen: View {
     private func mapArea(_ itinerary: Itinerary) -> some View {
         ZStack(alignment: .topTrailing) {
             RouteMap(
-                paths: MapContent.paths(for: itinerary),
+                paths: routePaths(itinerary),
                 markers: MapContent.markers(for: itinerary.stops),
                 chrome: UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 64),
                 userLocation: model.currentLocation,
-                command: mapCommand
+                command: mapCommand,
+                badges: routeBadges,
+                onSelectBadge: chooseRoute
             )
             VStack(spacing: Theme.Spacing.xs) {
                 MapControlButton(
@@ -131,6 +133,30 @@ struct PlanResultScreen: View {
         .accessibilityIdentifier(AccessibilityID.Results.map)
     }
 
+    /// The chosen route (drawn strong) over the other routes found (drawn light).
+    private func routePaths(_ itinerary: Itinerary) -> [[GeoCoordinate]] {
+        let others = model.routeChoices.filter { !$0.isSelected }.compactMap { model.itinerary(onRoute: $0.id) }
+        return MapContent.paths(for: itinerary) + others.flatMap { MapContent.paths(for: $0) }
+    }
+
+    /// Every route's travel time, on the route where it differs most from the others.
+    private var routeBadges: [MapRouteBadge] {
+        model.routeChoices.map { choice in
+            MapRouteBadge(
+                id: choice.id,
+                coordinate: choice.labelCoordinate,
+                text: choice.durationText,
+                accessibilityLabel: "\(choice.title), \(choice.durationText)",
+                isSelected: choice.isSelected,
+                isBest: choice.isBest && model.hasRouteChoice
+            )
+        }
+    }
+
+    private func chooseRoute(_ id: String) {
+        withAnimation(.snappy) { model.selectRoute(id) }
+    }
+
     private func toggleExpanded() {
         withAnimation(.snappy) { mapExpanded.toggle() }
         // Re-frame the route once the map has its new size.
@@ -143,6 +169,15 @@ struct PlanResultScreen: View {
 
     private var details: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+            if model.hasRouteChoice {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    SectionLabel(title: "Routes")
+                    ForEach(Array(model.routeChoices.enumerated()), id: \.element.id) { index, choice in
+                        RouteChoiceRow(choice: choice) { chooseRoute(choice.id) }
+                            .accessibilityIdentifier(AccessibilityID.Results.route(index))
+                    }
+                }
+            }
             if model.options.count > 1 {
                 HStack(spacing: Theme.Spacing.xs) {
                     ForEach(model.options) { option in
@@ -189,6 +224,54 @@ struct PlanResultScreen: View {
                 .foregroundStyle(.secondary)
         }
         .card()
+    }
+}
+
+/// One of the routes found: its name, distance and travel time; the chosen one is outlined.
+struct RouteChoiceRow: View {
+    let choice: RouteChoice
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: Theme.Spacing.s) {
+                Capsule()
+                    .fill(choice.isSelected ? Theme.routeLine : Theme.routeLineMuted)
+                    .frame(width: 5, height: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(choice.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(choice.distanceText)
+                        if choice.isBest {
+                            Label("Best", systemImage: "star.fill")
+                                .labelStyle(.titleAndIcon)
+                                .foregroundStyle(Theme.accent)
+                        }
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: Theme.Spacing.xs)
+                Text(choice.durationText)
+                    .font(.headline)
+                    .monospacedDigit()
+                    .foregroundStyle(choice.isSelected ? Theme.routeLine : .primary)
+            }
+            .padding(.horizontal, Theme.Spacing.s)
+            .padding(.vertical, 10)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
+                    .strokeBorder(choice.isSelected ? Theme.routeLine : Theme.cardStroke, lineWidth: choice.isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(choice.title), \(choice.durationText), \(choice.distanceText)\(choice.isBest ? ", best route" : "")")
+        .accessibilityAddTraits(choice.isSelected ? [.isSelected, .isButton] : [.isButton])
     }
 }
 

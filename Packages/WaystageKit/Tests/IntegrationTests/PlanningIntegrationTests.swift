@@ -141,6 +141,52 @@ struct PlanningIntegrationTests {
         #expect(itinerary.stops.contains { $0.kind == .lodging })
     }
 
+    @Test("A long trip offers a few different, reasonable routes, each fully planned, best first")
+    func routeAlternatives() async throws {
+        let result = try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "sf", to: "den")) { _ in }
+        #expect((2...3).contains(result.routes.count), "\(result.routes.map(\.name))")
+        let shapes = result.routes.map { route in
+            (try? PolylineCodec.decode(route.itineraries[.balanced]?.overviewPolyline ?? "")) ?? []
+        }
+        for (index, route) in result.routes.enumerated() {
+            #expect(Set(route.itineraries.keys) == Set(OptimizationGoal.allCases), "every route has every plan")
+            for itinerary in route.options {
+                #expect(ScheduleValidator().violations(in: itinerary).isEmpty, "\(route.name ?? "best"): \(itinerary.goal)")
+                #expect(itinerary.stops.count >= 3)
+            }
+            #expect(route.name?.hasPrefix("via ") == true, "named after a place only it passes")
+            for other in shapes.indices where other != index {
+                #expect(RouteAlternatives.share(of: shapes[index], alongside: shapes[other], within: 15_000) <= 0.6,
+                        "routes are noticeably different")
+            }
+        }
+        #expect(Set(result.routes.map(\.id)).count == result.routes.count)
+        #expect(Set(result.routes.compactMap(\.name)).count == result.routes.count, "names are distinct")
+        // Best first, for the plan style the user prefers; the others are within reason.
+        let preferred = result.routes.compactMap { $0.itineraries[result.recommendedGoal] }
+        let best = try #require(preferred.first)
+        for other in preferred.dropFirst() {
+            #expect(other.totals.elapsedDuration >= best.totals.elapsedDuration - 3_600)
+            #expect(other.totals.distanceMeters <= best.totals.distanceMeters * 1.2)
+        }
+        #expect(result.itineraries == result.routes[0].itineraries, "the plan shown first is the best route's")
+    }
+
+    @Test("A short trip with no reasonable alternative gets a single route")
+    func singleRoute() async throws {
+        let result = try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "la", to: "lv")) { _ in }
+        #expect(result.routes.count == 1)
+        #expect(result.routes[0].name == nil)
+    }
+
+    @Test("A saved plan reopens as a single route")
+    func singleRouteResult() async throws {
+        let itinerary = try #require(try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "la", to: "lv")) { _ in }.recommended)
+        let reopened = PlanResult(itineraries: [itinerary.goal: itinerary], recommendedGoal: itinerary.goal)
+        #expect(reopened.routes.count == 1)
+        #expect(reopened.recommended == itinerary)
+    }
+
     @Test("Reports routing failures and invalid requests clearly")
     func failures() async throws {
         let failing = SampleTrips.planningService(routing: FakeRoutingProvider(failure: ServiceError.unauthorized("API key not valid")))
