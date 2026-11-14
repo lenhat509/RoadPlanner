@@ -35,10 +35,9 @@ To do:
   - [ ] **App Privacy**: answer as in the table below.
   - [ ] **Pricing and Availability**: Free. Prices, fuel grades and units are for the US, so start
         with the United States.
-- [ ] Decide on the gateway (`Backend/gateway/README.md`): live hotel rates (Expedia Rapid,
-      which needs partner approval) and regional fuel averages (EIA). TestFlight builds work
-      without it, using estimates; the `release` lane currently refuses to run until
-      `WAYSTAGE_GATEWAY_URL` and `WAYSTAGE_GATEWAY_TOKEN` are set.
+- [ ] Decide on the gateway (`Backend/gateway/README.md`), now or after launch: live hotel rates
+      (Expedia Rapid, which needs partner approval) and regional fuel averages (EIA). Without it
+      the app shows clearly marked estimates; nothing in the release steps requires it.
 - [ ] Have a lawyer review the points under [Legal and disclaimers](#legal-and-disclaimers).
 
 ## App Privacy ("nutrition label") answers

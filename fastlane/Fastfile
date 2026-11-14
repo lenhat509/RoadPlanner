@@ -81,14 +81,16 @@ platform :ios do
     upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
   end
 
-  desc "Uploads metadata, screenshots and the latest build for App Review (does not submit by default)"
+  desc "Uploads the listing, screenshots, review notes and age rating to App Store Connect (does not submit by default)"
   lane :release do |options|
-    verify_release_configuration(require_gateway: true)
+    # No build happens here: the app that goes to the store is the TestFlight build from `beta`,
+    # which checks its own configuration. Screenshots come from the offline UI-test sandbox.
     # Screenshots aren't committed: capture them unless this checkout already has a set.
     screenshots if Dir.glob(File.expand_path("screenshots/en-US/*.png", __dir__)).empty?
     api_key = asc_api_key
     deliver(
       api_key: api_key,
+      app_version: marketing_version,
       skip_binary_upload: true,
       metadata_path: "fastlane/metadata",
       screenshots_path: "fastlane/screenshots",
@@ -105,6 +107,7 @@ platform :ios do
   lane :metadata do
     deliver(
       api_key: asc_api_key,
+      app_version: marketing_version,
       skip_binary_upload: true,
       skip_screenshots: true,
       metadata_path: "fastlane/metadata",
@@ -122,8 +125,8 @@ platform :ios do
     )
   end
 
-  # Store builds must not ship in demo mode: the Google key must be configured. TestFlight builds
-  # may run without the gateway (hotel rates and fuel averages then fall back to estimates).
+  # Builds must not ship in demo mode: the Google key must be configured. The gateway is optional
+  # (without it, hotel rates and missing fuel prices are clearly marked estimates).
   private_lane :verify_release_configuration do |options|
     secrets = File.expand_path("../Config/Secrets.xcconfig", __dir__)
     UI.user_error!("Config/Secrets.xcconfig is missing (the Release workflow writes it from the repository's secrets)") unless File.exist?(secrets)
@@ -140,6 +143,12 @@ platform :ios do
                      "Secrets tab (see docs/API_KEYS.md).")
     end
   end
+end
+
+# The app's version (MARKETING_VERSION in project.yml). The App Store version is set to it, so the
+# builds uploaded by `beta` (e.g. 1.0.0) can be chosen for review.
+def marketing_version
+  File.read(File.expand_path("../project.yml", __dir__), encoding: "UTF-8")[/MARKETING_VERSION:\s*"?([0-9.]+)"?/, 1]
 end
 
 # Gives exported attachments their test names (01-Plan.png, …) using the export manifest.

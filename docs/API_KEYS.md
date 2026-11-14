@@ -44,8 +44,8 @@ or with "Google" attribution in the stop details, as required by the Places poli
 A small server (`Backend/gateway`, see its README) for partner services whose keys must never be
 inside the app: live hotel rates (Expedia Rapid) and regional fuel price averages (EIA). Without
 it, hotel prices and missing fuel prices are estimates, clearly marked. Deploy it to Cloud Run,
-then save `WAYSTAGE_GATEWAY_URL` and `WAYSTAGE_GATEWAY_TOKEN` as secrets. The `release` lane
-currently requires them; TestFlight builds don't.
+then save `WAYSTAGE_GATEWAY_URL` and `WAYSTAGE_GATEWAY_TOKEN` as secrets; the next build picks
+them up.
 
 ### Expedia Rapid (for live hotel rates)
 
