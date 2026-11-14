@@ -11,9 +11,13 @@
       key or gateway are missing (`verify_release_configuration` lane), so production never ships
       in demo mode.
 - [ ] Deploy the gateway (`Backend/gateway/README.md`).
-- [ ] Host the privacy policy ([PRIVACY_POLICY.md](PRIVACY_POLICY.md)) and support page
-      ([SUPPORT.md](SUPPORT.md)); update the URLs in `fastlane/metadata/en-US/*_url.txt` and
-      `AppLinks` in `App/Sources/Features/Settings/SettingsScreen.swift`.
+- [ ] Publish the website (privacy policy, support, terms): set `contactEmail` in
+      `site/site.json`, then in the repository's Settings → Pages choose Source **GitHub Actions**.
+      The **Website** workflow builds the pages from [PRIVACY_POLICY.md](PRIVACY_POLICY.md),
+      [SUPPORT.md](SUPPORT.md) and [TERMS_OF_USE.md](TERMS_OF_USE.md) (`scripts/build_site.py`)
+      and publishes them at https://lenhat509.github.io/RoadPlanner/ (`privacy/`, `support/`,
+      `terms/`), the URLs already used in `fastlane/metadata/en-US/*_url.txt` and `AppLinks`. For
+      a custom domain later, add it under Settings → Pages and update those URLs.
 - [ ] Replace placeholder review contact details in `fastlane/metadata/review_information/`.
 - [ ] `fastlane match appstore` once to create certificates and profiles.
 - [ ] Add repository secrets for `.github/workflows/release.yml`: `SECRETS_XCCONFIG`,

@@ -120,10 +120,13 @@ struct SettingsScreen: View {
     }
 }
 
-/// Public URLs (also listed in fastlane metadata). Replace before release.
+/// The public website (built from docs/ by scripts/build_site.py, published by the Website
+/// workflow to GitHub Pages). The same URLs are in fastlane/metadata/en-US/*_url.txt.
 enum AppLinks {
-    static let privacyPolicy = URL(string: "https://waystage.example.com/privacy")!
-    static let support = URL(string: "https://waystage.example.com/support")!
+    static let website = URL(string: "https://lenhat509.github.io/RoadPlanner/")!
+    static let privacyPolicy = URL(string: "privacy/", relativeTo: website)!.absoluteURL
+    static let support = URL(string: "support/", relativeTo: website)!.absoluteURL
+    static let terms = URL(string: "terms/", relativeTo: website)!.absoluteURL
 
     static var versionString: String {
         let info = Bundle.main.infoDictionary

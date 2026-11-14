@@ -1,0 +1,72 @@
+name: Website
+
+# Publishes the privacy policy, support page and terms of use (built from docs/ by
+# scripts/build_site.py) to GitHub Pages. The App Store listing and the app link to these pages.
+#
+# One-time: Settings → Pages → Source: "GitHub Actions", and set contactEmail in site/site.json
+# (the build refuses to publish a placeholder contact address).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "docs/PRIVACY_POLICY.md"
+      - "docs/SUPPORT.md"
+      - "docs/TERMS_OF_USE.md"
+      - "site/**"
+      - "scripts/build_site.py"
+      - "App/Resources/Assets.xcassets/AppIcon.appiconset/**"
+      - ".github/workflows/pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.contact.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the contact address
+        id: contact
+        run: |
+          if python3 -c "import json,sys; sys.exit(0 if json.load(open('site/site.json')).get('contactEmail','').strip() else 1)"; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Not publishing yet: set contactEmail in site/site.json (the privacy policy needs a contact)."
+          fi
+      - uses: actions/setup-python@v5
+        if: steps.contact.outputs.ready == 'true'
+        with:
+          python-version: "3.12"
+      - name: Build
+        if: steps.contact.outputs.ready == 'true'
+        run: |
+          pip install markdown==3.11.3
+          python3 scripts/build_site.py _site
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.contact.outputs.ready == 'true'
+        with:
+          path: _site
+
+  deploy:
+    name: Publish
+    needs: build
+    if: needs.build.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
