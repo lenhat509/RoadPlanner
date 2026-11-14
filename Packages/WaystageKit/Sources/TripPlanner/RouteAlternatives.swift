@@ -165,18 +165,20 @@ public struct RouteAlternatives: Sendable {
         }
     }
 
-    /// Where to put each route's label: the point (away from the ends) farthest from the other
-    /// routes; the middle of a single route.
+    /// Where to put each route's label so labels don't pile up: spread along the trip by the
+    /// route's place in the list (a quarter, a half and three quarters of the way for three
+    /// routes), at the point near there farthest from the other routes.
     public func labelPoints(for routes: [[GeoCoordinate]]) -> [GeoCoordinate] {
         let geometries = routes.map(Self.geometry)
         return geometries.indices.compactMap { index in
             let own = geometries[index]
             guard own.totalLength > 0 else { return routes[index].first }
             let others = geometries.indices.filter { $0 != index }.map { geometries[$0] }
-            var best = (point: own.coordinate(atDistance: own.totalLength / 2), apart: -1.0)
+            let centre = Double(index + 1) / Double(routes.count + 1)
+            var best = (point: own.coordinate(atDistance: own.totalLength * centre), apart: -1.0)
             guard !others.isEmpty else { return best.point }
-            for step in 0...40 {
-                let point = own.coordinate(atDistance: own.totalLength * (0.2 + 0.6 * Double(step) / 40))
+            for step in -6...6 {
+                let point = own.coordinate(atDistance: own.totalLength * (centre + 0.01 * Double(step)))
                 let apart = others.map { $0.project(point)?.offsetMeters ?? .infinity }.min() ?? .infinity
                 if apart > best.apart { best = (point, apart) }
             }

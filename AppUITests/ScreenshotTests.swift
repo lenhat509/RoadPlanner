@@ -113,7 +113,9 @@ final class ScreenshotTests: XCTestCase {
     func testCaptureLaunchIntro() {
         app.launchArguments = [LaunchArgument.uiTestSandbox, LaunchArgument.resetState, LaunchArgument.showIntro]
         app.launch()
-        Thread.sleep(forTimeInterval: 1.5) // the intro builds in ~1.7 s, then holds
+        // The intro builds in ~1.7 s, then holds ~4 s; a first launch on a CI simulator can be
+        // slow to get going, so capture well into the hold.
+        Thread.sleep(forTimeInterval: 3.5)
         capture("07-Intro")
         let plan = app.buttons[AccessibilityID.Home.planTrip]
         XCTAssertTrue(plan.waitForExistence(timeout: 10))

@@ -47,6 +47,12 @@ enum Theme {
     })
     /// The rest of the trip beyond the leg being driven.
     static let routeLineMuted = routeLine.opacity(0.38)
+    /// Other routes found for a trip (plan results), grey like other map apps' alternatives.
+    static let routeAlternative = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.64, green: 0.69, blue: 0.77, alpha: 1)
+            : UIColor(red: 0.47, green: 0.53, blue: 0.62, alpha: 1)
+    })
     /// Exit navigation.
     static let danger = Color(red: 0.86, green: 0.20, blue: 0.18)
 

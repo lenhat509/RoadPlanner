@@ -112,7 +112,8 @@ struct PlanResultScreen: View {
                 userLocation: model.currentLocation,
                 command: mapCommand,
                 badges: routeBadges,
-                onSelectBadge: chooseRoute
+                onSelectBadge: chooseRoute,
+                secondaryStyle: .alternatives
             )
             VStack(spacing: Theme.Spacing.xs) {
                 MapControlButton(
@@ -236,7 +237,7 @@ struct RouteChoiceRow: View {
         Button(action: onSelect) {
             HStack(spacing: Theme.Spacing.s) {
                 Capsule()
-                    .fill(choice.isSelected ? Theme.routeLine : Theme.routeLineMuted)
+                    .fill(choice.isSelected ? Theme.routeLine : Theme.routeAlternative)
                     .frame(width: 5, height: 34)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(choice.title)

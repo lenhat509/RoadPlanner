@@ -122,6 +122,10 @@ struct RouteAlternativesTests {
         #expect(try #require(northGeometry.project(labels[0])).offsetMeters < 1_000, "on its own route")
         #expect(try #require(southGeometry.project(labels[0])).offsetMeters > 150_000, "away from the other route")
         #expect(try #require(northGeometry.project(labels[1])).offsetMeters > 150_000)
+        let along = labels.indices.map { index in
+            [northGeometry, southGeometry][index].project(labels[index])!.distanceAlong / [northGeometry, southGeometry][index].totalLength
+        }
+        #expect(along[1] - along[0] > 0.2, "labels are spread along the trip, not piled up: \(along)")
     }
 
     @Test("Shown routes are named by a place, else by a unique highway name, else by number")

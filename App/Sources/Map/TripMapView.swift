@@ -49,6 +49,7 @@ struct TripMapView: UIViewRepresentable {
     /// Travel-time tags of the routes found; tapping one calls `onSelectBadge` with its route ID.
     var badges: [MapRouteBadge] = []
     var onSelectBadge: ((String) -> Void)?
+    var secondaryStyle = SecondaryPathStyle.restOfTrip
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -72,7 +73,7 @@ struct TripMapView: UIViewRepresentable {
         coordinator.onSelectBadge = onSelectBadge
         coordinator.chrome = chrome
         coordinator.applyStyle(colorScheme, to: mapView)
-        coordinator.render(paths: paths, on: mapView)
+        coordinator.render(paths: paths, style: secondaryStyle, on: mapView)
         coordinator.render(markers: markers, on: mapView)
         coordinator.render(badges: badges, on: mapView)
         coordinator.updateUserLocation(userLocation, on: mapView)
@@ -388,13 +389,19 @@ struct TripMapView: UIViewRepresentable {
         }
 
         /// The route being driven (strong, with a darker edge) over the rest of the trip (light).
-        func render(paths: [[GeoCoordinate]], on mapView: GMSMapView) {
-            let signature = Self.signature(paths)
+        func render(paths: [[GeoCoordinate]], style: SecondaryPathStyle, on mapView: GMSMapView) {
+            var hasher = Hasher()
+            hasher.combine(Self.signature(paths))
+            hasher.combine(style == .alternatives)
+            let signature = hasher.finalize()
             guard signature != pathsSignature else { return }
             pathsSignature = signature
             let traits = UITraitCollection(userInterfaceStyle: styledScheme == .dark ? .dark : .light)
             let line = UIColor(Theme.routeLine).resolvedColor(with: traits)
             let casing = UIColor(Theme.routeCasing).resolvedColor(with: traits)
+            let secondary = style == .alternatives
+                ? UIColor(Theme.routeAlternative).resolvedColor(with: traits)
+                : line.withAlphaComponent(0.38)
 
             if let route = paths.first, route.count > 1 {
                 let path = Self.path(route)
@@ -411,7 +418,7 @@ struct TripMapView: UIViewRepresentable {
             restLines = rest.enumerated().map { index, coordinates in
                 Self.polyline(
                     restLines.indices.contains(index) ? restLines[index] : nil, path: Self.path(coordinates),
-                    color: line.withAlphaComponent(0.38), width: 5, zIndex: 1, on: mapView
+                    color: secondary, width: 5, zIndex: 1, on: mapView
                 )
             }
         }
