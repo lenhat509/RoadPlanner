@@ -1,4 +1,5 @@
 import MapKit
+import TripFeatures
 import TripModels
 import UIKit
 
@@ -8,7 +9,9 @@ import UIKit
 /// * Framing is computed explicitly from the map's size and the chrome covering it (no safe-area
 ///   padding), so changing the chrome never shifts the map, and zooming always starts from the
 ///   view on screen.
-/// * Moving into guidance is one slow ease from the current view down to the car.
+/// * Big moves are *flights* that start from the view on screen and keep their subject in sight
+///   the whole way: zooming from the whole trip into a leg keeps the leg on screen (north-up), and
+///   going from a leg down to the car keeps the car on screen while the map turns and tilts.
 /// * While following, each GPS fix glides linearly over the time since the previous fix, so the
 ///   camera moves continuously instead of stepping.
 enum MapCameraDirector {
@@ -16,7 +19,9 @@ enum MapCameraDirector {
     enum Motion: Equatable {
         /// Jump (first placement).
         case immediate
-        /// Ease in and out over the duration (framing, the fly-in to the car).
+        /// A flight from the view on screen (see `CameraFlight`).
+        case flight(CameraFlight.Kind)
+        /// Ease in and out over the duration (the zoom buttons).
         case ease(TimeInterval)
         /// Constant speed over the duration (following the car between fixes).
         case linear(TimeInterval)
@@ -24,9 +29,6 @@ enum MapCameraDirector {
 
     /// A framed route fills about this much of the visible map.
     static let frameFill = 0.8
-    /// Preview → following the car: a slow glide down to the car.
-    static let flyInDuration: TimeInterval = 1.6
-    static let framingDuration: TimeInterval = 0.8
     static let zoomDuration: TimeInterval = 0.4
     /// Longest glide between two fixes (a longer gap just catches up within this time).
     static let maximumGlide: TimeInterval = 1.0
@@ -46,7 +48,7 @@ enum MapCameraDirector {
     /// How to move from `old` to `new`, or nil to leave the camera alone.
     /// - Parameters:
     ///   - sinceLastFix: seconds since the previous follow update.
-    ///   - isFlyingIn: a fly-in to the car is still running.
+    ///   - isFlyingIn: a flight to the car is still running.
     ///   - lag: how far the camera on screen is from where it should be, in meters, if known.
     static func motion(
         from old: TripMapView.Camera?, to new: TripMapView.Camera, sinceLastFix: TimeInterval, isFlyingIn: Bool,
@@ -57,9 +59,9 @@ enum MapCameraDirector {
         case .free:
             return nil
         case .overview, .frame:
-            return .ease(framingDuration)
-        case .follow:
-            if !old.isFollow { return .ease(flyInDuration) }
+            return .flight(.frame)
+        case let .follow(car, _):
+            if !old.isFollow { return .flight(.anchored(car)) }
             if isFlyingIn { return nil }
             if let lag, lag > catchUpDistance { return .immediate }
             return .linear(min(maximumGlide, max(0.05, sinceLastFix)) * glideShare)

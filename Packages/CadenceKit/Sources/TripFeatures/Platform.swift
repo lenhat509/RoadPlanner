@@ -15,6 +15,9 @@ public protocol LocationProviding: AnyObject {
     var authorization: LocationAuthorization { get }
     var lastKnownLocation: GeoCoordinate? { get }
     func requestAuthorization() async -> LocationAuthorization
+    /// The device's position now: a recent fix if there is one, otherwise a fresh one. Nil when
+    /// location access is off or no fix arrives in time. Doesn't ask for permission.
+    func requestLocation() async -> GeoCoordinate?
     /// Starts location updates. The stream ends when `stopUpdates()` is called.
     func startUpdates() -> AsyncStream<LocationSample>
     func stopUpdates()

@@ -15,6 +15,12 @@ struct DriveViewModelTests {
         return DriveViewModel(trip: ActiveTrip(itinerary: itinerary), dependencies: harness.dependencies)
     }
 
+    /// Opens drive mode and taps Start on the first leg's preview.
+    private func startDriving(_ model: DriveViewModel) async {
+        await model.start()
+        await model.beginNavigation()
+    }
+
     /// Drives the current leg to its end.
     private func driveCurrentLeg(_ model: DriveViewModel) async throws {
         let leg = try #require(model.trip.legToTarget)
@@ -24,29 +30,45 @@ struct DriveViewModelTests {
         }
     }
 
-    @Test("Starting begins guidance, speaks the first instruction and saves progress")
+    @Test("A new trip opens on a silent preview of its first leg; Start begins guidance and the trip")
     func start() async throws {
         let harness = FeatureHarness()
         let model = try await makeModel(harness)
         await model.start()
-        #expect(model.trip.progress.phase == .enRoute)
         #expect(model.mode == .driving)
-        #expect(model.stage == .navigating, "a new trip goes straight to guidance (the plan was the preview)")
-        #expect(model.banner != nil)
+        #expect(model.stage == .preview, "the same flow as resuming: the leg first, then Start")
+        #expect(model.trip.progress.phase == .notStarted, "not started until Start")
+        #expect(model.banner == nil)
         #expect(model.nextStop?.name == model.trip.itinerary.stops[1].place.name)
         #expect(!model.legCoordinates.isEmpty)
+        #expect(model.previewFrame == model.routeToTarget)
+        #expect(harness.speech.spoken.isEmpty)
+        #expect(harness.location.isUpdating)
+
+        await model.beginNavigation()
+        #expect(model.stage == .navigating)
+        #expect(model.trip.progress.phase == .enRoute)
+        #expect(model.banner != nil)
         #expect(harness.speech.spoken.first?.hasPrefix("Head toward") == true)
         #expect(try await harness.repository.loadActiveTrip()?.progress.phase == .enRoute)
-        #expect(harness.location.isUpdating)
         await model.stop()
         #expect(!harness.location.isUpdating)
+    }
+
+    @Test("Leaving a new trip's preview keeps the trip not started")
+    func leavePreview() async throws {
+        let harness = FeatureHarness()
+        let model = try await makeModel(harness)
+        await model.start()
+        await model.stop()
+        #expect(try await harness.repository.loadActiveTrip()?.progress.phase == .notStarted)
     }
 
     @Test("Arriving at a stop offers 'Continue to next stop', which starts the next leg")
     func arriveAndContinue() async throws {
         let harness = FeatureHarness()
         let model = try await makeModel(harness)
-        await model.start()
+        await startDriving(model)
         try await driveCurrentLeg(model)
         #expect(model.mode == .atStop)
         #expect(model.canContinueToNextStop)
@@ -64,7 +86,7 @@ struct DriveViewModelTests {
         #expect(harness.speech.spoken.count == spokenAtStop, "the preview is silent")
         #expect(try await harness.repository.loadActiveTrip()?.progress.targetStopIndex == 2)
 
-        model.beginNavigation()
+        await model.beginNavigation()
         #expect(model.stage == .navigating)
         #expect(model.banner != nil)
         #expect(harness.speech.spoken.count == spokenAtStop + 1, "starting speaks the first instruction")
@@ -88,7 +110,7 @@ struct DriveViewModelTests {
         #expect(model.previewFrame == model.routeToTarget)
         #expect(!model.routeAfterTarget.isEmpty, "the rest of the trip is drawn too")
 
-        model.beginNavigation()
+        await model.beginNavigation()
         #expect(model.stage == .navigating)
         #expect(harness.speech.spoken.count == 1)
     }
@@ -96,7 +118,7 @@ struct DriveViewModelTests {
     @Test("While driving, the route line starts at the car and shrinks as the car advances")
     func routeStartsAtCar() async throws {
         let model = try await makeModel(FeatureHarness())
-        await model.start()
+        await startDriving(model)
         let leg = try #require(model.trip.legToTarget)
         let fixes = samples(along: leg)
         await model.handle(fixes[4])
@@ -125,7 +147,7 @@ struct DriveViewModelTests {
         #expect(GeoMath.distance(fetchedStart, elsewhere) < 300)
     }
 
-    @Test("A new trip started away from the planned origin is guided from the car, announced once")
+    @Test("A new trip opened away from the planned origin is guided from the car, announced once")
     func newTripFromElsewhere() async throws {
         let harness = FeatureHarness()
         let origin = try #require(try await Plans.laToVegas().recommended).stops[0].place.coordinate
@@ -134,8 +156,10 @@ struct DriveViewModelTests {
         ))
         let model = try await makeModel(harness)
         await model.start()
-        #expect(model.stage == .navigating)
-        #expect(model.trip.rerouteLegs[0] != nil)
+        #expect(model.stage == .preview)
+        #expect(model.trip.rerouteLegs[0] != nil, "the previewed leg already starts at the car")
+        #expect(harness.speech.spoken.isEmpty)
+        await model.beginNavigation()
         #expect(harness.speech.spoken.count == 1, "spoken: \(harness.speech.spoken)")
     }
 
@@ -189,8 +213,7 @@ struct DriveViewModelTests {
     func reachingTheStart() async throws {
         let harness = FeatureHarness()
         let model = try await farStartModel(harness)
-        await model.start()
-        model.beginNavigation()
+        await startDriving(model)
         #expect(model.stage == .navigating)
         #expect(model.banner != nil)
         let toStart = PolylineGeometry(coordinates: model.legCoordinates)
@@ -229,18 +252,18 @@ struct DriveViewModelTests {
         #expect(model.trip.progress.phase == .enRoute)
     }
 
-    @Test("A trip opened near its start begins right away")
+    @Test("A trip opened near its start previews its first leg (not the way to the start)")
     func nearStart() async throws {
         let model = try await makeModel(FeatureHarness())
         #expect(!model.isHeadingToStart)
-        #expect(model.stage == .navigating)
+        #expect(model.stage == .preview)
         #expect(!model.previewFrame.isEmpty, "the planned first leg frames the map before directions load")
     }
 
     @Test("At a stop the map shows the next leg")
     func atStopShowsNextLeg() async throws {
         let model = try await makeModel(FeatureHarness())
-        await model.start()
+        await startDriving(model)
         await model.confirmArrival()
         #expect(model.mode == .atStop)
         let stop = try #require(model.trip.targetStop)
@@ -251,7 +274,7 @@ struct DriveViewModelTests {
     @Test("The next-stop option appears when approaching a stop")
     func approaching() async throws {
         let model = try await makeModel(FeatureHarness())
-        await model.start()
+        await startDriving(model)
         #expect(!model.canContinueToNextStop)
         let leg = try #require(model.trip.legToTarget)
         let path = PolylineGeometry(coordinates: try PolylineCodec.decode(leg.encodedPolyline))
@@ -265,7 +288,7 @@ struct DriveViewModelTests {
     @Test("Driving away from a stop automatically continues to the next one")
     func autoDeparture() async throws {
         let model = try await makeModel(FeatureHarness())
-        await model.start()
+        await startDriving(model)
         await model.confirmArrival()
         #expect(model.mode == .atStop)
         let stop = try #require(model.trip.targetStop)
@@ -280,7 +303,7 @@ struct DriveViewModelTests {
     func reroute() async throws {
         let harness = FeatureHarness()
         let model = try await makeModel(harness)
-        await model.start()
+        await startDriving(model)
         let leg = try #require(model.trip.legToTarget)
         let onRoute = samples(along: leg)[10]
         await model.handle(onRoute)
@@ -295,7 +318,7 @@ struct DriveViewModelTests {
     @Test("Skipping a stop loads directions to the following one")
     func skip() async throws {
         let model = try await makeModel(FeatureHarness())
-        await model.start()
+        await startDriving(model)
         let skipped = try #require(model.trip.targetStop)
         await model.skipTargetStop()
         #expect(model.trip.progress.skippedStopIDs.contains(skipped.id))
@@ -307,7 +330,7 @@ struct DriveViewModelTests {
     func mute() async throws {
         let harness = FeatureHarness()
         let model = try await makeModel(harness)
-        await model.start()
+        await startDriving(model)
         let spokenBefore = harness.speech.spoken.count
         model.isMuted = true
         #expect(!harness.preferences.load().voiceGuidanceEnabled)
@@ -320,7 +343,7 @@ struct DriveViewModelTests {
     func completion() async throws {
         let harness = FeatureHarness()
         let model = try await makeModel(harness)
-        await model.start()
+        await startDriving(model)
         while !model.trip.isFinalTarget { await model.skipTargetStop() }
         try await driveCurrentLeg(model)
         #expect(model.mode == .completed)

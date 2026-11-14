@@ -10,6 +10,8 @@ final class CoreLocationProvider: NSObject, LocationProviding {
     private let manager = CLLocationManager()
     private var continuation: AsyncStream<LocationSample>.Continuation?
     private var authorizationWaiters: [CheckedContinuation<LocationAuthorization, Never>] = []
+    /// One-shot requests waiting for a fix (see `requestLocation()`).
+    private var locationWaiters: [UUID: CheckedContinuation<GeoCoordinate?, Never>] = [:]
     private(set) var lastKnownLocation: GeoCoordinate?
 
     override init() {
@@ -30,6 +32,35 @@ final class CoreLocationProvider: NSObject, LocationProviding {
             authorizationWaiters.append(continuation)
             manager.requestWhenInUseAuthorization()
         }
+    }
+
+    /// How long a one-shot request waits for a fix.
+    static let locationRequestTimeout: TimeInterval = 15
+    /// A cached fix this recent and accurate is good enough for a trip's start.
+    static let recentFixAge: TimeInterval = 120
+    static let usableAccuracy: Double = 1_000
+
+    func requestLocation() async -> GeoCoordinate? {
+        guard authorization == .authorized else { return nil }
+        if let location = manager.location, Self.isUsable(location, now: Date()) {
+            let coordinate = GeoCoordinate(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+            lastKnownLocation = coordinate
+            return coordinate
+        }
+        let id = UUID()
+        return await withCheckedContinuation { continuation in
+            locationWaiters[id] = continuation
+            manager.requestLocation()
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(Self.locationRequestTimeout * 1_000_000_000))
+                self?.locationWaiters.removeValue(forKey: id)?.resume(returning: nil)
+            }
+        }
+    }
+
+    static func isUsable(_ location: CLLocation, now: Date) -> Bool {
+        now.timeIntervalSince(location.timestamp) < recentFixAge
+            && location.horizontalAccuracy >= 0 && location.horizontalAccuracy < usableAccuracy
     }
 
     func startUpdates() -> AsyncStream<LocationSample> {
@@ -78,6 +109,17 @@ final class CoreLocationProvider: NSObject, LocationProviding {
             lastKnownLocation = sample.coordinate
             continuation?.yield(sample)
         }
+        // One-shot requests take any usable fix (a rough one is fine for a trip's start).
+        if let fix = samples.last(where: { $0.horizontalAccuracy >= 0 && $0.horizontalAccuracy < Self.usableAccuracy }) {
+            if lastKnownLocation == nil { lastKnownLocation = fix.coordinate }
+            resolveLocationWaiters(with: fix.coordinate)
+        }
+    }
+
+    fileprivate func resolveLocationWaiters(with coordinate: GeoCoordinate?) {
+        let waiters = locationWaiters
+        locationWaiters.removeAll()
+        waiters.values.forEach { $0.resume(returning: coordinate) }
     }
 
     fileprivate func authorizationDidChange(_ status: CLAuthorizationStatus) {
@@ -101,6 +143,8 @@ extension CoreLocationProvider: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Transient failures (e.g. kCLErrorLocationUnknown) are expected; keep updating.
+        // Continuous updates carry on after transient failures (e.g. kCLErrorLocationUnknown), but
+        // a one-shot request has ended: answer it now rather than at its timeout.
+        Task { @MainActor in self.resolveLocationWaiters(with: nil) }
     }
 }

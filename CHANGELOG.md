@@ -11,18 +11,22 @@ All notable changes to this project are documented here. The format follows
   are (blue dot) and says when the trip starts far away ("Starts in San Francisco · 348 mi from
   you"). Starting such a trip first previews the way to its start ("Directions to start");
   reaching the start begins the trip. You can also choose "Start the trip from here".
-- Smoother map motion: zoom buttons zoom from the view on screen; Start glides from the preview
-  down to the car in one movement; drive mode opens on the next leg and then glides to the car;
-  the camera and the car move continuously between GPS fixes; the follow camera looks ahead so
-  the car sits low on the screen with more road ahead. Framing no longer uses map padding, so
-  the map never jumps when panels change.
+- "Start driving" now works like resuming: drive mode shows the whole trip, zooms into the first
+  leg and waits for **Start**. The trip only counts as started then (backing out leaves it "Not
+  started").
+- Map moves keep what matters on screen: zooming from the whole trip into a leg keeps the leg in
+  view (north up), and **Start** zooms down to the car keeping the car in view while the map turns
+  to your direction and tilts; bigger zooms take a little longer. No more sweeping over unrelated
+  places. Zoom buttons zoom from the view on screen; the camera and the car move continuously
+  between GPS fixes; the follow camera looks ahead so the car sits low on the screen. Framing no
+  longer uses map padding, so the map never jumps when panels change.
 - Drive mode follows the layout of familiar navigation apps: the next turn at the very top (with a
   "Then" turn when two come close together), mute and "show route" buttons on the right,
   "Re-center" after panning, and a bottom sheet with the time left, distance, arrival time, the next
   stop and a red exit button (which leaves navigation; the trip stays saved).
-- Resuming a trip, or continuing from a stop, first shows a preview: the route from where you are
-  to the next stop, filling most of the screen, with the rest of the trip in light blue. **Start**
-  glides down into turn-by-turn guidance.
+- Starting or resuming a trip, or continuing from a stop, first shows a preview: the route from
+  where you are to the next stop, filling most of the screen, with the rest of the trip in light
+  blue. **Start** begins turn-by-turn guidance.
 - Directions start where the car is: when you are away from the planned route (e.g. starting
   from home), Cadence fetches directions from your position.
 - Refreshed design: warm canvas, soft cards, teal brand gradient, rounded type; a "route rail"
@@ -36,6 +40,10 @@ All notable changes to this project are documented here. The format follows
 - The map legend wraps instead of scrolling; bottom action bars are opaque with a soft fade.
 
 ### Fixed
+- "Use current location" on the plan form always failed on a real phone ("Your location isn't
+  available yet"): Cadence never asked the device for a position. It now asks for one (and for
+  permission if needed), shows progress, and explains what to do if no position is found. The plan
+  screen and drive mode also find your position themselves now.
 - In drive mode the route line now starts at the car (it began at the planned start, so it
   could be missing near the car); the part already driven is no longer drawn.
 - Choosing an autocomplete suggestion needed two taps: a search still in flight re-opened the list.

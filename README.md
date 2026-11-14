@@ -13,7 +13,7 @@ directions between every stop — for three objectives: **fastest**, **cheapest*
 | Safety first | A break at least every 2–3 h of non-stop driving by default (or the user's interval). Never relaxed. |
 | Feasibility before optimality | Deadlines and daily limits are satisfied first; preferences are relaxed step by step (and reported) only when needed. |
 | Optimal stops | Resource-constrained label-setting search over real gas stations (live prices), rest areas and hotels (live Expedia rates). |
-| Drive mode | Voice-guided turn-by-turn in a familiar layout (next turn on top, "Then" turn, time left and exit at the bottom, re-center), off-route rerouting, arrival detection, one-tap "Continue to next stop" with a preview of the next leg and a Start button. |
+| Drive mode | Voice-guided turn-by-turn in a familiar layout (next turn on top, "Then" turn, time left and exit at the bottom, re-center), off-route rerouting, arrival detection, every leg (starting, resuming, continuing from a stop) opens as a preview with a Start button; map moves keep the leg or the car on screen. |
 | Auto-saved | Progress persists after every change; trips resume after relaunch or reboot. |
 
 ## Repository layout

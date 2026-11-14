@@ -188,6 +188,43 @@ struct PlanTripViewModelTests {
         #expect(model.origin.place?.coordinate == SampleTrips.city("la").coordinate)
     }
 
+    @Test("With no position known yet (a fresh launch), it asks the device for one")
+    func currentLocationFreshFix() async {
+        let harness = FeatureHarness(startLocation: nil)
+        harness.location.fixOnRequest = SampleTrips.city("la").coordinate
+        let model = PlanTripViewModel(dependencies: harness.dependencies)
+        await model.useCurrentLocation(for: .origin)
+        #expect(model.errorMessage == nil)
+        #expect(model.origin.place?.coordinate == SampleTrips.city("la").coordinate)
+        #expect(!model.origin.isResolving)
+    }
+
+    @Test("Asks for permission first; explains how to turn location on if it is refused")
+    func currentLocationPermission() async {
+        let harness = FeatureHarness(startLocation: nil)
+        harness.location.fixOnRequest = SampleTrips.city("la").coordinate
+        harness.location.authorization = .notDetermined
+        let model = PlanTripViewModel(dependencies: harness.dependencies)
+        await model.useCurrentLocation(for: .origin)
+        #expect(model.origin.place != nil, "granted on the prompt")
+
+        let denied = FeatureHarness(startLocation: nil)
+        denied.location.authorization = .denied
+        let refused = PlanTripViewModel(dependencies: denied.dependencies)
+        await refused.useCurrentLocation(for: .origin)
+        #expect(refused.origin.place == nil)
+        #expect(refused.errorMessage?.contains("Settings") == true)
+    }
+
+    @Test("Says so when the device can't find a position")
+    func currentLocationNoFix() async {
+        let model = PlanTripViewModel(dependencies: FeatureHarness(startLocation: nil).dependencies)
+        await model.useCurrentLocation(for: .origin)
+        #expect(model.origin.place == nil)
+        #expect(model.errorMessage?.hasPrefix("Couldn't find your location") == true)
+        #expect(!model.origin.isResolving)
+    }
+
     @Test("Current location uses the phone's time zone when it matches the location")
     func currentLocationTimeZone() async {
         let model = PlanTripViewModel(dependencies: FeatureHarness().dependencies)

@@ -7,8 +7,9 @@ import UIKit
 /// at the very top, the map in the middle, and a bottom sheet with the time left, the next stop,
 /// a red exit button and one menu.
 ///
-/// A leg can open as a *preview* (resuming a trip, or continuing from a stop): the route from the
-/// car to the next stop, framed on the map, with a Start button that glides down into guidance.
+/// Every leg opens as a *preview* — starting a trip, resuming one, continuing from a stop: the map
+/// shows the whole trip, then zooms into the route from the car to the next stop (north-up,
+/// keeping it in view), with a Start button that zooms down to the car (keeping the car in view).
 struct DriveScreen: View {
     /// What the camera does while guiding.
     enum CameraMode: Equatable {
@@ -24,8 +25,8 @@ struct DriveScreen: View {
     @State private var showsSafetyNotice: Bool
     @State private var confirmsEnd = false
     @State private var cameraMode = CameraMode.follow
-    /// Drive mode opens on the next leg, then glides down to the car.
-    @State private var showsIntro = true
+    /// Drive mode opens on the whole trip, then zooms into the next leg.
+    @State private var showsWholeTrip = true
     @State private var mapCommand: MapCommand?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -57,8 +58,9 @@ struct DriveScreen: View {
         .task(id: showsSafetyNotice) {
             guard !showsSafetyNotice else { return }
             await model.start()
-            try? await Task.sleep(nanoseconds: 800_000_000)
-            showsIntro = false
+            // A moment on the whole trip (while the screen finishes sliding in), then the leg.
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            showsWholeTrip = false
         }
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear {
@@ -130,6 +132,7 @@ struct DriveScreen: View {
     }
 
     private var camera: TripMapView.Camera {
+        if showsWholeTrip { return .overview }
         switch model.mode {
         case .completed:
             return .overview
@@ -139,14 +142,24 @@ struct DriveScreen: View {
             guard model.stage == .navigating else { return .frame(model.previewFrame) }
             switch cameraMode {
             case .follow:
-                guard !showsIntro, let location = model.currentLocation else { return .frame(model.previewFrame) }
-                return .follow(location, course: model.currentCourse)
+                guard let location = model.currentLocation else { return .frame(model.previewFrame) }
+                // Before the car has a course (standing still), face along the route.
+                return .follow(location, course: model.currentCourse ?? routeHeading)
             case let .overview(coordinates):
                 return .frame(coordinates)
             case .free:
                 return .free
             }
         }
+    }
+
+    /// The direction the route leaves the car in.
+    private var routeHeading: Double? {
+        let route = model.routeToTarget
+        guard let car = route.first, let ahead = route.dropFirst().first(where: { GeoMath.distance(car, $0) > 30 }) else {
+            return nil
+        }
+        return GeoMath.bearing(from: car, to: ahead)
     }
 
     /// The parts of the map covered by the header and the bottom sheet, which framed routes stay
@@ -296,14 +309,16 @@ struct DriveScreen: View {
             }
             .accessibilityIdentifier(AccessibilityID.Drive.startHere)
         }
-        if model.mode == .driving {
+        // A trip that hasn't started has nothing to arrive at or skip yet (it starts on Start).
+        let isUnderway = model.trip.progress.phase == .enRoute
+        if model.mode == .driving && (isUnderway || model.isHeadingToStart) {
             Button {
                 Task { await model.confirmArrival() }
             } label: {
                 Label(model.isHeadingToStart ? "I'm at the start" : "I've arrived", systemImage: "checkmark.circle")
             }
             .accessibilityIdentifier(AccessibilityID.Drive.arrived)
-            if !model.trip.isFinalTarget && !model.isHeadingToStart {
+            if isUnderway && !model.trip.isFinalTarget {
                 Button {
                     Task { await model.skipTargetStop() }
                 } label: {
@@ -345,7 +360,7 @@ struct DriveScreen: View {
 
     private func startNavigation() {
         cameraMode = .follow
-        model.beginNavigation()
+        Task { await model.beginNavigation() }
     }
 
     private func continueToNext() {

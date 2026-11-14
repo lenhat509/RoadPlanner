@@ -19,6 +19,10 @@ enough) and keep the trip active. Check that the ringer volume is up.
 is saved automatically. Cadence shows the route from where you are to your next stop; tap
 **Start** when you're ready. The red **✕** in drive mode leaves navigation without ending the trip.
 
+**"Use current location" says it can't find me.** Cadence needs location access (Settings ›
+Cadence › Location › While Using the App) and Location Services on. Indoors a first position can
+take a few seconds; try again, or type the starting place instead.
+
 **My trip starts somewhere else.** Plans can start anywhere. The plan screen shows how far the
 start is from you; when you start driving, Cadence first offers directions to the start (the trip
 begins when you get there), or choose **Start the trip from here** in the ••• menu.

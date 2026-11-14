@@ -84,7 +84,7 @@ struct DesignSystemTests {
         #expect(MapCameraDirector.framingRect(for: leg, in: .zero, insets: .zero) == nil, "no size yet: nothing to frame")
     }
 
-    @Test("Camera moves: placed once, framed with an ease, a slow fly-in to the car, then glides between fixes")
+    @Test("Camera moves: placed once, flights for framing and to the car, then glides between fixes")
     func cameraMotion() {
         let car = GeoCoordinate(latitude: 36, longitude: -115)
         let frame = TripMapView.Camera.frame([car])
@@ -92,9 +92,12 @@ struct DesignSystemTests {
         typealias Director = MapCameraDirector
         #expect(Director.motion(from: nil, to: frame, sinceLastFix: 0, isFlyingIn: false) == .immediate)
         #expect(Director.motion(from: nil, to: .free, sinceLastFix: 0, isFlyingIn: false) == nil)
-        #expect(Director.motion(from: frame, to: follow, sinceLastFix: 9, isFlyingIn: false) == .ease(Director.flyInDuration))
-        #expect(Director.motion(from: .free, to: follow, sinceLastFix: 9, isFlyingIn: false) == .ease(Director.flyInDuration))
-        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: true) == nil, "the fly-in isn't cut short")
+        #expect(Director.motion(from: .overview, to: frame, sinceLastFix: 0, isFlyingIn: false) == .flight(.frame),
+                "the whole trip → the leg keeps the leg in view")
+        #expect(Director.motion(from: frame, to: follow, sinceLastFix: 9, isFlyingIn: false) == .flight(.anchored(car)),
+                "the leg → the car keeps the car in view")
+        #expect(Director.motion(from: .free, to: follow, sinceLastFix: 9, isFlyingIn: false) == .flight(.anchored(car)))
+        #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: true) == nil, "a flight isn't cut short")
         #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: false) == .linear(0.5 * Director.glideShare),
                 "a glide ends before the next fix is due")
         #expect(Director.motion(from: follow, to: follow, sinceLastFix: 30, isFlyingIn: false) == .linear(Director.maximumGlide * Director.glideShare))
@@ -102,7 +105,7 @@ struct DesignSystemTests {
                 "a camera far behind the car jumps to it")
         #expect(Director.motion(from: follow, to: follow, sinceLastFix: 0.5, isFlyingIn: false, lag: 50) == .linear(0.5 * Director.glideShare))
         #expect(Director.motion(from: follow, to: .free, sinceLastFix: 1, isFlyingIn: false) == nil, "the user's view is kept")
-        #expect(Director.motion(from: follow, to: frame, sinceLastFix: 1, isFlyingIn: false) == .ease(Director.framingDuration))
+        #expect(Director.motion(from: follow, to: frame, sinceLastFix: 1, isFlyingIn: false) == .flight(.frame))
     }
 
     @Test("The follow camera looks ahead of the car along its heading")

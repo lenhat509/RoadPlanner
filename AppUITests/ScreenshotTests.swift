@@ -22,12 +22,17 @@ final class ScreenshotTests: XCTestCase {
         Thread.sleep(forTimeInterval: seconds)
     }
 
-    /// Starts the drive and waits for drive mode: guidance, or (the simulated car is fast, and a
-    /// slow simulator may load directions late) already the arrival card at the first stop.
+    /// "Start driving" (the first leg's preview), then Start, and waits for drive mode: guidance,
+    /// or (the simulated car is fast, and a slow simulator may load directions late) already the
+    /// arrival card at the first stop.
     private func startDriving(file: StaticString = #filePath, line: UInt = #line) {
         let start = app.buttons[AccessibilityID.Results.start]
         XCTAssertTrue(start.waitForExistence(timeout: 5), file: file, line: line)
         start.tap()
+        XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.preview].firstMatch.waitForExistence(timeout: 20),
+                      "Start driving previews the first leg", file: file, line: line)
+        settle(3) // the zoom from the whole trip into the leg
+        app.buttons[AccessibilityID.Drive.startNavigation].tap()
         let states = [AccessibilityID.Drive.banner, AccessibilityID.Drive.arrivalCard, AccessibilityID.Drive.completedCard]
             .map { app.descendants(matching: .any)[$0].firstMatch }
         let deadline = Date().addingTimeInterval(30)
@@ -115,7 +120,7 @@ final class ScreenshotTests: XCTestCase {
         capture("12-Options-Dark")
         app.buttons[AccessibilityID.Results.start].tap()
         XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.preview].firstMatch.waitForExistence(timeout: 20))
-        settle(3)
+        settle(4) // the whole trip, then the zoom into the way to the start
         capture("13-ToStart-Dark")
         app.buttons[AccessibilityID.Drive.startNavigation].tap()
         XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.banner].firstMatch.waitForExistence(timeout: 30))

@@ -35,6 +35,7 @@ struct PlanResultScreen: View {
             }
         }
         .background(Theme.canvas.ignoresSafeArea())
+        .task { await model.locateUser() }
         .navigationTitle(model.routeTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

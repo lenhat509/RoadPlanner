@@ -27,7 +27,7 @@ struct AppEnvironmentTests {
         #expect(fastCar.parksAfterMeters == nil)
         #expect(pacedCar.parksAfterMeters != nil)
         #expect(fastCar.departureDelay == 0, "functional tests don't wait")
-        #expect(pacedCar.departureDelay > MapCameraDirector.flyInDuration, "the camera reaches the car before it drives off")
+        #expect(pacedCar.departureDelay > CameraFlight.maximumDuration, "the camera reaches the car before it drives off")
         #expect(pacedCar.metersPerTick / pacedCar.tickInterval < fastCar.metersPerTick / fastCar.tickInterval)
     }
 
@@ -36,7 +36,7 @@ struct AppEnvironmentTests {
         let demo = AppEnvironment.make(arguments: [], configuration: unconfigured)
         #expect(demo.mode == .demo)
         let car = try #require(demo.dependencies.location as? SimulatedLocationProvider)
-        #expect(car.departureDelay > MapCameraDirector.flyInDuration, "the demo car waits for the camera after Start")
+        #expect(car.departureDelay > CameraFlight.maximumDuration, "the demo car waits for the camera after Start")
     }
 
     @Test("With an API key the app uses production services")

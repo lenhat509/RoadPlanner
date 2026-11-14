@@ -43,6 +43,15 @@ public final class SimulatedLocationProvider: RouteFollowingLocationProvider {
         return authorization
     }
 
+    /// What a one-shot request finds when no position is known yet (nil: the device finds none).
+    public var fixOnRequest: GeoCoordinate?
+
+    public func requestLocation() async -> GeoCoordinate? {
+        guard authorization == .authorized else { return nil }
+        if lastKnownLocation == nil { lastKnownLocation = fixOnRequest }
+        return lastKnownLocation
+    }
+
     public func startUpdates() -> AsyncStream<LocationSample> {
         isUpdating = true
         let (stream, continuation) = AsyncStream.makeStream(of: LocationSample.self)

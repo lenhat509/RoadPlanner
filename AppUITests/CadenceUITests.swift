@@ -52,14 +52,20 @@ final class CadenceUITests: XCTestCase {
         XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 30))
     }
 
+    /// "Start driving" opens the first leg's preview, like resuming; Start begins guidance.
     private func startDrive() {
+        openDrive()
+        startFromPreview()
+    }
+
+    /// "Start driving", past the safety notice.
+    private func openDrive() {
         app.buttons[AccessibilityID.Results.start].tap()
         let accept = app.buttons[AccessibilityID.Drive.safetyAccept]
         if accept.waitForExistence(timeout: 5) {
             accept.tap()
             XCTAssertTrue(accept.waitForNonExistence(timeout: 5), "safety notice stayed on screen")
         }
-        assertDriving()
     }
 
     /// Drive mode is showing guidance (the maneuver banner), an arrival card, or — because the
@@ -89,7 +95,7 @@ final class CadenceUITests: XCTestCase {
         }
     }
 
-    /// The route preview (resume / continue) is shown; tapping Start begins guidance.
+    /// The route preview (start, resume, continue) is shown; tapping Start begins guidance.
     private func startFromPreview(file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(element(AccessibilityID.Drive.preview).waitForExistence(timeout: 15),
                       "route preview not shown; on screen: \(app.visibleIdentifiers())", file: file, line: line)
@@ -244,6 +250,34 @@ final class CadenceUITests: XCTestCase {
     }
 
     // MARK: Map
+
+    /// Screenshots of the screen for `seconds`, as fast as they come (they don't wait for the app
+    /// to settle).
+    private func routeTraces(for seconds: TimeInterval) -> [RouteTrace?] {
+        var traces: [RouteTrace?] = []
+        let end = Date().addingTimeInterval(seconds)
+        while Date() < end { traces.append(RouteTrace(XCUIScreen.main.screenshot().image)) }
+        return traces
+    }
+
+    func testStartingADriveZoomsIntoTheLegThenToTheCarWithTheRouteAlwaysOnScreen() {
+        // Screenshot pace: the simulated car waits for the camera before driving off.
+        launch(extra: [LaunchArgument.screenshotPace])
+        planLosAngelesToVegas()
+        openDrive()
+        XCTAssertTrue(element(AccessibilityID.Drive.preview).waitForExistence(timeout: 15), "Start driving previews the first leg")
+        XCTAssertFalse(element(AccessibilityID.Drive.banner).exists, "no guidance before Start")
+        // The whole trip, then the zoom into the leg: the leg stays in view.
+        let opening = routeTraces(for: 3)
+        XCTAssertFalse(opening.isEmpty)
+        XCTAssertTrue(opening.allSatisfy { $0 != nil }, "the route left the screen while zooming into the leg: \(opening)")
+
+        app.buttons[AccessibilityID.Drive.startNavigation].tap()
+        // Down to the car: the car, where the route starts, stays in view.
+        let flyIn = routeTraces(for: 2.5)
+        XCTAssertTrue(flyIn.allSatisfy { $0 != nil }, "the route left the screen on the way to the car: \(flyIn)")
+        assertDriving()
+    }
 
     func testZoomButtonsZoomFromTheCurrentViewAndBack() throws {
         launch()

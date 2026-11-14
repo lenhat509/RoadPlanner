@@ -66,6 +66,7 @@ public final class PlanResultViewModel {
     public init(result: PlanResult, dependencies: AppDependencies) {
         self.result = result
         self.dependencies = dependencies
+        currentLocation = dependencies.location.lastKnownLocation
         selectedGoal = result.itineraries[result.recommendedGoal] != nil
             ? result.recommendedGoal
             : (result.options.first?.goal ?? .balanced)
@@ -119,7 +120,14 @@ public final class PlanResultViewModel {
     public var warnings: [PlanWarning] { selected?.warnings ?? [] }
 
     /// Where the user is, when known: drawn on the map, distinct from the plan's start.
-    public var currentLocation: GeoCoordinate? { dependencies.location.lastKnownLocation }
+    public private(set) var currentLocation: GeoCoordinate?
+
+    /// Finds where the user is, if location access is already allowed (this screen never asks).
+    public func locateUser() async {
+        let location = dependencies.location
+        guard location.authorization == .authorized else { return }
+        if let here = await location.requestLocation() { currentLocation = here }
+    }
 
     /// "Starts in San Francisco · 348 mi from you" when the plan starts far from the user (who may
     /// just be looking at it, or will drive to the start first).

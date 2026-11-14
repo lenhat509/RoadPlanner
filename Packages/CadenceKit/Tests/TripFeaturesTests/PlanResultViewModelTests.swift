@@ -110,6 +110,25 @@ struct HomeViewModelTests {
         #expect(unknown.startDistanceNote == nil)
     }
 
+    @Test("Without a known position it asks the device (when allowed) and then shows the note")
+    func locatesTheUser() async throws {
+        let harness = FeatureHarness(startLocation: nil)
+        harness.location.fixOnRequest = SampleTrips.city("la").coordinate
+        let model = PlanResultViewModel(result: try await Plans.sfToVegas(), dependencies: harness.dependencies)
+        #expect(model.startDistanceNote == nil)
+        await model.locateUser()
+        #expect(model.currentLocation == SampleTrips.city("la").coordinate)
+        #expect(model.startDistanceNote != nil)
+
+        let undecided = FeatureHarness(startLocation: nil)
+        undecided.location.fixOnRequest = SampleTrips.city("la").coordinate
+        undecided.location.authorization = .notDetermined
+        let quiet = PlanResultViewModel(result: try await Plans.sfToVegas(), dependencies: undecided.dependencies)
+        await quiet.locateUser()
+        #expect(quiet.currentLocation == nil, "the plan screen never prompts for permission")
+        #expect(undecided.location.authorization == .notDetermined)
+    }
+
     @Test("A trip waiting to be driven to its start is described as such on Home")
     func resumeNotStarted() async throws {
         let harness = FeatureHarness()

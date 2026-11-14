@@ -7,8 +7,9 @@ import TripPlanner
 /// Turn-by-turn drive mode. Follows the driver to each stop, offers "Continue to next stop"
 /// when close to / at a stop, reroutes when off course and auto-saves progress.
 ///
-/// A leg can first be shown as a silent *preview* (the route from the car to the next stop and a
-/// Start button) — when resuming a trip and when continuing from a stop — before guidance starts.
+/// Every leg opens as a silent *preview* (the route from the car to the next stop and a Start
+/// button) — starting a trip, resuming one, continuing from a stop — and guidance begins on Start.
+/// A new trip only counts as started then.
 ///
 /// The plan's start and the car's position are kept apart: when a trip that hasn't started is
 /// opened far from its start (`farFromStartDistance`), the first leg is from the car *to the
@@ -134,8 +135,8 @@ public final class DriveViewModel {
     /// to start from where they are). Closer, the trip simply starts from the car.
     public static let farFromStartDistance: Double = 50_000
 
-    /// A trip that hasn't started goes straight to guidance (the plan was its preview) unless the
-    /// car is far from its start; resuming one starts with a preview.
+    /// Opens on a preview of the next leg (for a trip that hasn't started and is far away, the way
+    /// to its start).
     public init(trip: ActiveTrip, dependencies: AppDependencies) {
         self.trip = trip
         self.dependencies = dependencies
@@ -143,7 +144,7 @@ public final class DriveViewModel {
         let car = dependencies.location.lastKnownLocation ?? trip.progress.lastKnownLocation
         let farFromStart = trip.progress.phase == .notStarted && car.map { Self.isFar($0, fromStartOf: trip) } == true
         self.isHeadingToStart = farFromStart
-        self.stage = trip.progress.phase == .notStarted && !farFromStart ? .navigating : .preview
+        self.stage = .preview
         self.currentLocation = car
         // Planned geometry right away, so the map opens on the right area.
         refreshRouteAfterTarget()
@@ -162,8 +163,8 @@ public final class DriveViewModel {
         isHeadingToStart ? trip.itinerary.stops.first : trip.targetStop
     }
 
-    /// Whether a leg is being driven (to the next stop, or to the start).
-    private var isOnLeg: Bool { trip.progress.phase == .enRoute || isHeadingToStart }
+    /// Whether a leg is being driven or previewed (to the next stop, or to the start).
+    private var isOnLeg: Bool { trip.progress.phase == .enRoute || trip.progress.phase == .notStarted }
 
     // MARK: Derived state
 
@@ -272,13 +273,17 @@ public final class DriveViewModel {
                 statusMessage = "Location access is off. Turn it on in Settings for turn-by-turn guidance."
             }
         }
-        currentLocation = dependencies.location.lastKnownLocation ?? trip.progress.lastKnownLocation ?? currentLocation
+        // Where the car is decides how the leg starts (and whether the trip starts far away), so
+        // ask the device rather than wait for the first update.
+        var here = dependencies.location.lastKnownLocation
+        if here == nil, dependencies.location.authorization == .authorized {
+            here = await dependencies.location.requestLocation()
+        }
+        currentLocation = here ?? trip.progress.lastKnownLocation ?? currentLocation
         if trip.progress.phase == .notStarted {
-            // Far from the plan's start: drive there first (shown as a preview). Otherwise the trip
-            // starts here and now.
+            // Far from the plan's start: the first leg goes there. Otherwise it's the trip's first
+            // leg, from the car. Either way the trip starts on Start.
             isHeadingToStart = currentLocation.map { Self.isFar($0, fromStartOf: trip) } ?? false
-            stage = isHeadingToStart ? .preview : .navigating
-            if !isHeadingToStart { try? trip.start(at: dependencies.now()) }
             await persist()
         }
         await prepareLeg()
@@ -313,7 +318,7 @@ public final class DriveViewModel {
         case .completed:
             break
         case .notStarted:
-            if isHeadingToStart { await guide(with: sample) }
+            await guide(with: sample)
         case .atStop:
             // Driving away from the stop starts the next leg automatically.
             if let stop = trip.targetStop, sample.speed > 4,
@@ -356,10 +361,15 @@ public final class DriveViewModel {
 
     // MARK: Driver actions
 
-    /// Starts guidance from a preview ("Start"): speaks the instruction and starts following.
-    public func beginNavigation() {
+    /// Starts guidance from a preview ("Start"): starts a new trip (unless heading to its start),
+    /// speaks the instruction and starts following.
+    public func beginNavigation() async {
         guard stage == .preview else { return }
         stage = .navigating
+        if trip.progress.phase == .notStarted, !isHeadingToStart {
+            try? trip.start(at: dependencies.now())
+            await persist()
+        }
         guard isOnLeg, let guidance else { return }
         if guidance.progress < 0.01, let departureAnnouncement {
             speak(departureAnnouncement)
@@ -463,7 +473,7 @@ public final class DriveViewModel {
             }
             return
         }
-        guard trip.progress.phase == .enRoute, let target = trip.targetStop else {
+        guard isOnLeg, let target = trip.targetStop else {
             engine = nil
             legCoordinates = []
             legGeometry = nil

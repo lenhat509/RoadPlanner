@@ -1,5 +1,6 @@
 import GoogleMaps
 import SwiftUI
+import TripFeatures
 import TripModels
 
 /// A stop drawn on the map.
@@ -94,11 +95,18 @@ struct TripMapView: UIViewRepresentable {
         private var framedOverview: Int?
         private var lastFix = Date.distantPast
         private var lastVehicleFix = Date.distantPast
-        private var flyInEnds = Date.distantPast
+        private var flightEnds = Date.distantPast
+        /// The flight in progress, stepped every frame by `flightLink`.
+        private var flight: (plan: CameraFlight, began: CFTimeInterval, duration: TimeInterval)?
+        private var flightLink: CADisplayLink?
+        private weak var flightMap: GMSMapView?
 
         nonisolated func mapView(_ mapView: GMSMapView, willMove gesture: Bool) {
             guard gesture else { return }
-            MainActor.assumeIsolated { onUserMoved?() }
+            MainActor.assumeIsolated {
+                endFlight()
+                onUserMoved?()
+            }
         }
 
         // MARK: Camera
@@ -106,20 +114,20 @@ struct TripMapView: UIViewRepresentable {
         func perform(_ command: MapCommand?, camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView) {
             guard let command, command.id != lastCommandID else { return }
             lastCommandID = command.id
-            let target: GMSCameraUpdate?
             switch command.action {
             case .zoomIn:
-                target = GMSCameraUpdate.zoomIn()
+                move(mapView, with: GMSCameraUpdate.zoomIn(), motion: .ease(MapCameraDirector.zoomDuration))
             case .zoomOut:
-                target = GMSCameraUpdate.zoomOut()
+                move(mapView, with: GMSCameraUpdate.zoomOut(), motion: .ease(MapCameraDirector.zoomDuration))
             case .fitRoute:
-                target = cameraUpdate(for: .overview, paths: paths, markers: markers, on: mapView)
+                fly(mapView, to: .overview, kind: .frame, paths: paths, markers: markers)
             case .reapplyCamera:
-                target = cameraUpdate(for: camera, paths: paths, markers: markers, on: mapView)
+                if case let .follow(car, _) = camera {
+                    fly(mapView, to: camera, kind: .anchored(car), paths: paths, markers: markers)
+                } else {
+                    fly(mapView, to: camera, kind: .frame, paths: paths, markers: markers)
+                }
             }
-            let duration = command.action == .zoomIn || command.action == .zoomOut
-                ? MapCameraDirector.zoomDuration : MapCameraDirector.framingDuration
-            if let target { move(mapView, with: target, motion: .ease(duration)) }
         }
 
         func updateCamera(_ camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView) {
@@ -143,18 +151,99 @@ struct TripMapView: UIViewRepresentable {
                 lag = GeoMath.distance(GeoCoordinate(latitude: shown.latitude, longitude: shown.longitude), target)
             }
             var motion = MapCameraDirector.motion(
-                from: appliedCamera, to: camera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flyInEnds, lag: lag
+                from: appliedCamera, to: camera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flightEnds, lag: lag
             )
-            if planChanged { motion = .ease(MapCameraDirector.framingDuration) }
-            if camera.isFollow {
-                if let previous = appliedCamera, !previous.isFollow { flyInEnds = now.addingTimeInterval(MapCameraDirector.flyInDuration) }
-                lastFix = now
-            }
+            if planChanged { motion = .flight(.frame) }
+            if camera.isFollow { lastFix = now }
             appliedCamera = camera
             if camera == .overview { framedOverview = overview }
-            guard let motion, let update = cameraUpdate(for: camera, paths: paths, markers: markers, on: mapView) else { return }
+            guard let motion else { return }
+            if case let .flight(kind) = motion {
+                fly(mapView, to: camera, kind: kind, paths: paths, markers: markers)
+                return
+            }
+            guard let update = cameraUpdate(for: camera, paths: paths, markers: markers, on: mapView) else { return }
             move(mapView, with: update, motion: motion)
         }
+
+        // MARK: Flights
+
+        /// Flies from the camera on screen to `camera` (see `CameraFlight`), one step per frame.
+        private func fly(
+            _ mapView: GMSMapView, to camera: Camera, kind: CameraFlight.Kind, paths: [[GeoCoordinate]], markers: [MapStopMarker]
+        ) {
+            guard let end = flightTarget(for: camera, paths: paths, markers: markers, on: mapView) else { return }
+            let current = mapView.camera
+            let start = CameraFlight.Camera(
+                center: GeoCoordinate(current.target), scale: Self.scale(zoom: current.zoom),
+                heading: current.bearing, pitch: current.viewingAngle
+            )
+            let plan = CameraFlight(from: start, to: end, kind: kind)
+            flight = (plan, CACurrentMediaTime(), plan.duration)
+            flightEnds = Date().addingTimeInterval(plan.duration)
+            flightMap = mapView
+            if flightLink == nil {
+                let link = CADisplayLink(target: self, selector: #selector(stepFlight))
+                link.add(to: .main, forMode: .common)
+                flightLink = link
+            }
+        }
+
+        @objc private func stepFlight() {
+            guard let flight, let mapView = flightMap else {
+                endFlight()
+                return
+            }
+            let progress = (CACurrentMediaTime() - flight.began) / max(0.01, flight.duration)
+            let camera = flight.plan.camera(at: progress)
+            let heading = camera.heading.truncatingRemainder(dividingBy: 360)
+            mapView.camera = GMSCameraPosition(
+                target: camera.center.clCoordinate, zoom: Self.zoom(scale: camera.scale),
+                bearing: heading < 0 ? heading + 360 : heading, viewingAngle: camera.pitch
+            )
+            if progress >= 1 { endFlight() }
+        }
+
+        private func endFlight() {
+            flightLink?.invalidate()
+            flightLink = nil
+            flight = nil
+            flightEnds = .distantPast
+        }
+
+        /// Where a flight to `camera` ends, as an engine-independent camera.
+        private func flightTarget(
+            for camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView
+        ) -> CameraFlight.Camera? {
+            switch camera {
+            case .free:
+                return nil
+            case .overview, .frame:
+                let (coordinates, fill) = camera == .overview
+                    ? (paths.flatMap { $0 } + markers.map(\.coordinate), 0.9)
+                    : (Self.framed(camera), MapCameraDirector.frameFill)
+                guard let bounds = fitBounds(coordinates),
+                      let position = mapView.camera(for: bounds, insets: MapCameraDirector.fitInsets(
+                          in: mapView.bounds.size, chrome: chrome, fill: fill
+                      )) else { return nil }
+                return CameraFlight.Camera(center: GeoCoordinate(position.target), scale: Self.scale(zoom: position.zoom))
+            case let .follow(car, course):
+                let bearing = course ?? mapView.camera.bearing
+                return CameraFlight.Camera(
+                    center: MapCameraDirector.followCenter(car: car, heading: bearing),
+                    scale: Self.scale(zoom: MapCameraDirector.followZoom), heading: bearing, pitch: MapCameraDirector.followPitch
+                )
+            }
+        }
+
+        private static func framed(_ camera: Camera) -> [GeoCoordinate] {
+            if case let .frame(coordinates) = camera { return coordinates }
+            return []
+        }
+
+        /// Flights measure zoom as 2^-zoom (proportional to the ground a screen point covers).
+        private static func scale(zoom: Float) -> Double { pow(2, -Double(zoom)) }
+        private static func zoom(scale: Double) -> Float { Float(-log2(max(scale, 1e-12))) }
 
         private func cameraUpdate(
             for camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView
@@ -179,6 +268,13 @@ struct TripMapView: UIViewRepresentable {
 
         /// Fits `coordinates` (at least ~1 km across) to `fill` of the area clear of the chrome.
         private func fit(_ coordinates: [GeoCoordinate], fill: Double, on mapView: GMSMapView) -> GMSCameraUpdate? {
+            guard let bounds = fitBounds(coordinates) else { return nil }
+            let insets = MapCameraDirector.fitInsets(in: mapView.bounds.size, chrome: chrome, fill: fill)
+            return GMSCameraUpdate.fit(bounds, with: insets)
+        }
+
+        /// The bounds of `coordinates`, at least ~1 km across.
+        private func fitBounds(_ coordinates: [GeoCoordinate]) -> GMSCoordinateBounds? {
             guard !coordinates.isEmpty else { return nil }
             var bounds = GMSCoordinateBounds()
             for coordinate in coordinates { bounds = bounds.includingCoordinate(coordinate.clCoordinate) }
@@ -189,18 +285,21 @@ struct TripMapView: UIViewRepresentable {
             for bearing in [0.0, 90, 180, 270] {
                 bounds = bounds.includingCoordinate(GeoMath.destination(from: center, bearing: bearing, distance: 500).clCoordinate)
             }
-            let insets = MapCameraDirector.fitInsets(in: mapView.bounds.size, chrome: chrome, fill: fill)
-            return GMSCameraUpdate.fit(bounds, with: insets)
+            return bounds
         }
 
         private func move(_ mapView: GMSMapView, with update: GMSCameraUpdate, motion: MapCameraDirector.Motion) {
             switch motion {
             case .immediate:
+                endFlight()
                 mapView.moveCamera(update)
             case let .ease(duration):
+                endFlight()
                 Self.animate(duration: duration, timing: .easeInEaseOut) { mapView.animate(with: update) }
             case let .linear(duration):
                 Self.animate(duration: duration, timing: .linear) { mapView.animate(with: update) }
+            case .flight:
+                break
             }
         }
 

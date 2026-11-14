@@ -157,20 +157,23 @@ public final class PlanTripViewModel {
         sessionToken = UUID().uuidString
     }
 
+    /// Fills `field` with the device's position (asking for permission first if needed).
     public func useCurrentLocation(for field: Field) async {
-        var coordinate = dependencies.location.lastKnownLocation
-        if coordinate == nil {
-            let authorization = await dependencies.location.requestAuthorization()
-            guard authorization == .authorized else {
+        let location = dependencies.location
+        if location.authorization != .authorized {
+            guard await location.requestAuthorization() == .authorized else {
                 status = .failed("Allow location access in Settings to start from your current location.")
                 return
             }
-            coordinate = dependencies.location.lastKnownLocation
         }
+        update(field) { $0.isResolving = true }
+        let coordinate = await location.requestLocation()
+        update(field) { $0.isResolving = false }
         guard let coordinate else {
-            status = .failed("Your location isn't available yet. Try again in a moment.")
+            status = .failed("Couldn't find your location. Check that Location Services is on, then try again.")
             return
         }
+        if case .failed = status { status = .idle }
         let place = Place(
             id: "current-location",
             name: "Current Location",
