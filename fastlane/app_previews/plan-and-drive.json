@@ -6,49 +6,49 @@
       "from": 0.8,
       "to": 1.9,
       "speed": 0.55,
-      "caption": "Long drives,\nplanned end to end"
+      "caption": "Plan long drives\nend to end"
     },
     {
       "from": 2.0,
       "to": 17.3,
       "speed": 6.0,
-      "caption": "Where to, your car\nand your breaks"
+      "caption": "Set your route,\ncar and breaks"
     },
     {
       "from": 17.3,
       "to": 27.7,
       "speed": 5.0,
-      "caption": "Finds rest stops,\ngas and lodging"
+      "caption": "Find rest stops,\ngas and lodging"
     },
     {
       "from": 27.8,
       "to": 32.4,
       "speed": 1.6,
-      "caption": "Compare the\nbest routes"
+      "caption": "Compare the best routes\nand alternatives"
     },
     {
       "from": 32.4,
       "to": 37.0,
       "speed": 1.6,
-      "caption": "Every stop,\nday by day"
+      "caption": "Rest, refuel\nand stay overnight"
     },
     {
       "from": 39.0,
       "to": 40.7,
       "speed": 0.9,
-      "caption": "Turn-by-turn\nto every stop"
+      "caption": "Drive turn-by-turn\nto every stop"
     },
     {
       "from": 44.0,
       "to": 45.75,
       "speed": 1.6,
-      "caption": "Pick up where\nyou left off"
+      "caption": "Resume your trip\nany time"
     },
     {
       "from": 46.1,
       "to": 47.8,
       "speed": 1.6,
-      "caption": "Pick up where\nyou left off"
+      "caption": "Resume your trip\nany time"
     }
   ]
 }

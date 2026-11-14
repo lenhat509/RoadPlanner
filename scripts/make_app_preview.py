@@ -69,19 +69,25 @@ def framed_background(width, height, x, y, radius):
     return canvas * (1 - rim) + 255 * rim
 
 
-def caption_layer(text):
+def caption_size(captions, largest=68, smallest=40):
+    """One text size for every caption in a preview: the largest at which each line fits."""
+    draw = ImageDraw.Draw(Image.new("L", (1, 1)))
+    lines = [line for caption in captions for line in caption.split("\n")]
+    for size in range(largest, smallest - 1, -2):
+        font = ImageFont.truetype(FONT, size)
+        if max(draw.textlength(line, font=font) for line in lines) <= SIZE[0] - 110:
+            return size
+    return smallest
+
+
+def caption_layer(text, size):
     """The caption (and the three stop-colour dots under it) as an RGBA band of height TOP."""
     w = SIZE[0]
     layer = Image.new("RGBA", (w, TOP), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
-    size = 68
     lines = text.split("\n")
-    while True:
-        font = ImageFont.truetype(FONT, size)
-        widths = [draw.textlength(line, font=font) for line in lines]
-        if max(widths) <= w - 110 or size <= 40:
-            break
-        size -= 2
+    font = ImageFont.truetype(FONT, size)
+    widths = [draw.textlength(line, font=font) for line in lines]
     line_height = round(size * 1.14)
     block = line_height * len(lines)
     y = (TOP - 70 - block) // 2 + 20
@@ -139,8 +145,9 @@ def main(spec_path, source, output):
     total = 0
     previous_last = None
     segments = spec["segments"]
+    text_size = caption_size(segment["caption"] for segment in segments)
     for index, segment in enumerate(segments):
-        caption_rgb, caption_alpha = caption_layer(segment["caption"])
+        caption_rgb, caption_alpha = caption_layer(segment["caption"], text_size)
         frames = list(segment_frames(source, segment, width, height, crop_top))
         count = len(frames)
         for n, frame in enumerate(frames):

@@ -6,19 +6,19 @@
       "from": 27.8,
       "to": 32.4,
       "speed": 1.0,
-      "caption": "Best routes\nand alternatives"
+      "caption": "Compare the best routes\nand alternatives"
     },
     {
       "from": 32.4,
       "to": 37.0,
       "speed": 1.0,
-      "caption": "Rest, refuel,\novernight stays"
+      "caption": "Rest, refuel\nand stay overnight"
     },
     {
       "from": 39.0,
       "to": 40.7,
       "speed": 0.6,
-      "caption": "Turn-by-turn,\nstop by stop"
+      "caption": "Drive turn-by-turn\nto every stop"
     },
     {
       "from": 44.0,
