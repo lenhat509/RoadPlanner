@@ -89,6 +89,20 @@ show the app in use).
   and Plus models produce the larger size, which goes in the 6.9-inch slot under **View All Sizes
   in Media Manager**; the store scales down from it.
 
+## App previews (optional videos)
+
+15–30 seconds each, up to 3, 886 × 1920 for the main iPhone slot. Record the real app on your
+iPhone (Control Center → Screen Recording), then cut it with captions:
+
+```bash
+python3 scripts/make_app_preview.py fastlane/app_previews/plan-and-drive.json recording.mp4 preview-1.mp4
+```
+
+Each JSON file lists the parts of the recording to use, their speed and caption, and how much to crop
+off the top (the status bar, recording indicator and AssistiveTouch button aren't part of the app).
+Leave out street-level close-ups near home: previews are public. Upload in App Store Connect → the
+version → **Previews and Screenshots**.
+
 ## Guideline notes
 
 * **2.5.4 background modes** — location is used only during active navigation, as the review

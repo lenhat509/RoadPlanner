@@ -1,0 +1,36 @@
+{
+  "about": "App preview 2 (about 15.5 s; Apple's minimum is 15 s): the plan itself. Cut from the 2026-11-14 screen recording; skips the white flash after Resume and the street-level driving close-ups. The crop removes the status bar, recording indicator and AssistiveTouch button.",
+  "crop_top": 236,
+  "segments": [
+    {
+      "from": 27.8,
+      "to": 32.4,
+      "speed": 1.0,
+      "caption": "Two or three real routes,\neach one timed"
+    },
+    {
+      "from": 32.4,
+      "to": 37.0,
+      "speed": 1.0,
+      "caption": "Breaks, fuel at your grade,\na hotel each night"
+    },
+    {
+      "from": 39.0,
+      "to": 40.7,
+      "speed": 0.6,
+      "caption": "Turn-by-turn,\nstop by stop"
+    },
+    {
+      "from": 44.0,
+      "to": 45.75,
+      "speed": 1.0,
+      "caption": "Resume your trip\nany time"
+    },
+    {
+      "from": 46.1,
+      "to": 47.8,
+      "speed": 1.0,
+      "caption": "Resume your trip\nany time"
+    }
+  ]
+}

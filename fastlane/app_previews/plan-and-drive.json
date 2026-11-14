@@ -1,0 +1,54 @@
+{
+  "about": "App preview 1 (about 16 s; Apple's minimum is 15 s): the whole flow, fast. Cut from the 2026-11-14 screen recording; skips Control Center at the start, the white flash while the map loads after Resume, and the street-level driving close-ups. The crop removes the status bar, recording indicator and AssistiveTouch button.",
+  "crop_top": 236,
+  "segments": [
+    {
+      "from": 0.8,
+      "to": 1.9,
+      "speed": 0.55,
+      "caption": "Long drives,\nplanned end to end"
+    },
+    {
+      "from": 2.0,
+      "to": 17.3,
+      "speed": 6.0,
+      "caption": "Where to, your car\nand your breaks"
+    },
+    {
+      "from": 17.3,
+      "to": 27.7,
+      "speed": 5.0,
+      "caption": "It finds the breaks,\ngas and hotels"
+    },
+    {
+      "from": 27.8,
+      "to": 32.4,
+      "speed": 1.6,
+      "caption": "Compare the\nbest routes"
+    },
+    {
+      "from": 32.4,
+      "to": 37.0,
+      "speed": 1.6,
+      "caption": "Every stop,\nday by day"
+    },
+    {
+      "from": 39.0,
+      "to": 40.7,
+      "speed": 0.9,
+      "caption": "Then drive it,\none leg at a time"
+    },
+    {
+      "from": 44.0,
+      "to": 45.75,
+      "speed": 1.6,
+      "caption": "Pick up where\nyou left off"
+    },
+    {
+      "from": 46.1,
+      "to": 47.8,
+      "speed": 1.6,
+      "caption": "Pick up where\nyou left off"
+    }
+  ]
+}
