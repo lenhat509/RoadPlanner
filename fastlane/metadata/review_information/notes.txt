@@ -1,1 +1,11 @@
-No account is needed. To try the full flow: tap "Plan a trip", choose a start (or "Use current location") and a destination at least a few hours away (for example Los Angeles → Las Vegas), then "Plan trip". Compare the Fastest / Cheapest / Balanced options and tap "Start trip" for turn-by-turn guidance. Location is used only for navigation and planning while a trip is active (background location keeps voice guidance running when the screen is locked).
+No account, sign-in or purchase is needed.
+
+To try the full flow:
+1. On first launch, read "Before you start" and tap "Agree and continue".
+2. Tap "Plan a road trip". Choose a start (or "Use current location") and a destination a few hours away, for example Los Angeles to Las Vegas, then tap "Plan my trip".
+3. When there are 2–3 reasonable routes, they are all drawn on the map with their driving times; tap one to choose it. Compare the Fastest / Cheapest / Balanced plans, each with breaks, fuel stops and hotels for overnight trips.
+4. Tap "Start driving", then "Start" for turn-by-turn voice guidance.
+
+Location: used for directions, to detect arrival at a stop, and to plan from where you are. Background location and audio keep voice guidance running while the screen is locked during an active trip only; both stop when the trip ends.
+
+Waystage doesn't book anything: hotel buttons open the hotel's or a partner's website. Fuel and lodging prices are estimates and are labeled as such. Routes and places come from Google Maps Platform.

@@ -18,6 +18,11 @@ Packages/WaystageKit/.build/
 # Secrets — never commit real keys
 Config/Secrets.xcconfig
 fastlane/report.xml
+# App Review contact details are personal: enter them in App Store Connect (or keep them local)
+fastlane/metadata/review_information/email_address.txt
+fastlane/metadata/review_information/phone_number.txt
+fastlane/metadata/review_information/first_name.txt
+fastlane/metadata/review_information/last_name.txt
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output/

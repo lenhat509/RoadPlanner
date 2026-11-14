@@ -18,7 +18,10 @@
       and publishes them at https://lenhat509.github.io/RoadPlanner/ (`privacy/`, `support/`,
       `terms/`), the URLs already used in `fastlane/metadata/en-US/*_url.txt` and `AppLinks`. For
       a custom domain later, add it under Settings → Pages and update those URLs.
-- [ ] Replace placeholder review contact details in `fastlane/metadata/review_information/`.
+- [ ] Enter the App Review contact (name, phone, email) in App Store Connect → your app → the
+      version → **App Review Information**. Only Apple sees it, but this repository is public, so
+      it isn't kept here: fastlane uploads the review notes and leaves the contact as you set it
+      (the contact files are git-ignored if you'd rather keep them locally).
 - [ ] `fastlane match appstore` once to create certificates and profiles.
 - [ ] Add repository secrets for `.github/workflows/release.yml`: `SECRETS_XCCONFIG`,
       `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_CONTENT`, `MATCH_GIT_URL`, `MATCH_PASSWORD`,
