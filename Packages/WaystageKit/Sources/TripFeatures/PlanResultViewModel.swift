@@ -65,6 +65,19 @@ public struct RouteChoice: Equatable, Identifiable, Sendable {
     public var isSelected: Bool
     /// Where to put the route's travel-time tag on the map.
     public var labelCoordinate: GeoCoordinate
+
+    public init(
+        id: String, title: String, durationText: String, distanceText: String,
+        isBest: Bool, isSelected: Bool, labelCoordinate: GeoCoordinate
+    ) {
+        self.id = id
+        self.title = title
+        self.durationText = durationText
+        self.distanceText = distanceText
+        self.isBest = isBest
+        self.isSelected = isSelected
+        self.labelCoordinate = labelCoordinate
+    }
 }
 
 /// Compare routes and plans, inspect the timeline, save or start the trip.
