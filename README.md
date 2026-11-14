@@ -87,5 +87,5 @@ See [docs/APP_STORE_RELEASE.md](docs/APP_STORE_RELEASE.md): `make screenshots`, 
 * [Testing strategy](docs/TESTING.md)
 * [API keys & services setup](docs/API_KEYS.md)
 * [App Store release checklist](docs/APP_STORE_RELEASE.md)
-* [Security](docs/SECURITY.md) · [Privacy policy](docs/PRIVACY_POLICY.md) · [Support](docs/SUPPORT.md)
+* [Security](docs/SECURITY.md) · [Privacy policy](docs/PRIVACY_POLICY.md) · [Terms of Use](docs/TERMS_OF_USE.md) · [Support](docs/SUPPORT.md)
 * [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)

@@ -210,6 +210,8 @@ struct DesignSystemTests {
             AnyView(RouteBadgeLabel(text: "1 d 4 h", isSelected: true, isBest: true)),
             AnyView(RouteBadgeLabel(text: "1 d 6 h", isSelected: false, isBest: false)),
             AnyView(LaunchIntroView {}.frame(height: 844)),
+            AnyView(TermsAgreementView {}.frame(height: 844)),
+            AnyView(NavigationStack { TermsOfUseView() }.frame(height: 844)),
         ]
         for view in views {
             let renderer = ImageRenderer(content: view.frame(width: 390))

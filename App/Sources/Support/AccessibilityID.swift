@@ -35,6 +35,8 @@ enum AccessibilityID {
         static let legend = "results.legend"
         static let start = "results.start"
         static let startNote = "results.startNote"
+        static let estimateNote = "results.estimateNote"
+        static let stopNotice = "results.stopNotice"
         static let save = "results.save"
         static let openInGoogleMaps = "results.openInGoogleMaps"
         static let warnings = "results.warnings"
@@ -66,7 +68,14 @@ enum AccessibilityID {
         static let safetyAccept = "drive.safetyAccept"
     }
 
+    enum Terms {
+        static let agree = "terms.agree"
+        static let readTerms = "terms.read"
+        static let document = "terms.document"
+    }
+
     enum Settings {
+        static let terms = "settings.terms"
         static let restInterval = "settings.restInterval"
         static let voiceGuidance = "settings.voiceGuidance"
         static let reset = "settings.reset"

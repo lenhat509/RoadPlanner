@@ -57,5 +57,41 @@ Export compliance: `ITSAppUsesNonExemptEncryption = NO` (HTTPS only).
   notes state; the blue location indicator is shown.
 * **5.1.1 data collection** — location permission is requested in context (current location /
   drive start), with purpose strings in `Info.plist`.
-* **Safety** — the first drive shows a safety notice; drive mode needs at most one tap per stop.
-* **Maps attribution** — Google logo and legal notices are shown by the Maps SDK.
+* **1.4 physical harm / safety** — first launch asks people to agree to "Before you start" (plans
+  come from Google Maps data and can be wrong, nothing is booked, costs are estimates, you're the
+  driver, made for cars); the first drive shows a safety notice; drive mode needs at most one tap
+  per stop.
+* **Maps attribution** — Google logo and legal notices are shown by the Maps SDK; stop details,
+  which show Places data without a map, say "Place information from Google Maps".
+
+## Legal and disclaimers
+
+What the app does (see `Disclosures` in `TripFeatures`, the single source of all wording):
+
+* **First launch: "Before you start".** Six points, a link to the full Terms of Use, Google Maps'
+  terms and both privacy policies, and *Agree and continue*. Acceptance is stored with the terms
+  version (`Disclosures.termsVersion`); bump it whenever the terms change and everyone is asked
+  again.
+* **Terms of Use** in the app (Settings › Terms of Use) and in
+  [`TERMS_OF_USE.md`](TERMS_OF_USE.md) for the website; a test keeps the two identical. Publish the
+  page and link it in App Store Connect (the standard Apple EULA still applies unless you upload a
+  custom one).
+* **Where it matters:** results ("estimated … can differ; hotels in this plan aren't booked"),
+  every hotel stop ("not booked", check availability and the total price on the hotel's site or
+  by phone), fuel stops (reported prices/grades may have changed; check opening hours), roadside
+  breaks (stop only where legal and safe), and the drive safety notice.
+
+Before release, have a lawyer review the following, which the app can't settle on its own:
+
+1. **The Terms of Use**: governing law, the legal entity named as provider, contact details, and
+   whether a custom EULA should replace Apple's.
+2. **Google Maps Platform terms**: end users must be bound by terms consistent with Google's,
+   including the [Google Maps/Google Earth Additional Terms of Service](https://maps.google.com/help/terms_maps/)
+   (done in the agreement). Google limits how long Places content may be stored (latitude/longitude
+   up to 30 days in the Service Specific Terms); saved plans and the active trip keep place names
+   and coordinates longer, so decide whether to expire or refresh them.
+3. **Hotel prices**: if Expedia Rapid is used under its launch requirements, its rules for showing
+   rates (taxes and fees lines) apply. The FTC's rule on unfair or deceptive fees (in force since
+   May 2025) covers how short-term lodging prices are displayed in the US; the app labels rates as
+   estimates and says taxes and fees can apply, but check this with counsel.
+4. **Affiliate links**: if booking links earn a commission, disclose that next to them.

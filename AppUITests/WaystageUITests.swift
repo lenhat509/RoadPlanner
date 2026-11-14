@@ -216,6 +216,27 @@ final class WaystageUITests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
 
+    // MARK: Terms
+
+    func testFirstLaunchAsksToAgreeToTheTermsOnce() {
+        launch(extra: [LaunchArgument.showTerms])
+        let agree = app.buttons[AccessibilityID.Terms.agree]
+        XCTAssertTrue(agree.waitForExistence(timeout: 10), "the agreement comes first")
+        XCTAssertTrue(elementWithLabel(containing: "Nothing is booked for you").exists)
+        XCTAssertTrue(elementWithLabel(containing: "Costs are estimates").exists)
+        app.buttons[AccessibilityID.Terms.readTerms].tap()
+        XCTAssertTrue(element(AccessibilityID.Terms.document).waitForExistence(timeout: 5), "the full terms can be read first")
+        app.buttons["Done"].firstMatch.tap()
+        agree.tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))
+
+        // Agreed once: not asked again.
+        app.terminate()
+        launch(reset: false, extra: [LaunchArgument.showTerms])
+        XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons[AccessibilityID.Terms.agree].exists)
+    }
+
     // MARK: Fuel grade
 
     func testChoosingAFuelGradePlansFuelStopsThatSellIt() {

@@ -82,15 +82,20 @@ struct SettingsScreen: View {
             }
 
             Section {
+                NavigationLink("Terms of Use") { TermsOfUseView() }
+                    .accessibilityIdentifier(AccessibilityID.Settings.terms)
                 Link("Privacy Policy", destination: AppLinks.privacyPolicy)
+                Link("Google Maps Terms of Service", destination: Disclosures.googleMapsTermsURL)
+                Link("Google Privacy Policy", destination: Disclosures.googlePrivacyURL)
                 Link("Help & Support", destination: AppLinks.support)
                 LabeledContent("Version", value: AppLinks.versionString)
             } header: {
                 Text("About")
             } footer: {
                 Text(
-                    "Maps, directions and places by Google. Hotel rates via Expedia. Regional fuel price averages "
-                        + "from the U.S. Energy Information Administration. Prices are estimates."
+                    "Maps, directions and places by Google Maps. Hotel rates via Expedia. Regional fuel price averages "
+                        + "from the U.S. Energy Information Administration. Plans are suggestions and costs are estimates; "
+                        + "Waystage doesn't book anything."
                 )
             }
 

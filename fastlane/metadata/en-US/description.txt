@@ -19,6 +19,6 @@ Your progress is saved automatically. Close the app, restart your phone, stay ov
 SAFE BY DESIGN
 Safety rules come first: Waystage never plans more non-stop driving than your break interval. When a deadline can't be met safely, it tells you the earliest safe arrival instead.
 
-Powered by Google Maps Platform for maps, routes and places, Expedia for hotel rates, and U.S. Energy Information Administration fuel price data. Prices and availability are estimates — always confirm before you rely on them.
+Powered by Google Maps Platform for maps, routes and places, Expedia for hotel rates, and U.S. Energy Information Administration fuel price data. Plans are suggestions based on that data and can be wrong or out of date. Costs are estimates. Waystage doesn't book hotels: check availability with the hotel and book it yourself.
 
 Always obey traffic laws and keep your eyes on the road. Set up your trip before you start driving.

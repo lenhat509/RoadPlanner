@@ -223,6 +223,15 @@ struct PlanResultScreen: View {
             Text(model.costBreakdownText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            Label {
+                Text(Disclosures.costEstimate + (itinerary.nights > 0 ? " Hotels in this plan aren't booked." : ""))
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "info.circle")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier(AccessibilityID.Results.estimateNote)
         }
         .card()
     }
@@ -418,6 +427,12 @@ struct StopDetailSheet: View {
     let travelers: Int
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.mapProvider) private var mapProvider
+
+    /// Places data shown without a map carries its source (Google Maps attribution).
+    private var attribution: String {
+        mapProvider == .google ? "Place information from Google Maps." : "Sample data (demo mode)."
+    }
 
     var body: some View {
         NavigationStack {
@@ -432,6 +447,16 @@ struct StopDetailSheet: View {
                     }
                     if !presentation.timeText.isEmpty { Label(presentation.timeText, systemImage: "clock") }
                     if let detail = presentation.detail { Label(detail, systemImage: "info.circle") }
+                } footer: {
+                    Text(attribution)
+                }
+                if let notice = Disclosures.notice(for: stop) {
+                    Section {
+                        Label(notice, systemImage: stop.kind == .lodging ? "exclamationmark.circle" : "checkmark.shield")
+                            .font(.footnote)
+                            .foregroundStyle(stop.kind == .lodging ? Theme.warning : .secondary)
+                            .accessibilityIdentifier(AccessibilityID.Results.stopNotice)
+                    }
                 }
                 Section("Open in") {
                     Button {
@@ -444,7 +469,7 @@ struct StopDetailSheet: View {
                             Button {
                                 openURL(url)
                             } label: {
-                                Label("Book on \(stop.lodging?.provider ?? "partner site")", systemImage: "bed.double")
+                                Label("Check availability on \(stop.lodging?.provider ?? "partner site")", systemImage: "bed.double")
                             }
                         }
                         if let checkIn = stop.arrival, let checkOut = stop.departure {

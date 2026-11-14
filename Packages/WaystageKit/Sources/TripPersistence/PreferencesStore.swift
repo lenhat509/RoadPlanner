@@ -9,6 +9,9 @@ public struct UserPreferences: Codable, Hashable, Sendable {
     public var travelers: Int
     public var voiceGuidanceEnabled: Bool
     public var hasAcceptedSafetyNotice: Bool
+    /// The version of the terms the user agreed to (nil: not yet). Optional, so settings saved
+    /// before the agreement existed still load.
+    public var acceptedTermsVersion: Int?
 
     public init(
         vehicle: Vehicle = Vehicle(milesPerGallon: 28),
@@ -16,7 +19,8 @@ public struct UserPreferences: Codable, Hashable, Sendable {
         goal: OptimizationGoal = .balanced,
         travelers: Int = 2,
         voiceGuidanceEnabled: Bool = true,
-        hasAcceptedSafetyNotice: Bool = false
+        hasAcceptedSafetyNotice: Bool = false,
+        acceptedTermsVersion: Int? = nil
     ) {
         self.vehicle = vehicle
         self.policy = policy
@@ -24,6 +28,7 @@ public struct UserPreferences: Codable, Hashable, Sendable {
         self.travelers = travelers
         self.voiceGuidanceEnabled = voiceGuidanceEnabled
         self.hasAcceptedSafetyNotice = hasAcceptedSafetyNotice
+        self.acceptedTermsVersion = acceptedTermsVersion
     }
 
     public static let `default` = UserPreferences()

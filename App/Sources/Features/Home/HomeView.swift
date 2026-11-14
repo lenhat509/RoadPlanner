@@ -205,10 +205,14 @@ struct HomeView: View {
             SectionLabel(title: "How Waystage plans")
             VStack(alignment: .leading, spacing: 14) {
                 feature(.rest, "A break every 2–3 hours", "Rest areas when there are some, a safe exit when there aren't.")
-                feature(.fuel, "Gas before you run low", "Live prices, never below your minimum fuel level.")
-                feature(.lodging, "A bed at the end of each day", "Hotels near where your driving day ends.")
+                feature(.fuel, "Gas before you run low", "At stations selling your fuel grade, never below your minimum level.")
+                feature(.lodging, "A bed at the end of each day", "Hotels near where your driving day ends. You book them.")
             }
             .card()
+            Text("Plans use Google Maps data and are suggestions: prices are estimates and nothing is booked for you.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, Theme.Spacing.xxs)
         }
     }
 

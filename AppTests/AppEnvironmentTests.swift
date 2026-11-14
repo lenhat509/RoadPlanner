@@ -3,6 +3,7 @@ import Foundation
 import Testing
 import TripFeatures
 import TripModels
+import TripPersistence
 import TripSandbox
 
 @MainActor
@@ -55,6 +56,17 @@ struct AppEnvironmentTests {
         #expect(LaunchIntroView.isShown(in: .uiTest, arguments: [LaunchArgument.showIntro]), "a screenshot run can ask for it")
         #expect(LaunchIntroView.hold(arguments: []) < 1, "about two seconds in all")
         #expect(LaunchIntroView.hold(arguments: [LaunchArgument.showIntro]) >= 3)
+    }
+
+    @Test("The terms agreement is asked for until agreed to (UI tests skip it unless they ask)")
+    func termsAgreement() {
+        var preferences = UserPreferences()
+        #expect(TermsAgreementView.isRequired(mode: .production, arguments: [], preferences: preferences))
+        #expect(TermsAgreementView.isRequired(mode: .demo, arguments: [], preferences: preferences))
+        #expect(!TermsAgreementView.isRequired(mode: .uiTest, arguments: [], preferences: preferences))
+        #expect(TermsAgreementView.isRequired(mode: .uiTest, arguments: [LaunchArgument.showTerms], preferences: preferences))
+        TermsAgreement.accept(&preferences)
+        #expect(!TermsAgreementView.isRequired(mode: .production, arguments: [], preferences: preferences))
     }
 
     @Test("Drive mode presentation state")

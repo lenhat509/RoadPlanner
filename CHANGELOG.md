@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **"Before you start"** on first launch: plans come from Google Maps data and can be wrong;
+  nothing is booked for you; check hotels on their website or by phone; costs are estimates;
+  you're the driver; made for cars. Agree once (again when the terms change), with links to the
+  full Terms of Use (also in Settings and `docs/TERMS_OF_USE.md`), Google Maps' terms and the
+  privacy policies. Reminders where they matter: estimated costs on results, "not booked" on
+  every hotel stop, check fuel stops' hours, stop only where legal and safe at roadside breaks,
+  and Google Maps attribution on stop details.
 - **Fuel grades with their ethanol level.** Choose any gasoline (the default: any gas station
   works) or a specific grade: Regular 87 · E10, Midgrade 89 · E10, Premium 91+ · E10, Flex fuel ·
   E85 or Diesel. Plans only refuel at stations that sell it (a station that lists its grades

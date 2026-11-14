@@ -16,4 +16,6 @@ enum LaunchArgument {
     /// Plays the launch intro in the sandbox and holds its last scene a few seconds, so a
     /// screenshot can capture it (UI tests otherwise skip the intro).
     static let showIntro = "-ShowIntro"
+    /// Asks for the terms agreement in the sandbox (UI tests otherwise skip it).
+    static let showTerms = "-ShowTerms"
 }

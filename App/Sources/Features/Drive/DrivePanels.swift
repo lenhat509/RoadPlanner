@@ -379,12 +379,18 @@ struct SafetyNoticeView: View {
                 .font(.largeTitle.bold())
             VStack(alignment: .leading, spacing: Theme.Spacing.m) {
                 Label(
-                    "Set up your trip before you start moving. Waystage is designed to be glanced at, not operated, while driving.",
+                    "Set up your trip before you start moving. Waystage is made to be glanced at and listened to, not operated, while driving. Let a passenger use it, or pull over safely first.",
                     systemImage: "hand.raised"
                 )
-                Label("Always follow traffic laws, road signs and conditions. Directions can be wrong.", systemImage: "exclamationmark.triangle")
-                Label("Prices, hours and availability come from Google and partners and may change. Confirm before relying on them.", systemImage: "tag")
-                Label("Rest whenever you feel tired, even if no break is planned.", systemImage: "bed.double")
+                Label(
+                    "Directions come from Google Maps and can be wrong. Road signs, traffic laws and conditions always come first.",
+                    systemImage: "exclamationmark.triangle"
+                )
+                Label(
+                    "Hotels in your plan aren't booked, and prices and opening hours can change. Confirm them before you rely on a stop.",
+                    systemImage: "tag"
+                )
+                Label("Rest whenever you feel tired, even if no break is planned. Stop only where it's legal and safe.", systemImage: "bed.double")
             }
             .font(.body)
             Spacer()

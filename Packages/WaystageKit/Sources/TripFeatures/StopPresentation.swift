@@ -59,9 +59,10 @@ public struct StopPresentation: Hashable, Sendable, Identifiable {
             isEstimate = lodging.isRateEstimated
             let rate = formatters.currency(lodging.nightlyRate)
             let source = lodging.provider.map { " · \($0)" } ?? ""
-            detail = "\(rate)/night\(lodging.isRateEstimated ? " (est.)" : "")\(source)"
+            // Plans never book anything: say so wherever a stay is shown.
+            detail = "\(rate)/night\(lodging.isRateEstimated ? " (est.)" : "")\(source) · not booked"
         } else if stop.isRoadsidePullOff {
-            detail = "No facility found nearby: take the next safe exit or rest area."
+            detail = "No facility found nearby: stop only where it's legal and safe, like the next exit or rest area."
         } else {
             detail = nil
         }
