@@ -1,10 +1,12 @@
 name: Release
+# Shows the lane in the list of runs, e.g. "Release: beta".
+run-name: "Release: ${{ inputs.lane }}${{ inputs.create_certificates && ' (create certificates)' || '' }}"
 
 on:
   workflow_dispatch:
     inputs:
       lane:
-        description: "fastlane lane to run"
+        description: "beta = build and send to TestFlight; release = fill the App Store page (listing, screenshots, age rating); metadata = listing text only"
         type: choice
         options: [beta, release, metadata]
         default: beta
