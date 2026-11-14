@@ -1,42 +1,25 @@
 # Try Waystage on your iPhone
 
-Two routes, both driven by GitHub Actions on GitHub's Mac machines (free for public repos), so
-you don't need a Mac.
+Waystage is tested on a real iPhone through **TestFlight**. Builds run on GitHub's Mac machines
+(free for public repos), so you don't need a Mac.
 
-| | A. Browser preview (Appetize) | B. TestFlight |
-|---|---|---|
-| Apple account needed | No | Apple Developer Program ($99/year) |
-| Time to first try | ~30 minutes | Account approval (up to 48 h), then ~1 hour |
-| Runs | Streamed in Safari from a cloud iPhone simulator | Installed on your iPhone |
-| GPS / voice guidance | Simulated drive (demo mode drives the route itself) | Real GPS, real voice guidance |
+| | TestFlight |
+|---|---|
+| Apple account needed | Apple Developer Program ($99/year) |
+| Time to first try | About an hour once the account is approved |
+| Runs | Installed on your iPhone |
+| GPS / voice guidance | Real GPS, real voice guidance |
+
+To look at the app without installing it, open the latest **Screenshots** workflow run: it walks
+through the main screens on a simulator and shows them in the log.
 
 ## Step 0 — make sure CI is green
 
 Open **Actions** in the repository. The *CI* workflow runs on every push. The *iOS* job is the
 first real compile of the app; if it fails, open the failing step, copy the error lines and fix
-them (or share them). Both routes below need the app to compile.
+them (or share them).
 
-## A. Browser preview with Appetize (no Apple account)
-
-1. Create a free account at <https://appetize.io> and copy your API token
-   (Account → API Token).
-2. In GitHub: **Settings → Secrets and variables → Actions → New repository secret**:
-   `APPETIZE_API_TOKEN` = your token.
-3. *(Optional, for real maps and places)* add a secret `SECRETS_XCCONFIG` with the contents of
-   your `Config/Secrets.xcconfig` (at minimum `GOOGLE_MAPS_API_KEY = …`; see
-   [API_KEYS.md](API_KEYS.md)). Without it the app runs in **demo mode** with six sample cities
-   (San Francisco, Los Angeles, Las Vegas, Denver, Chicago, New York) and a blank map background.
-4. **Actions → Preview (Appetize) → Run workflow.**
-5. When it finishes, open the run's **Summary**: it shows a link
-   `https://appetize.io/app/<key>`. Open it in Safari on your iPhone and tap play.
-6. Add a repository **variable** `APPETIZE_PUBLIC_KEY` with the key shown, so every later push
-   to `main` updates the same link.
-
-Things to try: Plan a trip → "Los" → Los Angeles, "Vegas" → Las Vegas → Plan trip → compare
-Fastest/Cheapest/Balanced → Start trip. In demo mode the simulated car drives the route; at each
-stop tap **Continue to next stop**. Close and reopen the app to see the trip resume.
-
-## B. TestFlight on your iPhone
+## TestFlight on your iPhone
 
 ### One-time Apple setup
 
@@ -93,3 +76,11 @@ Never paste these values into issues, chats or commits.
 Test in a real car with a passenger operating the phone: voice guidance with the screen locked,
 arrival at a stop, **Continue to next stop**, rerouting after a wrong turn, and resuming after
 force-quitting the app.
+
+## Keeping your Google key safe
+
+The release build carries your Google Maps key inside the app (every app that uses Google Maps
+does), so it can't be fully secret. Protect it instead, as described in [API_KEYS.md](API_KEYS.md):
+restrict it to your bundle ID and to the three APIs Waystage uses, and set daily quotas and a
+budget alert. No workflow publishes a built app on GitHub: the Release workflow sends it straight
+to TestFlight.

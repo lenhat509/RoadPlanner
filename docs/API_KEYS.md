@@ -11,7 +11,10 @@ the gateway. Nothing secret is committed.
    * *Application restriction:* iOS apps → your bundle ID (e.g. `com.yourcompany.waystage`).
      The app sends `X-Ios-Bundle-Identifier` on web-service calls so the restriction applies.
    * *API restriction:* only the three APIs above.
-4. Set quotas and a budget alert (Billing → Budgets). Typical cost per planned cross-country
+4. Set quotas and a budget alert (Billing → Budgets). The key ships inside the app, so anyone
+   determined can read it from a downloaded build, and the bundle-ID restriction can be imitated
+   by other callers; quotas and a budget alert are what keep misuse cheap. Never publish builds
+   made with your real key (no workflow here does). Typical cost per planned cross-country
    trip: one Routes request with alternatives, ~25–45 Places Text Search (Enterprise SKU because
    of `fuelOptions`) requests and one Routes request for final directions. Lodging is only
    searched where a night is likely to keep costs down.

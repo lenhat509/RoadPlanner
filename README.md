@@ -81,7 +81,7 @@ See [docs/APP_STORE_RELEASE.md](docs/APP_STORE_RELEASE.md): `make screenshots`, 
 
 ## Documentation
 
-* [Try it on your iPhone (Appetize / TestFlight)](docs/TRY_ON_IPHONE.md)
+* [Try it on your iPhone (TestFlight)](docs/TRY_ON_IPHONE.md)
 * [Architecture & decisions](docs/ARCHITECTURE.md)
 * [Planning algorithm](docs/PLANNING_ALGORITHM.md)
 * [Testing strategy](docs/TESTING.md)

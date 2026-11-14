@@ -131,7 +131,7 @@ Navigation SDK can replace the engine later behind the same view model.
 
 ### ADR-008 — Apple Maps fallback without a Google key
 *Decision:* `RouteMap` renders with the Google Maps SDK when a key is configured (production) and
-with MapKit for SwiftUI otherwise (demo mode, UI tests, Appetize previews). *Why:* the Google SDK
+with MapKit for SwiftUI otherwise (demo mode, UI tests). *Why:* the Google SDK
 draws no tiles without a valid key, which made previews look broken. Both renderers share the same
 inputs (paths, colored stop dots, vehicle, camera) and the legend below the map.
 

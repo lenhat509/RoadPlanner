@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Removed
+- The browser-preview workflow. TestFlight replaces it, and it published the built app (with the
+  Google Maps key inside) as a downloadable file on each run; those runs and files are deleted.
+
 ### Added
 - **"Before you start"** on first launch: plans come from Google Maps data and can be wrong;
   nothing is booked for you; check hotels on their website or by phone; costs are estimates;
