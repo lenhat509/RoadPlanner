@@ -29,8 +29,8 @@ struct CameraFlightTests {
     }
 
     private func line(_ a: GeoCoordinate, _ b: GeoCoordinate, count: Int = 20) -> [GeoCoordinate] {
-        (0...count).map { i in
-            let share = Double(i) / Double(count)
+        (0...count).map { step in
+            let share = Double(step) / Double(count)
             return GeoCoordinate(latitude: a.latitude + (b.latitude - a.latitude) * share,
                                  longitude: a.longitude + (b.longitude - a.longitude) * share)
         }
@@ -69,8 +69,8 @@ struct CameraFlightTests {
         #expect(flight.samples(count: 50).allSatisfy { $0.heading == 0 }, "north stays up")
 
         // Moving the centre and zooming independently (what a plain animation does) loses it.
-        let naiveWorst = (0...200).map { i -> Double in
-            let t = Double(i) / 200, eased = t * t * (3 - 2 * t)
+        let naiveWorst = (0...200).map { step -> Double in
+            let time = Double(step) / 200, eased = time * time * (3 - 2 * time)
             let camera = Camera(
                 center: GeoCoordinate(latitude: whole.center.latitude + (legView.center.latitude - whole.center.latitude) * eased,
                                       longitude: whole.center.longitude + (legView.center.longitude - whole.center.longitude) * eased),

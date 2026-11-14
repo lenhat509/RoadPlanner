@@ -100,7 +100,7 @@ final class ScreenshotTests: XCTestCase {
         capture("03-Timeline")
 
         startDriving()
-        settle(6) // the car parks a little way into the leg
+        settle(10) // the car parks ~7.5 s after Start; then the map tiles load
         capture("04-Drive")
 
         arriveViaMenu()
