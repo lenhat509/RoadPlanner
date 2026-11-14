@@ -85,8 +85,9 @@ platform :ios do
   lane :release do |options|
     # No build happens here: the app that goes to the store is the TestFlight build from `beta`,
     # which checks its own configuration. Screenshots come from the offline UI-test sandbox.
-    # Screenshots aren't committed: capture them unless this checkout already has a set.
-    screenshots if Dir.glob(File.expand_path("screenshots/en-US/*.png", __dir__)).empty?
+    # Screenshots aren't committed. The Release workflow captures them for both iPhone sizes before
+    # this lane; on a Mac without a set, capture one here.
+    screenshots if Dir.glob(File.expand_path("screenshots/en-US/*.{png,jpg}", __dir__)).empty?
     api_key = asc_api_key
     deliver(
       api_key: api_key,
@@ -94,6 +95,7 @@ platform :ios do
       skip_binary_upload: true,
       metadata_path: "fastlane/metadata",
       screenshots_path: "fastlane/screenshots",
+      overwrite_screenshots: true, # replace the set each time instead of adding to it
       app_rating_config_path: "fastlane/app_rating_config.json",
       submit_for_review: options[:submit] == true,
       automatic_release: false,

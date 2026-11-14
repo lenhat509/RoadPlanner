@@ -67,9 +67,10 @@ Export compliance: `ITSAppUsesNonExemptEncryption = NO` (HTTPS only).
 3. **Actions → Release**, lane `beta`. Test the TestFlight build on your iPhone in a real car,
    with a passenger operating the phone: planning, voice guidance with the screen locked,
    arrival at a stop, "Continue to next stop", resume after force-quitting, rerouting.
-4. **Actions → Release**, lane `release`. It captures the 6.9-inch screenshots and uploads them
-   with the listing and review notes. Then, in App Store Connect, select the build and submit it
-   for review.
+4. **Actions → Release**, lane `release`. It captures the screenshots for both iPhone slots
+   (6.1/6.3-inch and 6.9-inch) and uploads them with the listing, review notes and age rating,
+   replacing the previous set. Then, in App Store Connect, select the build and submit it for
+   review.
 
 ## Guideline notes
 

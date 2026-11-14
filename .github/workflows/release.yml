@@ -65,6 +65,37 @@ jobs:
       - name: Test before shipping
         if: ${{ inputs.run_tests }}
         run: scripts/test-all.sh ios
+      - name: Capture App Store screenshots
+        # Both iPhone slots on the App Store page: medium (6.1/6.3-inch, the newest iPhone Pro) and
+        # large (6.9-inch, the newest Pro Max). JPEG, as the App Store takes no transparency.
+        if: ${{ inputs.lane == 'release' }}
+        timeout-minutes: 45
+        run: |
+          set -o pipefail
+          xcodegen generate --quiet
+          out=fastlane/screenshots/en-US
+          rm -rf "$out" && mkdir -p "$out"
+          available=$(xcrun simctl list devices available)
+          medium=$(echo "$available" | grep -Eo 'iPhone [0-9]+ Pro \(' | sed 's/ ($//' | sort -V | tail -1)
+          large=$(echo "$available" | grep -Eo 'iPhone [0-9]+ Pro Max' | sort -V | tail -1)
+          for device in "$medium" "$large"; do
+            echo "Capturing on $device"
+            rm -rf Shots.xcresult raw
+            xcodebuild test -project Waystage.xcodeproj -scheme Waystage \
+              -destination "platform=iOS Simulator,name=$device" \
+              -only-testing:WaystageUITests/ScreenshotTests/testCaptureAppStoreScreenshots \
+              -resultBundlePath Shots.xcresult CODE_SIGNING_ALLOWED=NO \
+              | grep -E "Test Case|error:|TEST (SUCCEEDED|FAILED)"
+            mkdir -p raw/export
+            xcrun xcresulttool export attachments --path Shots.xcresult --output-path raw/export
+            python3 scripts/print_screenshots.py raw/export raw/named
+            for shot in raw/named/*.png; do
+              sips -s format jpeg -s formatOptions 95 "$shot" --out "$out/${device// /}-$(basename "${shot%.png}").jpg" > /dev/null
+            done
+          done
+          for shot in "$out"/*.jpg; do
+            echo "$(basename "$shot"): $(sips -g pixelWidth -g pixelHeight "$shot" | awk '/pixel/ {printf "%s ", $2}')"
+          done
       - name: fastlane ${{ inputs.lane }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -74,7 +105,4 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_READONLY: ${{ inputs.create_certificates && 'false' || 'true' }}
-        run: |
-          # The release lane captures App Store screenshots on the newest 6.9-inch (Pro Max) iPhone.
-          export SCREENSHOT_DEVICE="$(xcrun simctl list devices available | grep -Eo 'iPhone [0-9]+ Pro Max' | sort -V | tail -1)"
-          bundle exec fastlane ${{ inputs.lane }}
+        run: bundle exec fastlane ${{ inputs.lane }}
