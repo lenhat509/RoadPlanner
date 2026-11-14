@@ -1,16 +1,16 @@
-# Cadence release automation. Run `bundle exec fastlane lanes` for the list.
+# Waystage release automation. Run `bundle exec fastlane lanes` for the list.
 #
 # Required environment for signing/upload lanes (store as CI secrets):
 #   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_CONTENT (base64 .p8)  — App Store Connect API key
 #   MATCH_GIT_URL, MATCH_PASSWORD                              — fastlane match
-#   CADENCE_BUNDLE_ID, CADENCE_TEAM_ID                         — app identity
+#   WAYSTAGE_BUNDLE_ID, WAYSTAGE_TEAM_ID                         — app identity
 require "json"
 require "fileutils"
 
 default_platform(:ios)
 
-PROJECT = "Cadence.xcodeproj"
-SCHEME = "Cadence"
+PROJECT = "Waystage.xcodeproj"
+SCHEME = "Waystage"
 SCREENSHOT_DEVICE = ENV.fetch("SCREENSHOT_DEVICE", "iPhone 16 Pro Max") # 6.9-inch display
 
 platform :ios do
@@ -40,7 +40,7 @@ platform :ios do
       project: PROJECT,
       scheme: SCHEME,
       device: SCREENSHOT_DEVICE,
-      only_testing: ["CadenceUITests/ScreenshotTests"],
+      only_testing: ["WaystageUITests/ScreenshotTests"],
       result_bundle_path: result_path,
       xcargs: "CODE_SIGNING_ALLOWED=NO"
     )
@@ -53,15 +53,15 @@ platform :ios do
     verify_release_configuration(require_gateway: false)
     api_key = asc_api_key
     setup_ci if is_ci
-    bundle_id = ENV.fetch("CADENCE_BUNDLE_ID")
+    bundle_id = ENV.fetch("WAYSTAGE_BUNDLE_ID")
     # MATCH_READONLY=false on the very first run creates the certificate and profile (no Mac needed).
     match(type: "appstore", app_identifier: bundle_id, readonly: ENV.fetch("MATCH_READONLY", is_ci.to_s) == "true", api_key: api_key)
     # Sign only the app target manually with the match profile (Swift package targets are not signed).
     update_code_signing_settings(
       path: PROJECT,
-      targets: ["Cadence"],
+      targets: ["Waystage"],
       use_automatic_signing: false,
-      team_id: ENV.fetch("CADENCE_TEAM_ID"),
+      team_id: ENV.fetch("WAYSTAGE_TEAM_ID"),
       bundle_identifier: bundle_id,
       code_sign_identity: "Apple Distribution",
       profile_name: ENV.fetch("sigh_#{bundle_id}_appstore_profile-name")
@@ -122,8 +122,8 @@ platform :ios do
     secrets = File.expand_path("../Config/Secrets.xcconfig", __dir__)
     UI.user_error!("Config/Secrets.xcconfig is missing (copy Secrets.example.xcconfig)") unless File.exist?(secrets)
     content = File.read(secrets)
-    required = %w[GOOGLE_MAPS_API_KEY CADENCE_BUNDLE_ID CADENCE_TEAM_ID]
-    required += %w[CADENCE_GATEWAY_URL CADENCE_GATEWAY_TOKEN] if options[:require_gateway]
+    required = %w[GOOGLE_MAPS_API_KEY WAYSTAGE_BUNDLE_ID WAYSTAGE_TEAM_ID]
+    required += %w[WAYSTAGE_GATEWAY_URL WAYSTAGE_GATEWAY_TOKEN] if options[:require_gateway]
     required.each do |key|
       value = content[/^\s*#{key}\s*=\s*(\S.*)$/, 1].to_s.strip
       UI.user_error!("#{key} is not set in Config/Secrets.xcconfig") if value.empty? || value.include?("...")

@@ -43,7 +43,7 @@ struct SettingsScreen: View {
             } header: {
                 Text("Breaks")
             } footer: {
-                Text("Cadence never plans more non-stop driving than this. The recommended default is a break every 2–3 hours.")
+                Text("Waystage never plans more non-stop driving than this. The recommended default is a break every 2–3 hours.")
             }
 
             Section("Driving day") {
@@ -112,8 +112,8 @@ struct SettingsScreen: View {
 
 /// Public URLs (also listed in fastlane metadata). Replace before release.
 enum AppLinks {
-    static let privacyPolicy = URL(string: "https://cadence.example.com/privacy")!
-    static let support = URL(string: "https://cadence.example.com/support")!
+    static let privacyPolicy = URL(string: "https://waystage.example.com/privacy")!
+    static let support = URL(string: "https://waystage.example.com/support")!
 
     static var versionString: String {
         let info = Bundle.main.infoDictionary

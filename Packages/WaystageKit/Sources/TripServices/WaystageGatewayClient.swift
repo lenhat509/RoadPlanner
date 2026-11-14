@@ -2,10 +2,10 @@ import Foundation
 import TripModels
 import TripPlanner
 
-/// Client for the Cadence gateway (see `Backend/gateway`), which holds the secrets for
+/// Client for the Waystage gateway (see `Backend/gateway`), which holds the secrets for
 /// Expedia Rapid (live lodging rates) and the U.S. EIA (regional fuel prices) so they never
 /// ship inside the app binary.
-public struct CadenceGatewayClient: LodgingRateProvider, RegionalFuelPriceProvider {
+public struct WaystageGatewayClient: LodgingRateProvider, RegionalFuelPriceProvider {
     public struct Configuration: Hashable, Sendable {
         public var baseURL: URL
         /// Per-app token checked by the gateway (rotate via remote config; see docs/SECURITY.md).
@@ -66,7 +66,7 @@ public struct CadenceGatewayClient: LodgingRateProvider, RegionalFuelPriceProvid
         return HTTPRequest(
             method: .get,
             url: components.url!,
-            headers: ["Accept": "application/json", "X-Cadence-App-Token": configuration.appToken]
+            headers: ["Accept": "application/json", "X-Waystage-App-Token": configuration.appToken]
         )
     }
 

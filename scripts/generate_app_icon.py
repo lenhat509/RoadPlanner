@@ -1,69 +1,87 @@
 #!/usr/bin/env python3
-"""Renders the Cadence app icon (1024×1024, RGB, no alpha — App Store requirement).
+"""Renders the Waystage app icon (1024×1024, RGB, no alpha — App Store requirement).
+
+The road runs from the bottom of the icon to the horizon, where the sun sits low; the planned
+stops (rest, fuel, overnight, in the app's stop colours) get smaller into the distance.
 
 Usage: python3 scripts/generate_app_icon.py [output.png]
 """
-import math
 import sys
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
 SIZE = 1024
 SCALE = 4  # supersample for smooth edges
 S = SIZE * SCALE
+HORIZON = 560 / 1024  # as a share of the height
+
+SKY = [(0.0, (11, 69, 83)), (0.5, (26, 142, 148)), (HORIZON, (95, 184, 168))]
+GROUND = [(HORIZON, (15, 75, 87)), (1.0, (8, 42, 51))]
+SUN = (246, 196, 106)
+ROAD = (244, 247, 247)
+INK = (10, 52, 64)
+# The app's stop colours (Okabe–Ito): rest, fuel, overnight.
+STOPS = [(1.25, (0, 158, 115)), (2.2, (230, 159, 0)), (4.2, (204, 121, 167))]
 
 
-def lerp(a, b, t):
-    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+def px(value):
+    """1024-grid units → supersampled pixels."""
+    return value * S / 1024
 
 
-def stroke(draw, points, width, fill):
-    """Draws a smooth thick stroke by stamping discs along a dense path."""
-    radius = width / 2
-    for x, y in points:
-        draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=fill)
+def gradient_color(stops, share):
+    for (a, ca), (b, cb) in zip(stops, stops[1:]):
+        if share <= b:
+            t = 0 if b == a else max(0.0, (share - a) / (b - a))
+            return tuple(round(x + (y - x) * t) for x, y in zip(ca, cb))
+    return stops[-1][1]
 
 
-def road_points(steps=3000):
-    """A gentle S-curve from bottom-left to top-right."""
-    points = []
-    for i in range(steps + 1):
-        t = i / steps
-        x = 0.16 + 0.68 * t
-        y = 0.86 - 0.72 * t + 0.10 * math.sin(t * math.pi * 2)
-        points.append((x * S, y * S))
-    return points
+def depth_y(z):
+    """Screen y (1024 grid) of a point on the road at depth z (1 = the bottom edge)."""
+    return 1024 * HORIZON + 464 / z
 
 
 def main(path):
-    top, bottom = (14, 124, 134), (9, 44, 61)
     image = Image.new("RGB", (S, S))
-    pixels = ImageDraw.Draw(image)
-    for row in range(S):
-        pixels.line([(0, row), (S, row)], fill=lerp(top, bottom, row / S))
-
-    # Soft glow behind the road.
-    glow = Image.new("L", (S, S), 0)
-    stroke(ImageDraw.Draw(glow), road_points(), S * 0.20, 110)
-    glow = glow.filter(ImageFilter.GaussianBlur(S * 0.03))
-    image.paste((40, 170, 175), mask=glow)
-
     draw = ImageDraw.Draw(image)
-    points = road_points()
-    stroke(draw, points, S * 0.115, (245, 248, 250))
+    horizon = round(S * HORIZON)
+    for row in range(S):
+        share = row / S
+        draw.line([(0, row), (S, row)], fill=gradient_color(SKY if row < horizon else GROUND, share))
 
-    # Dashed centre line.
-    dash_color = (9, 44, 61)
-    period, dash = 190, 95
-    for start in range(60, len(points) - 60, period):
-        stroke(draw, points[start:start + dash], S * 0.016, dash_color)
+    # A warm glow around the sun, above the horizon only.
+    radius = round(px(460))
+    glow = Image.new("L", (256, 256))
+    glow.putdata([
+        round(255 * 0.55 * max(0.0, 1 - ((x - 127.5) ** 2 + (y - 127.5) ** 2) ** 0.5 / 128))
+        for y in range(256) for x in range(256)
+    ])
+    glow = glow.resize((radius * 2, radius * 2), Image.BILINEAR)
+    mask = Image.new("L", (S, S), 0)
+    center = (round(px(512)), round(px(563)))
+    mask.paste(glow, (center[0] - radius, center[1] - radius))
+    mask.paste(0, (0, horizon, S, S))
+    image.paste(SUN, mask=mask)
 
-    # Stops: rest (green), fuel (amber), lodging (indigo).
-    for t, color in ((0.30, (46, 158, 106)), (0.55, (227, 155, 45)), (0.80, (91, 91, 214))):
-        x, y = points[int(t * (len(points) - 1))]
-        outer, inner = S * 0.062, S * 0.044
-        draw.ellipse([x - outer, y - outer, x + outer, y + outer], fill=(255, 255, 255))
-        draw.ellipse([x - inner, y - inner, x + inner, y + inner], fill=color)
+    sun = px(128)
+    draw.pieslice([px(512) - sun, px(560) - sun, px(512) + sun, px(560) + sun], 180, 360, fill=SUN)
+
+    # The road to the horizon, with its centre dashes in perspective.
+    draw.polygon([(px(250), S), (px(774), S), (px(524), horizon), (px(500), horizon)], fill=ROAD)
+    for z0 in (1.0, 1.6, 2.5, 3.9, 6.0, 9.5):
+        z1 = z0 * 1.28
+        y0, y1 = px(depth_y(z0)), px(depth_y(z1))
+        w0, w1 = px(15 / z0), px(15 / z1)
+        draw.polygon([(px(512) - w0, y0), (px(512) + w0, y0), (px(512) + w1, y1), (px(512) - w1, y1)], fill=INK)
+
+    for z, color in STOPS:
+        y = px(depth_y(z))
+        inner = px(round(64 / z ** 0.8))
+        ring = px(max(5, round(19 / z ** 0.8))) / 2
+        draw.ellipse([px(512) - inner - ring, y - inner - ring, px(512) + inner + ring, y + inner + ring], fill=(255, 255, 255))
+        inner -= ring
+        draw.ellipse([px(512) - inner, y - inner, px(512) + inner, y + inner], fill=color)
 
     image = image.resize((SIZE, SIZE), Image.LANCZOS).convert("RGB")
     image.save(path, "PNG", optimize=True)

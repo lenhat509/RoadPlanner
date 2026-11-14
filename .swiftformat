@@ -7,4 +7,4 @@
 --self remove
 --importgrouping alpha
 --stripunusedargs closure-only
---exclude Packages/CadenceKit/.build,DerivedData
+--exclude Packages/WaystageKit/.build,DerivedData

@@ -1,10 +1,18 @@
 // Shared build settings. Secrets live in Secrets.xcconfig (git-ignored).
 // Copy Secrets.example.xcconfig → Secrets.xcconfig and fill in your values.
 
-CADENCE_BUNDLE_ID = com.example.cadence
-CADENCE_TEAM_ID =
 GOOGLE_MAPS_API_KEY =
-// xcconfig treats "//" as a comment: write URLs as https:/$()/host
+
+// Secrets files written before the app was renamed set these under the old CADENCE_ prefix.
+// Each setting falls back to the old name, so such a file keeps working; delete this block once
+// your Secrets.xcconfig (and the SECRETS_XCCONFIG Actions secret) use the WAYSTAGE_ names.
+WAYSTAGE_BUNDLE_ID = $(CADENCE_BUNDLE_ID)
+WAYSTAGE_TEAM_ID = $(CADENCE_TEAM_ID)
+WAYSTAGE_GATEWAY_URL = $(CADENCE_GATEWAY_URL)
+WAYSTAGE_GATEWAY_TOKEN = $(CADENCE_GATEWAY_TOKEN)
+// Defaults when neither name is set. xcconfig treats "//" as a comment: write URLs as https:/$()/host
+CADENCE_BUNDLE_ID = com.example.waystage
+CADENCE_TEAM_ID =
 CADENCE_GATEWAY_URL =
 CADENCE_GATEWAY_TOKEN =
 

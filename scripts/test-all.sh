@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Runs Cadence's test suites and records every run in test-logs/.
+# Runs Waystage's test suites and records every run in test-logs/.
 #
 #   scripts/test-all.sh            # all suites available on this machine
 #   scripts/test-all.sh quick      # core + gateway (used by the pre-push hook)
@@ -128,7 +128,7 @@ core_suite() {
     return
   fi
   run_suite "core (Swift package)" "core-swift-test.log" swift_count \
-    swift test --package-path Packages/CadenceKit --parallel --xunit-output "$RAW_DIR/core-junit.xml"
+    swift test --package-path Packages/WaystageKit --parallel --xunit-output "$RAW_DIR/core-junit.xml"
 }
 
 gateway_suite() {
@@ -159,9 +159,9 @@ ios_suite() {
   local destination="platform=iOS Simulator,name=$device"
   command -v xcodegen >/dev/null 2>&1 && xcodegen generate --quiet
   run_suite "iOS package tests" "ios-package.log" xcode_count \
-    bash -c "cd Packages/CadenceKit && xcodebuild test -scheme CadenceKit-Package -destination '$destination' -resultBundlePath '$RAW_DIR/package.xcresult' CODE_SIGNING_ALLOWED=NO"
+    bash -c "cd Packages/WaystageKit && xcodebuild test -scheme WaystageKit-Package -destination '$destination' -resultBundlePath '$RAW_DIR/package.xcresult' CODE_SIGNING_ALLOWED=NO"
   run_suite "iOS app unit + UI tests" "ios-app.log" xcode_count \
-    xcodebuild test -project Cadence.xcodeproj -scheme Cadence -destination "$destination" \
+    xcodebuild test -project Waystage.xcodeproj -scheme Waystage -destination "$destination" \
       -resultBundlePath "$RAW_DIR/app.xcresult" CODE_SIGNING_ALLOWED=NO
 }
 

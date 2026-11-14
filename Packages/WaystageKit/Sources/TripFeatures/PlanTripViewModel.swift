@@ -41,7 +41,7 @@ public final class PlanTripViewModel {
     public var arriveByEnabled = false
     public var arriveBy: Date
     public var mpgText: String
-    /// When off, the default cadence applies (a break at most every 3 h, i.e. every 2–3 h).
+    /// When off, the default break rhythm applies (a break at most every 3 h, i.e. every 2–3 h).
     public var customRestEnabled = false
     public var restIntervalHours: Double
     public var goal: OptimizationGoal

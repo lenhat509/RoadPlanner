@@ -39,11 +39,11 @@ public actor FileTripRepository: TripRepository {
         self.directory = directory
     }
 
-    /// `Application Support/Cadence` (created on first write).
+    /// `Application Support/Waystage` (created on first write).
     public static func defaultDirectory() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("Cadence", isDirectory: true)
+        return base.appendingPathComponent("Waystage", isDirectory: true)
     }
 
     private var activeTripURL: URL { directory.appendingPathComponent("active-trip.json") }

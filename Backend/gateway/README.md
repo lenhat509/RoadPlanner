@@ -1,4 +1,4 @@
-# Cadence Gateway
+# Waystage Gateway
 
 A small, stateless HTTPS service that keeps third-party secrets off the phone.
 
@@ -13,7 +13,7 @@ APIs whose credentials must never ship in an app binary go through this gateway.
 
 ## Security
 
-* Every request (except `/healthz`) must send `X-Cadence-App-Token` matching one of
+* Every request (except `/healthz`) must send `X-Waystage-App-Token` matching one of
   `APP_TOKENS` (constant-time comparison; several tokens allow rotation).
 * Per-client rate limiting (`RATE_LIMIT_PER_MINUTE`).
 * Errors use the `{"error": {"status", "message"}}` envelope and never leak upstream details.
@@ -38,8 +38,8 @@ npm run lint && npm run typecheck
 ## Deploy (Google Cloud Run)
 
 ```bash
-gcloud run deploy cadence-gateway --source . --region us-central1 \
-  --set-secrets APP_TOKENS=cadence-app-tokens:latest,EXPEDIA_API_KEY=expedia-key:latest,EXPEDIA_SHARED_SECRET=expedia-secret:latest,EIA_API_KEY=eia-key:latest \
+gcloud run deploy waystage-gateway --source . --region us-central1 \
+  --set-secrets APP_TOKENS=waystage-app-tokens:latest,EXPEDIA_API_KEY=expedia-key:latest,EXPEDIA_SHARED_SECRET=expedia-secret:latest,EIA_API_KEY=eia-key:latest \
   --set-env-vars EXPEDIA_BASE_URL=https://api.ean.com --allow-unauthenticated
 ```
 

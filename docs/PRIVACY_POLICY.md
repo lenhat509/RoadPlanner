@@ -1,8 +1,8 @@
-# Cadence Privacy Policy
+# Waystage Privacy Policy
 
 *Last updated: November 13, 2026*
 
-Cadence ("the app") helps you plan and drive road trips. We designed it to collect as little
+Waystage ("the app") helps you plan and drive road trips. We designed it to collect as little
 data as possible.
 
 ## What the app uses and why
@@ -23,7 +23,7 @@ analytics or advertising SDKs.
 While a trip is active, the app can keep using your location when the screen is locked or you
 switch apps, so voice guidance continues. iOS shows a location indicator while this happens.
 Location is not used when no trip is active. You can change location permission at any time in
-Settings → Privacy & Security → Location Services → Cadence.
+Settings → Privacy & Security → Location Services → Waystage.
 
 ## Third parties
 
@@ -47,4 +47,4 @@ Delete saved trips in the app, or delete the app to remove all data stored on yo
 
 ## Contact
 
-privacy@cadence.example.com — replace with your contact address before publishing.
+privacy@waystage.example.com — replace with your contact address before publishing.

@@ -7,7 +7,7 @@ import TripSandbox
 
 @Suite("GooglePlacesClient")
 struct GooglePlacesClientTests {
-    private let configuration = GoogleMapsConfiguration(apiKey: "test-key", iosBundleIdentifier: "com.example.cadence")
+    private let configuration = GoogleMapsConfiguration(apiKey: "test-key", iosBundleIdentifier: "com.example.waystage")
     private let section = PolylineCodec.encode([
         GeoCoordinate(latitude: 38.0, longitude: -122.2),
         GeoCoordinate(latitude: 38.4, longitude: -121.9),

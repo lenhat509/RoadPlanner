@@ -1,4 +1,4 @@
-@testable import Cadence
+@testable import Waystage
 import Foundation
 import Testing
 import TripFeatures
@@ -8,8 +8,8 @@ import TripSandbox
 @MainActor
 @Suite("AppEnvironment")
 struct AppEnvironmentTests {
-    private let unconfigured = AppConfiguration(info: [:], bundleIdentifier: "com.example.cadence")
-    private let configured = AppConfiguration(info: ["CADGoogleMapsAPIKey": "AIzaTest"], bundleIdentifier: "com.example.cadence")
+    private let unconfigured = AppConfiguration(info: [:], bundleIdentifier: "com.example.waystage")
+    private let configured = AppConfiguration(info: ["WAYGoogleMapsAPIKey": "AIzaTest"], bundleIdentifier: "com.example.waystage")
 
     @Test("UI-test launch argument selects the offline sandbox")
     func uiTestMode() {

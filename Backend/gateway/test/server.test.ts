@@ -11,7 +11,7 @@ import { buildServer } from "../src/server.js";
 import { fakeFetch, json, TEST_TOKEN } from "./helpers.js";
 
 const config: AppConfig = { port: 0, host: "127.0.0.1", logLevel: "silent", appTokens: [TEST_TOKEN], rateLimitPerMinute: 1_000 };
-const auth = { "x-cadence-app-token": TEST_TOKEN };
+const auth = { "x-waystage-app-token": TEST_TOKEN };
 let app: FastifyInstance | undefined;
 
 afterEach(async () => {
@@ -48,7 +48,7 @@ describe("gateway HTTP API", () => {
     const missing = await app.inject({ method: "GET", url: "/v1/fuel/average?lat=1&lng=1" });
     expect(missing.statusCode).toBe(401);
     expect(missing.json().error.status).toBe("UNAUTHENTICATED");
-    const wrong = await app.inject({ method: "GET", url: "/v1/fuel/average?lat=1&lng=1", headers: { "x-cadence-app-token": "nope" } });
+    const wrong = await app.inject({ method: "GET", url: "/v1/fuel/average?lat=1&lng=1", headers: { "x-waystage-app-token": "nope" } });
     expect(wrong.statusCode).toBe(401);
   });
 

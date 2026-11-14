@@ -14,7 +14,7 @@ build/
 # Swift Package Manager
 .build/
 .swiftpm/
-Packages/CadenceKit/.build/
+Packages/WaystageKit/.build/
 # Secrets — never commit real keys
 Config/Secrets.xcconfig
 fastlane/report.xml

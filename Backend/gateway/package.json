@@ -1,8 +1,8 @@
 {
-  "name": "cadence-gateway",
+  "name": "waystage-gateway",
   "version": "1.0.0",
   "private": true,
-  "description": "Cadence API gateway: keeps Expedia Rapid and EIA credentials off the device.",
+  "description": "Waystage API gateway: keeps Expedia Rapid and EIA credentials off the device.",
   "type": "module",
   "main": "dist/index.js",
   "engines": {

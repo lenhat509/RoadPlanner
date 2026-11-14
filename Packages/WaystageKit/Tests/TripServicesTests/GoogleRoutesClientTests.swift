@@ -7,7 +7,7 @@ import TripSandbox
 
 @Suite("GoogleRoutesClient")
 struct GoogleRoutesClientTests {
-    private let configuration = GoogleMapsConfiguration(apiKey: "test-key", iosBundleIdentifier: "com.example.cadence")
+    private let configuration = GoogleMapsConfiguration(apiKey: "test-key", iosBundleIdentifier: "com.example.waystage")
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
     private let origin = GeoCoordinate(latitude: 37.7749, longitude: -122.4194)
     private let destination = GeoCoordinate(latitude: 38.0, longitude: -121.9)
@@ -25,7 +25,7 @@ struct GoogleRoutesClientTests {
         #expect(request.method == .post)
         #expect(request.url == GoogleRoutesClient.endpoint)
         #expect(request.headers["X-Goog-Api-Key"] == "test-key")
-        #expect(request.headers["X-Ios-Bundle-Identifier"] == "com.example.cadence")
+        #expect(request.headers["X-Ios-Bundle-Identifier"] == "com.example.waystage")
         let mask = try #require(request.headers["X-Goog-FieldMask"])
         #expect(mask.contains("routes.legs.steps.navigationInstruction"))
         #expect(mask.contains("routes.travelAdvisory.tollInfo"))

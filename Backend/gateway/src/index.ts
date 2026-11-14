@@ -20,4 +20,4 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 
 await app.listen({ port: config.port, host: config.host });
-app.log.info({ expedia: Boolean(config.expedia), eia: Boolean(config.eiaApiKey) }, "cadence gateway ready");
+app.log.info({ expedia: Boolean(config.expedia), eia: Boolean(config.eiaApiKey) }, "waystage gateway ready");

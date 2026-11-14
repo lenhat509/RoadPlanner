@@ -5,9 +5,9 @@ import TripPlanner
 import TripSandbox
 @testable import TripServices
 
-@Suite("CadenceGatewayClient")
-struct CadenceGatewayClientTests {
-    private let configuration = CadenceGatewayClient.Configuration(
+@Suite("WaystageGatewayClient")
+struct WaystageGatewayClientTests {
+    private let configuration = WaystageGatewayClient.Configuration(
         baseURL: URL(string: "https://gateway.example.com")!, appToken: "app-token"
     )
 
@@ -16,12 +16,12 @@ struct CadenceGatewayClientTests {
         let transport = StubHTTPTransport()
         transport.stub("/v1/lodging/rates", body: try FixtureLoader.data("gateway_lodging_response"))
         let checkIn = Date(timeIntervalSince1970: 1_809_396_000) // 2027-05-04 02:00Z
-        _ = try await CadenceGatewayClient(configuration: configuration, transport: transport).offers(for: LodgingQuery(
+        _ = try await WaystageGatewayClient(configuration: configuration, transport: transport).offers(for: LodgingQuery(
             center: GeoCoordinate(latitude: 39.5296, longitude: -119.8138), radiusMeters: 25_000,
             checkIn: checkIn, checkOut: checkIn.addingTimeInterval(86_400), adults: 2
         ))
         let request = try #require(transport.requests.first)
-        #expect(request.headers["X-Cadence-App-Token"] == "app-token")
+        #expect(request.headers["X-Waystage-App-Token"] == "app-token")
         let query = try #require(request.url.query)
         #expect(query.contains("checkin=2027-05-04"))
         #expect(query.contains("checkout=2027-05-05"))
@@ -33,7 +33,7 @@ struct CadenceGatewayClientTests {
     func lodgingDecoding() async throws {
         let transport = StubHTTPTransport()
         transport.stub("/v1/lodging/rates", body: try FixtureLoader.data("gateway_lodging_response"))
-        let offers = try await CadenceGatewayClient(configuration: configuration, transport: transport).offers(for: LodgingQuery(
+        let offers = try await WaystageGatewayClient(configuration: configuration, transport: transport).offers(for: LodgingQuery(
             center: GeoCoordinate(latitude: 39.5, longitude: -119.8), radiusMeters: 10_000,
             checkIn: Date(), checkOut: Date(), adults: 1
         ))
@@ -47,13 +47,13 @@ struct CadenceGatewayClientTests {
     func fuelAverage() async throws {
         let transport = StubHTTPTransport()
         transport.stub("/v1/fuel/average", body: try FixtureLoader.data("gateway_fuel_response"))
-        let client = CadenceGatewayClient(configuration: configuration, transport: transport)
+        let client = WaystageGatewayClient(configuration: configuration, transport: transport)
         #expect(try await client.averagePrice(near: GeoCoordinate(latitude: 37, longitude: -120), fuelType: .diesel) == 3.879)
         #expect(transport.requests.first?.url.query?.contains("fuelType=diesel") == true)
 
         let unknown = StubHTTPTransport()
         unknown.stub("/v1/fuel/average", body: try FixtureLoader.data("gateway_fuel_unknown_response"))
-        #expect(try await CadenceGatewayClient(configuration: configuration, transport: unknown)
+        #expect(try await WaystageGatewayClient(configuration: configuration, transport: unknown)
             .averagePrice(near: GeoCoordinate(latitude: 0, longitude: 0), fuelType: .regular) == nil)
     }
 
@@ -62,7 +62,7 @@ struct CadenceGatewayClientTests {
         let transport = StubHTTPTransport()
         transport.stub("/v1/fuel/average", status: 401, body: Data("{\"error\":{\"message\":\"bad token\"}}".utf8))
         await #expect(throws: ServiceError.unauthorized("bad token")) {
-            _ = try await CadenceGatewayClient(configuration: configuration, transport: transport)
+            _ = try await WaystageGatewayClient(configuration: configuration, transport: transport)
                 .averagePrice(near: GeoCoordinate(latitude: 0, longitude: 0), fuelType: .regular)
         }
     }

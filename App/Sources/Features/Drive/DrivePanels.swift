@@ -379,7 +379,7 @@ struct SafetyNoticeView: View {
                 .font(.largeTitle.bold())
             VStack(alignment: .leading, spacing: Theme.Spacing.m) {
                 Label(
-                    "Set up your trip before you start moving. Cadence is designed to be glanced at, not operated, while driving.",
+                    "Set up your trip before you start moving. Waystage is designed to be glanced at, not operated, while driving.",
                     systemImage: "hand.raised"
                 )
                 Label("Always follow traffic laws, road signs and conditions. Directions can be wrong.", systemImage: "exclamationmark.triangle")

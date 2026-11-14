@@ -14,7 +14,7 @@ struct ItineraryOptimizerTests {
     }
 
     @Test("By default the driver rests at least every 3 hours")
-    func defaultRestCadence() throws {
+    func defaultRestRhythm() throws {
         let problem = Fixture.problem(
             hours: 8, candidates: Fixture.restAreas(everyMinutes: 20, hours: 8) + Fixture.gasStations(everyMinutes: 60, hours: 8)
         )

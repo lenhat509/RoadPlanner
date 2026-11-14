@@ -2,7 +2,7 @@ import GoogleMaps
 import SwiftUI
 
 @main
-struct CadenceApp: App {
+struct WaystageApp: App {
     @State private var environment: AppEnvironment
 
     init() {

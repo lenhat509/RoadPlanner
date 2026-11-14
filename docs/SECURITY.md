@@ -28,4 +28,4 @@ pricing (see the privacy policy).
 
 ## Reporting
 
-Report vulnerabilities privately to security@cadence.example.com (replace before publishing).
+Report vulnerabilities privately to security@waystage.example.com (replace before publishing).

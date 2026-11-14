@@ -109,7 +109,7 @@ export class ExpediaRapidClient {
       headers: {
         Accept: "application/json",
         "Accept-Encoding": "gzip",
-        "User-Agent": "CadenceGateway/1.0",
+        "User-Agent": "WaystageGateway/1.0",
         Authorization: eanAuthorizationHeader(this.credentials.apiKey, this.credentials.sharedSecret, this.now()),
         ...(init.headers as Record<string, string> | undefined),
       },

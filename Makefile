@@ -1,4 +1,4 @@
-# Cadence developer commands. Run `make help`.
+# Waystage developer commands. Run `make help`.
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .PHONY: help bootstrap secrets project open test test-quick test-core test-gateway test-ios lint format icon screenshots beta release
@@ -16,11 +16,11 @@ secrets: ## Create Config/Secrets.xcconfig from the template (never committed)
 	@test -f Config/Secrets.xcconfig || cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig
 	@echo "Edit Config/Secrets.xcconfig — see docs/API_KEYS.md"
 
-project: ## Generate Cadence.xcodeproj from project.yml
+project: ## Generate Waystage.xcodeproj from project.yml
 	xcodegen generate
 
 open: project ## Generate and open the project in Xcode
-	open Cadence.xcodeproj
+	open Waystage.xcodeproj
 
 test: ## Run every test suite available on this machine (logs to test-logs/)
 	scripts/test-all.sh all

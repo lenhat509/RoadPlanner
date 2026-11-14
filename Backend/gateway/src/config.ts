@@ -4,7 +4,7 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
   HOST: z.string().default("0.0.0.0"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
-  /** Comma-separated tokens accepted in `X-Cadence-App-Token` (supports rotation). */
+  /** Comma-separated tokens accepted in `X-Waystage-App-Token` (supports rotation). */
   APP_TOKENS: z.string().min(1, "APP_TOKENS must list at least one token"),
   EXPEDIA_API_KEY: z.string().optional(),
   EXPEDIA_SHARED_SECRET: z.string().optional(),

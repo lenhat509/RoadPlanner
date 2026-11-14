@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- The app is now called **Waystage**, with a new icon: the road running to the horizon at dusk,
+  with your rest, fuel and overnight stops along it. Settings in `Secrets.xcconfig` now use the
+  `WAYSTAGE_` prefix (older files keep working). Trips saved by earlier test builds aren't carried
+  over.
 - A plan's start and your current location are now kept apart. The plan screen shows where you
   are (blue dot) and says when the trip starts far away ("Starts in San Francisco · 348 mi from
   you"). Starting such a trip first previews the way to its start ("Directions to start");
@@ -28,7 +32,7 @@ All notable changes to this project are documented here. The format follows
   where you are to the next stop, filling most of the screen, with the rest of the trip in light
   blue. **Start** begins turn-by-turn guidance.
 - Directions start where the car is: when you are away from the planned route (e.g. starting
-  from home), Cadence fetches directions from your position.
+  from home), Waystage fetches directions from your position.
 - Refreshed design: warm canvas, soft cards, teal brand gradient, rounded type; a "route rail"
   joining start and destination, trip ribbons (every stop as a dot along the trip) on plans,
   saved trips and drive mode, goal tiles, a fuel gauge for the minimum fuel level and a break
@@ -41,7 +45,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 - "Use current location" on the plan form always failed on a real phone ("Your location isn't
-  available yet"): Cadence never asked the device for a position. It now asks for one (and for
+  available yet"): Waystage never asked the device for a position. It now asks for one (and for
   permission if needed), shows progress, and explains what to do if no position is found. The plan
   screen and drive mode also find your position themselves now.
 - In drive mode the route line now starts at the car (it began at the planned start, so it

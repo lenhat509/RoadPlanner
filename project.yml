@@ -1,6 +1,6 @@
 # XcodeGen specification — generate the Xcode project with `make project`.
 # https://github.com/yonaskolb/XcodeGen
-name: Cadence
+name: Waystage
 options:
   bundleIdPrefix: com.example
   deploymentTarget:
@@ -23,13 +23,13 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     DEAD_CODE_STRIPPING: YES
 packages:
-  CadenceKit:
-    path: Packages/CadenceKit
+  WaystageKit:
+    path: Packages/WaystageKit
   GoogleMaps:
     url: https://github.com/googlemaps/ios-maps-sdk
     from: 9.0.0
 targets:
-  Cadence:
+  Waystage:
     type: application
     platform: iOS
     sources:
@@ -39,35 +39,35 @@ targets:
           - "Info.plist"
     settings:
       base:
-        PRODUCT_NAME: Cadence
-        PRODUCT_BUNDLE_IDENTIFIER: $(CADENCE_BUNDLE_ID)
+        PRODUCT_NAME: Waystage
+        PRODUCT_BUNDLE_IDENTIFIER: $(WAYSTAGE_BUNDLE_ID)
         INFOPLIST_FILE: App/Resources/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: $(CADENCE_TEAM_ID)
+        DEVELOPMENT_TEAM: $(WAYSTAGE_TEAM_ID)
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
     dependencies:
-      - package: CadenceKit
+      - package: WaystageKit
         product: TripModels
-      - package: CadenceKit
+      - package: WaystageKit
         product: TripPlanner
-      - package: CadenceKit
+      - package: WaystageKit
         product: TripServices
-      - package: CadenceKit
+      - package: WaystageKit
         product: TripNavigation
-      - package: CadenceKit
+      - package: WaystageKit
         product: TripPersistence
-      - package: CadenceKit
+      - package: WaystageKit
         product: TripFeatures
-      - package: CadenceKit
+      - package: WaystageKit
         product: TripSandbox
       - package: GoogleMaps
         product: GoogleMaps
-  CadenceTests:
+  WaystageTests:
     type: bundle.unit-test
     platform: iOS
     sources:
@@ -75,10 +75,10 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: $(CADENCE_BUNDLE_ID).tests
+        PRODUCT_BUNDLE_IDENTIFIER: $(WAYSTAGE_BUNDLE_ID).tests
     dependencies:
-      - target: Cadence
-  CadenceUITests:
+      - target: Waystage
+  WaystageUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
@@ -89,27 +89,27 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: $(CADENCE_BUNDLE_ID).uitests
+        PRODUCT_BUNDLE_IDENTIFIER: $(WAYSTAGE_BUNDLE_ID).uitests
     dependencies:
-      - target: Cadence
+      - target: Waystage
 schemes:
-  Cadence:
+  Waystage:
     build:
       targets:
-        Cadence: all
-        CadenceTests: [test]
-        CadenceUITests: [test]
+        Waystage: all
+        WaystageTests: [test]
+        WaystageUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       gatherCoverageData: true
       coverageTargets:
-        - Cadence
+        - Waystage
       targets:
-        - name: CadenceTests
+        - name: WaystageTests
           parallelizable: true
           randomExecutionOrder: true
-        - name: CadenceUITests
+        - name: WaystageUITests
     archive:
       config: Release

@@ -1,7 +1,7 @@
 import SwiftUI
 import TripModels
 
-/// Design tokens for Cadence's look: warm "paper" background, soft white cards, one teal brand
+/// Design tokens for Waystage's look: warm "paper" background, soft white cards, one teal brand
 /// gradient, rounded type, and colour-blind-safe stop dots. Calm by default; colour is used to
 /// carry meaning (stop types, the primary action), not decoration.
 enum Theme {

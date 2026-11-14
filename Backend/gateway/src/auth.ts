@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
-export const APP_TOKEN_HEADER = "x-cadence-app-token";
+export const APP_TOKEN_HEADER = "x-waystage-app-token";
 
 /** Constant-time comparison against any accepted token (supports rotation). */
 export function isAcceptedToken(candidate: string | undefined, accepted: string[]): boolean {

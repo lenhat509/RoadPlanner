@@ -3,7 +3,7 @@ import XCTest
 
 /// End-to-end UI tests in the offline sandbox (`-UITestSandbox`): simulated Google services,
 /// simulated GPS that drives the planned route, isolated storage.
-final class CadenceUITests: XCTestCase {
+final class WaystageUITests: XCTestCase {
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {

@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Cadence</string>
+	<string>Waystage</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -31,9 +31,9 @@
 		<string>comgooglemaps</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Cadence uses your location for turn-by-turn directions, to detect when you reach a stop, and to plan trips from where you are.</string>
+	<string>Waystage uses your location for turn-by-turn directions, to detect when you reach a stop, and to plan trips from where you are.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Cadence keeps guiding you when the screen is locked or you switch apps during a drive. Location is only used while a trip is active.</string>
+	<string>Waystage keeps guiding you when the screen is locked or you switch apps during a drive. Location is only used while a trip is active.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
@@ -58,11 +58,11 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
-	<key>CADGoogleMapsAPIKey</key>
+	<key>WAYGoogleMapsAPIKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
-	<key>CADGatewayBaseURL</key>
-	<string>$(CADENCE_GATEWAY_URL)</string>
-	<key>CADGatewayAppToken</key>
-	<string>$(CADENCE_GATEWAY_TOKEN)</string>
+	<key>WAYGatewayBaseURL</key>
+	<string>$(WAYSTAGE_GATEWAY_URL)</string>
+	<key>WAYGatewayAppToken</key>
+	<string>$(WAYSTAGE_GATEWAY_TOKEN)</string>
 </dict>
 </plist>

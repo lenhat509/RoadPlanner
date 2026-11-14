@@ -28,7 +28,7 @@ graph TD
   Sandbox --> Features
   Models[TripModels<br/>value types, geometry]
   Services -. HTTPS .-> Google[(Google Maps Platform)]
-  Services -. HTTPS .-> Gateway[(Cadence gateway)]
+  Services -. HTTPS .-> Gateway[(Waystage gateway)]
   Gateway -. HTTPS .-> Expedia[(Expedia Rapid)]
   Gateway -. HTTPS .-> EIA[(U.S. EIA)]
 ```
@@ -37,7 +37,7 @@ graph TD
 |---|---|---|
 | `TripModels` | Codable value types (`TripRequest`, `Itinerary`, `ActiveTrip`, …), `GeoMath`, `PolylineCodec`, `PolylineGeometry` (spatial index) | — |
 | `TripPlanner` | `RouteProfile`, `CandidateBuilder`, `ItineraryOptimizer`, `FeasibilityPlanner`, `ScheduleValidator`, `ScheduleRetimer`, `LodgingWindowEstimator`, `TripPlanningService`, **ports** | Models |
-| `TripServices` | `GoogleRoutesClient`, `GooglePlacesClient`, `CadenceGatewayClient`, `HTTPTransport` + retry | Models, Planner (ports) |
+| `TripServices` | `GoogleRoutesClient`, `GooglePlacesClient`, `WaystageGatewayClient`, `HTTPTransport` + retry | Models, Planner (ports) |
 | `TripNavigation` | `GuidanceEngine` (snapping, steps, voice prompts, off-route, arrival), trip state machine | Models |
 | `TripPersistence` | `FileTripRepository` (versioned, atomic JSON), preferences | Models |
 | `TripFeatures` | `@Observable` view models, formatters, deep links, platform ports (`LocationProviding`, `SpeechAnnouncing`) | Models, Planner, Navigation, Persistence |
@@ -90,7 +90,7 @@ persisted immediately; location-only updates at most every 30 s.
 ## Architecture decision records
 
 ### ADR-001 — Logic in a platform-independent Swift package
-*Decision:* All domain, service and view-model code lives in `CadenceKit`; the app target is a
+*Decision:* All domain, service and view-model code lives in `WaystageKit`; the app target is a
 thin shell. *Why:* fast, deterministic tests on any machine (including Linux CI), enforced
 boundaries, reuse for a future CarPlay or watchOS target.
 

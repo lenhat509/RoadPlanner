@@ -5,9 +5,9 @@ import TripPlanner
 public enum ServiceFactory {
     public struct Settings: Sendable {
         public var google: GoogleMapsConfiguration
-        public var gateway: CadenceGatewayClient.Configuration?
+        public var gateway: WaystageGatewayClient.Configuration?
 
-        public init(google: GoogleMapsConfiguration, gateway: CadenceGatewayClient.Configuration?) {
+        public init(google: GoogleMapsConfiguration, gateway: WaystageGatewayClient.Configuration?) {
             self.google = google
             self.gateway = gateway
         }
@@ -22,7 +22,7 @@ public enum ServiceFactory {
     public static func make(settings: Settings, transport: any HTTPTransport = RetryingTransport(URLSessionTransport())) -> Services {
         let routing = GoogleRoutesClient(configuration: settings.google, transport: transport)
         let places = GooglePlacesClient(configuration: settings.google, transport: transport)
-        let gateway = settings.gateway.map { CadenceGatewayClient(configuration: $0, transport: transport) }
+        let gateway = settings.gateway.map { WaystageGatewayClient(configuration: $0, transport: transport) }
         let planner = TripPlanningService(routing: routing, places: places, lodging: gateway, fuelPrices: gateway)
         return Services(planner: planner, routing: routing, autocomplete: places)
     }

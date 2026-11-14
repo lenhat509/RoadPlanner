@@ -4,11 +4,11 @@ import TripPlanner
 import TripServices
 
 /// An in-process HTTP backend that speaks the Google Routes API, Places API (New) and the
-/// Cadence gateway wire formats, backed by the synthetic fakes. It lets integration tests and
+/// Waystage gateway wire formats, backed by the synthetic fakes. It lets integration tests and
 /// UI-test sandbox mode exercise the *real* production adapters (request encoding, response
 /// decoding, error handling) fully offline and deterministically.
 public struct SimulatedGoogleBackend: HTTPTransport {
-    public static let gatewayURL = URL(string: "https://gateway.sandbox.cadence.invalid")!
+    public static let gatewayURL = URL(string: "https://gateway.sandbox.waystage.invalid")!
 
     public var routing: FakeRoutingProvider
     public var places: FakePlaceSearchProvider
@@ -38,8 +38,8 @@ public struct SimulatedGoogleBackend: HTTPTransport {
     public static func services(backend: SimulatedGoogleBackend = SimulatedGoogleBackend()) -> ServiceFactory.Services {
         ServiceFactory.make(
             settings: ServiceFactory.Settings(
-                google: GoogleMapsConfiguration(apiKey: "sandbox-key", iosBundleIdentifier: "com.cadence.sandbox"),
-                gateway: CadenceGatewayClient.Configuration(baseURL: gatewayURL, appToken: "sandbox-token")
+                google: GoogleMapsConfiguration(apiKey: "sandbox-key", iosBundleIdentifier: "com.waystage.sandbox"),
+                gateway: WaystageGatewayClient.Configuration(baseURL: gatewayURL, appToken: "sandbox-token")
             ),
             transport: backend
         )

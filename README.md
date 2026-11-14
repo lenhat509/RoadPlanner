@@ -1,6 +1,6 @@
-# Cadence — Road Trip Planner for iOS
+# Waystage — Road Trip Planner for iOS
 
-Cadence plans long car trips the way an experienced road-tripper would, then guides the
+Waystage plans long car trips the way an experienced road-tripper would, then guides the
 driver there with turn-by-turn directions on Google Maps.
 
 **Input:** start, destination, departure time, the car's MPG, and optionally an arrive-by time
@@ -22,10 +22,10 @@ directions between every stop — for three objectives: **fastest**, **cheapest*
 App/                    SwiftUI app shell (views, Google Maps view, CoreLocation, speech)
 AppTests/               App-layer unit tests (Swift Testing)
 AppUITests/             XCUITest end-to-end and screenshot tests
-Packages/CadenceKit/    Platform-independent core (builds and tests on macOS, iOS and Linux)
+Packages/WaystageKit/    Platform-independent core (builds and tests on macOS, iOS and Linux)
   Sources/TripModels      Domain model, geometry, polyline codec
   Sources/TripPlanner     Route profile, candidate stops, optimizer, feasibility ladder, planning service, ports
-  Sources/TripServices    Google Routes API v2, Places API (New), Cadence gateway adapters
+  Sources/TripServices    Google Routes API v2, Places API (New), Waystage gateway adapters
   Sources/TripNavigation  Turn-by-turn guidance engine, trip progress state machine
   Sources/TripPersistence Auto-saved trips and preferences
   Sources/TripFeatures    Observable view models (all screen logic)
@@ -41,7 +41,7 @@ docs/                   Architecture, algorithm, testing, release, keys, privacy
 
 ```bash
 make bootstrap        # tools, git hooks, Config/Secrets.xcconfig, Xcode project
-open Cadence.xcodeproj
+open Waystage.xcodeproj
 ```
 
 Without an API key the app runs in **demo mode** on offline data, so it builds and runs out

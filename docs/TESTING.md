@@ -1,6 +1,6 @@
 # Testing
 
-Cadence is developed test-first: a behaviour gets a failing test, then the code that makes it
+Waystage is developed test-first: a behaviour gets a failing test, then the code that makes it
 pass. Tests run on every push (git hook) and every pull request (CI), and **every run is logged**
 in [`test-logs/TEST_LOG.md`](../test-logs/TEST_LOG.md).
 
@@ -8,7 +8,7 @@ in [`test-logs/TEST_LOG.md`](../test-logs/TEST_LOG.md).
 
 | Level | Where | Framework | What it covers | Runs on |
 |---|---|---|---|---|
-| Unit — core | `Packages/CadenceKit/Tests/*` | Swift Testing | geometry, polyline codec, models, route profile, candidate builder, optimizer, feasibility ladder, validator, retimer, lodging windows, guidance engine, trip state machine, persistence, formatters, deep links | Linux, macOS, iOS simulator |
+| Unit — core | `Packages/WaystageKit/Tests/*` | Swift Testing | geometry, polyline codec, models, route profile, candidate builder, optimizer, feasibility ladder, validator, retimer, lodging windows, guidance engine, trip state machine, persistence, formatters, deep links | Linux, macOS, iOS simulator |
 | Unit — API adapters | `TripServicesTests` | Swift Testing + JSON fixtures | request encoding (headers, field masks, bodies), response decoding, error mapping, retries for Routes API, Places API (New), gateway | same |
 | Unit — view models (UI features) | `TripFeaturesTests` | Swift Testing | every screen's logic: planning form, autocomplete, validation, plan comparison, timeline, drive mode (route preview, route line from the car, directions from the car, arrival, next stop, skip, reroute, mute, auto-departure, completion, auto-save, resume), settings | same |
 | Property | `PlannerPropertyTests` | Swift Testing | 24 random scenarios: every plan satisfies all safety rules | same |

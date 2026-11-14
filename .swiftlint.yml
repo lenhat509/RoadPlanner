@@ -2,10 +2,10 @@ included:
   - App
   - AppTests
   - AppUITests
-  - Packages/CadenceKit/Sources
-  - Packages/CadenceKit/Tests
+  - Packages/WaystageKit/Sources
+  - Packages/WaystageKit/Tests
 excluded:
-  - Packages/CadenceKit/.build
+  - Packages/WaystageKit/.build
   - DerivedData
 opt_in_rules:
   - closure_spacing

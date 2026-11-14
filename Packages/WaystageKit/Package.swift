@@ -1,6 +1,6 @@
 // swift-tools-version:6.0
 //
-// CadenceKit — platform-independent core of the Cadence road-trip planner.
+// WaystageKit — platform-independent core of the Waystage road-trip planner.
 //
 // Every module here builds on iOS, macOS and Linux so that the planning engine,
 // service adapters, navigation logic and view models can be unit-tested
@@ -9,7 +9,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "CadenceKit",
+    name: "WaystageKit",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
         .library(name: "TripModels", targets: ["TripModels"]),
@@ -25,7 +25,7 @@ let package = Package(
         .target(name: "TripModels"),
         // Pure planning domain: route profiles, candidate stops, optimizer, ports.
         .target(name: "TripPlanner", dependencies: ["TripModels"]),
-        // Adapters for Google Maps Platform and the Cadence gateway (Expedia, EIA).
+        // Adapters for Google Maps Platform and the Waystage gateway (Expedia, EIA).
         .target(name: "TripServices", dependencies: ["TripModels", "TripPlanner"]),
         // Turn-by-turn guidance and trip progress state machine.
         .target(name: "TripNavigation", dependencies: ["TripModels"]),

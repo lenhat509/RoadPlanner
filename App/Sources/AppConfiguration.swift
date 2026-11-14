@@ -8,16 +8,16 @@ struct AppConfiguration: Equatable {
     var bundleIdentifier: String
 
     init(info: [String: Any], bundleIdentifier: String) {
-        googleMapsAPIKey = Self.resolved(info["CADGoogleMapsAPIKey"])
-        gatewayBaseURL = Self.resolved(info["CADGatewayBaseURL"])
+        googleMapsAPIKey = Self.resolved(info["WAYGoogleMapsAPIKey"])
+        gatewayBaseURL = Self.resolved(info["WAYGatewayBaseURL"])
             .flatMap(URL.init(string:))
             .flatMap { $0.scheme == "https" && $0.host != nil ? $0 : nil }
-        gatewayAppToken = Self.resolved(info["CADGatewayAppToken"])
+        gatewayAppToken = Self.resolved(info["WAYGatewayAppToken"])
         self.bundleIdentifier = bundleIdentifier
     }
 
     static func load(bundle: Bundle = .main) -> AppConfiguration {
-        AppConfiguration(info: bundle.infoDictionary ?? [:], bundleIdentifier: bundle.bundleIdentifier ?? "com.example.cadence")
+        AppConfiguration(info: bundle.infoDictionary ?? [:], bundleIdentifier: bundle.bundleIdentifier ?? "com.example.waystage")
     }
 
     /// Treats empty values and unexpanded build variables (`$(VAR)`) as missing.

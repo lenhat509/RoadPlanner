@@ -1,4 +1,4 @@
-@testable import Cadence
+@testable import Waystage
 import CoreLocation
 import Foundation
 import Testing

@@ -60,9 +60,9 @@ final class AppEnvironment {
     // MARK: Factories
 
     private static func makeProduction(configuration: AppConfiguration) -> AppEnvironment {
-        let gateway: CadenceGatewayClient.Configuration? = {
+        let gateway: WaystageGatewayClient.Configuration? = {
             guard let url = configuration.gatewayBaseURL, let token = configuration.gatewayAppToken else { return nil }
-            return CadenceGatewayClient.Configuration(baseURL: url, appToken: token)
+            return WaystageGatewayClient.Configuration(baseURL: url, appToken: token)
         }()
         let services = ServiceFactory.make(settings: ServiceFactory.Settings(
             google: GoogleMapsConfiguration(
@@ -95,7 +95,7 @@ final class AppEnvironment {
         let dependencies = SandboxEnvironment.makeDependencies(
             backend: SimulatedGoogleBackend(latency: 0.05),
             repository: FileTripRepository(directory: FileTripRepository.defaultDirectory().appendingPathComponent("Demo")),
-            preferences: UserDefaultsPreferencesStore(key: "cadence.demo.preferences.v1"),
+            preferences: UserDefaultsPreferencesStore(key: "waystage.demo.preferences.v1"),
             location: location,
             speech: SpeechAnnouncer(),
             formatters: TripFormatters(),
@@ -110,11 +110,11 @@ final class AppEnvironment {
         screenshotPace: Bool,
         configuration: AppConfiguration
     ) -> AppEnvironment {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("CadenceUITests", isDirectory: true)
-        let defaults = UserDefaults(suiteName: "cadence.uitests") ?? .standard
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("WaystageUITests", isDirectory: true)
+        let defaults = UserDefaults(suiteName: "waystage.uitests") ?? .standard
         if reset {
             try? FileManager.default.removeItem(at: directory)
-            defaults.removePersistentDomain(forName: "cadence.uitests")
+            defaults.removePersistentDomain(forName: "waystage.uitests")
         }
         let preferences = UserDefaultsPreferencesStore(defaults: defaults)
         if skipSafetyNotice {

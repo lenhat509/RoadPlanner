@@ -11,7 +11,7 @@ on:
     paths:
       - "App/**"
       - "AppUITests/**"
-      - "Packages/CadenceKit/Sources/TripFeatures/**"
+      - "Packages/WaystageKit/Sources/TripFeatures/**"
       - "scripts/print_screenshots.py"
       - ".github/workflows/screenshots.yml"
 
@@ -39,9 +39,9 @@ jobs:
           device=$(xcrun simctl list devices available | grep -Eo "iPhone [0-9]+ Pro \(" | head -1 | sed 's/ ($//')
           echo "Simulator: $device"
           set -o pipefail
-          xcodebuild test -project Cadence.xcodeproj -scheme Cadence \
+          xcodebuild test -project Waystage.xcodeproj -scheme Waystage \
             -destination "platform=iOS Simulator,name=$device" \
-            -only-testing:CadenceUITests/ScreenshotTests \
+            -only-testing:WaystageUITests/ScreenshotTests \
             -resultBundlePath Screenshots.xcresult CODE_SIGNING_ALLOWED=NO \
             | grep -E "Test Case|error:|TEST (SUCCEEDED|FAILED)"
       - name: Export screenshots

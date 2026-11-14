@@ -3,4 +3,4 @@
 git_url(ENV.fetch("MATCH_GIT_URL", "git@github.com:your-org/certificates.git"))
 storage_mode("git")
 type("appstore")
-app_identifier([ENV.fetch("CADENCE_BUNDLE_ID", "com.example.cadence")])
+app_identifier([ENV.fetch("WAYSTAGE_BUNDLE_ID", "com.example.waystage")])

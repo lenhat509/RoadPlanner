@@ -11,7 +11,7 @@ export interface LodgingQuery {
   customerIp: string;
 }
 
-/** Wire format consumed by the iOS app (`CadenceGatewayClient`). */
+/** Wire format consumed by the iOS app (`WaystageGatewayClient`). */
 export interface LodgingOffer {
   propertyId: string;
   name: string;

@@ -1,4 +1,4 @@
-@testable import Cadence
+@testable import Waystage
 import MapKit
 import SwiftUI
 import Testing

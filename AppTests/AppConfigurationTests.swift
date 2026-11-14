@@ -1,4 +1,4 @@
-@testable import Cadence
+@testable import Waystage
 import Foundation
 import Testing
 
@@ -8,11 +8,11 @@ struct AppConfigurationTests {
     func readsValues() {
         let configuration = AppConfiguration(
             info: [
-                "CADGoogleMapsAPIKey": "AIzaTestKey",
-                "CADGatewayBaseURL": "https://gateway.example.com",
-                "CADGatewayAppToken": "token",
+                "WAYGoogleMapsAPIKey": "AIzaTestKey",
+                "WAYGatewayBaseURL": "https://gateway.example.com",
+                "WAYGatewayAppToken": "token",
             ],
-            bundleIdentifier: "com.example.cadence"
+            bundleIdentifier: "com.example.waystage"
         )
         #expect(configuration.googleMapsAPIKey == "AIzaTestKey")
         #expect(configuration.gatewayBaseURL?.host == "gateway.example.com")
@@ -23,7 +23,7 @@ struct AppConfigurationTests {
     @Test("Treats empty and unexpanded build variables as missing")
     func unresolvedValues() {
         let configuration = AppConfiguration(
-            info: ["CADGoogleMapsAPIKey": "$(GOOGLE_MAPS_API_KEY)", "CADGatewayBaseURL": "  ", "CADGatewayAppToken": ""],
+            info: ["WAYGoogleMapsAPIKey": "$(GOOGLE_MAPS_API_KEY)", "WAYGatewayBaseURL": "  ", "WAYGatewayAppToken": ""],
             bundleIdentifier: "x"
         )
         #expect(configuration.googleMapsAPIKey == nil)
@@ -34,7 +34,7 @@ struct AppConfigurationTests {
 
     @Test("Rejects non-HTTPS gateway URLs")
     func httpsOnly() {
-        let configuration = AppConfiguration(info: ["CADGatewayBaseURL": "http://gateway.example.com"], bundleIdentifier: "x")
+        let configuration = AppConfiguration(info: ["WAYGatewayBaseURL": "http://gateway.example.com"], bundleIdentifier: "x")
         #expect(configuration.gatewayBaseURL == nil)
     }
 

@@ -41,7 +41,7 @@ public final class UserDefaultsPreferencesStore: PreferencesStore, @unchecked Se
     private let key: String
     private let lock = NSLock()
 
-    public init(defaults: UserDefaults = .standard, key: String = "cadence.preferences.v1") {
+    public init(defaults: UserDefaults = .standard, key: String = "waystage.preferences.v1") {
         self.defaults = defaults
         self.key = key
     }

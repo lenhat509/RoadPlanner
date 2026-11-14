@@ -1,4 +1,4 @@
-# Try Cadence on your iPhone
+# Try Waystage on your iPhone
 
 Two routes, both driven by GitHub Actions on GitHub's Mac machines (free for public repos), so
 you don't need a Mac.
@@ -41,9 +41,9 @@ stop tap **Continue to next stop**. Close and reopen the app to see the trip res
 ### One-time Apple setup
 
 1. Join the **Apple Developer Program**: <https://developer.apple.com/programs/>.
-2. **Certificates, IDs & Profiles → Identifiers → +** → App ID, e.g. `com.yourname.cadence`.
+2. **Certificates, IDs & Profiles → Identifiers → +** → App ID, e.g. `com.yourname.waystage`.
 3. **App Store Connect → Apps → +** → New App: iOS, name (must be unique, e.g.
-   "Cadence Road Trip <yourname>"), the bundle ID above, any SKU.
+   "Waystage Road Trip <yourname>"), the bundle ID above, any SKU.
 4. **App Store Connect → Users and Access → Integrations → App Store Connect API → +**: role
    *App Manager*. Download the `.p8` file (only once!) and note the **Key ID** and **Issuer ID**.
 5. Create an **empty private** GitHub repository for signing certificates, e.g.
@@ -64,18 +64,18 @@ stop tap **Continue to next stop**. Close and reopen the app to see the trip res
 | Secret | `MATCH_PASSWORD` | a new strong passphrase (encrypts the certificates; keep it) |
 | Secret | `MATCH_GIT_BASIC_AUTHORIZATION` | base64 of `<github-username>:<token from step 5>` |
 | Secret | `SECRETS_XCCONFIG` | see below |
-| Variable | `CADENCE_BUNDLE_ID` | e.g. `com.yourname.cadence` |
-| Variable | `CADENCE_TEAM_ID` | your Team ID |
+| Variable | `WAYSTAGE_BUNDLE_ID` | e.g. `com.yourname.waystage` |
+| Variable | `WAYSTAGE_TEAM_ID` | your Team ID |
 
 `SECRETS_XCCONFIG` (same format as `Config/Secrets.example.xcconfig`):
 
 ```
-CADENCE_BUNDLE_ID = com.yourname.cadence
-CADENCE_TEAM_ID = ABCDE12345
+WAYSTAGE_BUNDLE_ID = com.yourname.waystage
+WAYSTAGE_TEAM_ID = ABCDE12345
 GOOGLE_MAPS_API_KEY = AIza...
 // Optional until the gateway is deployed:
-CADENCE_GATEWAY_URL =
-CADENCE_GATEWAY_TOKEN =
+WAYSTAGE_GATEWAY_URL =
+WAYSTAGE_GATEWAY_TOKEN =
 ```
 
 Never paste these values into issues, chats or commits.
@@ -88,7 +88,7 @@ Never paste these values into issues, chats or commits.
 2. After the run, App Store Connect processes the build (~10–30 minutes). In **TestFlight →
    Internal Testing**, add yourself as a tester (internal testers need no beta review).
 3. On your iPhone, install **TestFlight** from the App Store, open the invitation email and
-   install Cadence.
+   install Waystage.
 
 Test in a real car with a passenger operating the phone: voice guidance with the screen locked,
 arrival at a stop, **Continue to next stop**, rerouting after a wrong turn, and resuming after

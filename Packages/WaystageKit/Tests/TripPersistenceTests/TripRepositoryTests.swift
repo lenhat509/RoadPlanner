@@ -7,7 +7,7 @@ import TripSandbox
 @Suite("FileTripRepository")
 struct FileTripRepositoryTests {
     private func temporaryDirectory() -> URL {
-        FileManager.default.temporaryDirectory.appendingPathComponent("cadence-tests-\(UUID().uuidString)", isDirectory: true)
+        FileManager.default.temporaryDirectory.appendingPathComponent("waystage-tests-\(UUID().uuidString)", isDirectory: true)
     }
 
     private func sampleItinerary(createdAt: Date = Date()) -> Itinerary {
@@ -97,7 +97,7 @@ struct FileTripRepositoryTests {
 struct PreferencesTests {
     @Test("UserDefaults store round-trips and falls back to defaults")
     func userDefaults() throws {
-        let suite = "cadence-tests-\(UUID().uuidString)"
+        let suite = "waystage-tests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let store = UserDefaultsPreferencesStore(defaults: defaults)

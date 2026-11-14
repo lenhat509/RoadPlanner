@@ -51,19 +51,19 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild build \
-            -project Cadence.xcodeproj -scheme Cadence -configuration Debug \
+            -project Waystage.xcodeproj -scheme Waystage -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
             | tee build.log | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)" || true
-          test -d build/Build/Products/Debug-iphonesimulator/Cadence.app
+          test -d build/Build/Products/Debug-iphonesimulator/Waystage.app
       - name: Package the app
-        run: ditto -c -k --sequesterRsrc --keepParent build/Build/Products/Debug-iphonesimulator/Cadence.app Cadence-simulator.zip
+        run: ditto -c -k --sequesterRsrc --keepParent build/Build/Products/Debug-iphonesimulator/Waystage.app Waystage-simulator.zip
       - name: Keep the build as an artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Cadence-simulator
+          name: Waystage-simulator
           path: |
-            Cadence-simulator.zip
+            Waystage-simulator.zip
             build.log
       - name: Publish to Appetize
         if: ${{ env.APPETIZE_API_TOKEN != '' }}
@@ -72,16 +72,16 @@ jobs:
           if [ -n "$APPETIZE_PUBLIC_KEY" ]; then endpoint="$endpoint/$APPETIZE_PUBLIC_KEY"; fi
           status=$(curl -sS -o response.json -w '%{http_code}' -X POST "$endpoint" \
             -H "X-API-KEY: $APPETIZE_API_TOKEN" \
-            -F "file=@Cadence-simulator.zip" -F "platform=ios" -F "note=${GITHUB_SHA::7}")
+            -F "file=@Waystage-simulator.zip" -F "platform=ios" -F "note=${GITHUB_SHA::7}")
           if [ "$status" -ge 300 ]; then
             echo "::error::Appetize upload failed (HTTP $status)"
             cat response.json
-            echo "Fallback: download the Cadence-simulator artifact from this run and upload Cadence-simulator.zip on the Appetize website."
+            echo "Fallback: download the Waystage-simulator artifact from this run and upload Waystage-simulator.zip on the Appetize website."
             exit 1
           fi
           key=$(python3 -c 'import json; print(json.load(open("response.json"))["publicKey"])')
           {
-            echo "### Try Cadence on your iPhone"
+            echo "### Try Waystage on your iPhone"
             echo
             echo "Open in Safari on your iPhone: https://appetize.io/app/$key"
             echo

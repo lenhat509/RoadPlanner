@@ -3,7 +3,7 @@
 ## One-time setup
 
 - [ ] Choose the final app name and check availability in App Store Connect (current:
-      "Cadence: Road Trip Planner"; edit `fastlane/metadata/en-US/name.txt` and
+      "Waystage: Road Trip Planner"; edit `fastlane/metadata/en-US/name.txt` and
       `CFBundleDisplayName` in `App/Resources/Info.plist`).
 - [ ] Register the bundle ID; create the app record in App Store Connect
       (category: Navigation, secondary: Travel).
@@ -18,7 +18,7 @@
 - [ ] `fastlane match appstore` once to create certificates and profiles.
 - [ ] Add repository secrets for `.github/workflows/release.yml`: `SECRETS_XCCONFIG`,
       `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_CONTENT`, `MATCH_GIT_URL`, `MATCH_PASSWORD`,
-      `MATCH_GIT_BASIC_AUTHORIZATION`; variables `CADENCE_BUNDLE_ID`, `CADENCE_TEAM_ID`.
+      `MATCH_GIT_BASIC_AUTHORIZATION`; variables `WAYSTAGE_BUNDLE_ID`, `WAYSTAGE_TEAM_ID`.
 
 ## App Privacy ("nutrition label") answers
 

@@ -71,7 +71,7 @@ struct HomeView: View {
                 .padding(.top, 14)
                 .padding(.trailing, 6)
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("CADENCE")
+                Text("WAYSTAGE")
                     .font(.caption.weight(.heavy))
                     .tracking(2.5)
                     .foregroundStyle(.white.opacity(0.7))
@@ -202,7 +202,7 @@ struct HomeView: View {
 
     private var howItWorks: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-            SectionLabel(title: "How Cadence plans")
+            SectionLabel(title: "How Waystage plans")
             VStack(alignment: .leading, spacing: 14) {
                 feature(.rest, "A break every 2–3 hours", "Rest areas when there are some, a safe exit when there aren't.")
                 feature(.fuel, "Gas before you run low", "Live prices, never below your minimum fuel level.")
