@@ -67,6 +67,12 @@ public final class SimulatedLocationProvider: RouteFollowingLocationProvider {
         continuation = nil
     }
 
+    /// Returns once the car has stopped: at the end of the leg, where it parks, or when driving is
+    /// stopped. Returns at once when it isn't driving.
+    public func waitUntilStopped() async {
+        await driveTask?.value
+    }
+
     /// Emits a fix.
     public func send(_ sample: LocationSample) {
         lastKnownLocation = sample.coordinate

@@ -54,10 +54,12 @@ platform :ios do
   lane :beta do
     verify_release_configuration(require_gateway: false)
     api_key = asc_api_key
+    # MATCH_READONLY=false (the workflow's "create_certificates") lets the first run create the
+    # certificate and profile, no Mac needed. Read it before setup_ci, which resets it to true.
+    readonly = ENV.fetch("MATCH_READONLY", is_ci.to_s) == "true"
     setup_ci if is_ci
     bundle_id = ENV.fetch("WAYSTAGE_BUNDLE_ID")
-    # MATCH_READONLY=false on the very first run creates the certificate and profile (no Mac needed).
-    match(type: "appstore", app_identifier: bundle_id, readonly: ENV.fetch("MATCH_READONLY", is_ci.to_s) == "true", api_key: api_key)
+    match(type: "appstore", app_identifier: bundle_id, readonly: readonly, api_key: api_key)
     # Sign only the app target manually with the match profile (Swift package targets are not signed).
     update_code_signing_settings(
       path: PROJECT,
