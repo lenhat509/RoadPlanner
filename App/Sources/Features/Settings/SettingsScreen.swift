@@ -13,7 +13,7 @@ struct SettingsScreen: View {
 
     var body: some View {
         Form {
-            Section("Your car") {
+            Section {
                 LabeledContent("Fuel economy") {
                     TextField("MPG", value: $model.preferences.vehicle.milesPerGallon, format: .number)
                         .keyboardType(.decimalPad)
@@ -24,12 +24,17 @@ struct SettingsScreen: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                 }
-                Picker("Fuel type", selection: $model.preferences.vehicle.fuelType) {
-                    ForEach(FuelType.allCases) { Text($0.displayName).tag($0) }
+                Picker("Fuel grade", selection: $model.preferences.vehicle.fuelType) {
+                    ForEach(FuelType.allCases) { Text($0.title).tag($0) }
                 }
                 Stepper(value: $model.minimumFuelPercent, in: 5...50, step: 5) {
                     Text("Refuel before \(Int(model.minimumFuelPercent))% left")
                 }
+            } header: {
+                Text("Your car")
+            } footer: {
+                let grade = model.preferences.vehicle.fuelType
+                Text("\(grade.ethanolDescription) \(grade.planningNote) \(PlanTripScreen.unlistedGradesNote)")
             }
 
             Section {

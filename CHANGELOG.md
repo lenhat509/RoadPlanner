@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Fuel grades with their ethanol level.** Choose any gasoline (the default: any gas station
+  works) or a specific grade: Regular 87 · E10, Midgrade 89 · E10, Premium 91+ · E10, Flex fuel ·
+  E85 or Diesel. Plans only refuel at stations that sell it (a station that lists its grades
+  without it is skipped; diesel needs a listing or a truck stop; E85 needs a listing), priced at
+  that grade, so a cheapest plan uses the cheapest stations that sell it. E85 accounts for about
+  25% fewer miles per gallon; where it's too scarce, the plan uses regular and says so. Fuel stops
+  say what to buy ("Fill about 10.5 gal of Premium 91+ · E10"). E15 and ethanol-free (E0) aren't
+  offered, because station data doesn't show which stations sell them.
 - A two-second opening when the app launches: the icon's scene comes to life (the sun rises,
   the road draws to the horizon, the stops appear along it, then the name), then it fades to
   Home. Tap to skip; with Reduce Motion it simply fades.

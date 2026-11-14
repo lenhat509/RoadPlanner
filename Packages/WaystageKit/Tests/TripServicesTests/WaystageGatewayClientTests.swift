@@ -57,6 +57,18 @@ struct WaystageGatewayClientTests {
             .averagePrice(near: GeoCoordinate(latitude: 0, longitude: 0), fuelType: .regular) == nil)
     }
 
+    @Test("Any grade uses regular's regional average; E85 has none, so nothing is requested")
+    func fuelAverageGrades() async throws {
+        let transport = StubHTTPTransport()
+        transport.stub("/v1/fuel/average", body: try FixtureLoader.data("gateway_fuel_response"))
+        let client = WaystageGatewayClient(configuration: configuration, transport: transport)
+        _ = try await client.averagePrice(near: GeoCoordinate(latitude: 37, longitude: -120), fuelType: .any)
+        #expect(transport.requests.last?.url.query?.contains("fuelType=regular") == true)
+        let before = transport.requests.count
+        #expect(try await client.averagePrice(near: GeoCoordinate(latitude: 37, longitude: -120), fuelType: .e85) == nil)
+        #expect(transport.requests.count == before)
+    }
+
     @Test("Surfaces authorization failures")
     func unauthorized() async {
         let transport = StubHTTPTransport()

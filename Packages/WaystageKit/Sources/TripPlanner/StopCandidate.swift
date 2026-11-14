@@ -27,6 +27,8 @@ public struct StopCandidate: Hashable, Sendable, Identifiable {
     /// Price per gallon for the vehicle's fuel grade.
     public var fuelPricePerGallon: Double?
     public var isFuelPriceEstimated: Bool
+    /// The station lists the grade (rather than it being assumed for a station listing none).
+    public var isFuelGradeConfirmed: Bool
     public var nightlyRate: Double?
     public var isLodgingRateEstimated: Bool
     public var lodgingProvider: String?
@@ -47,6 +49,7 @@ public struct StopCandidate: Hashable, Sendable, Identifiable {
         detourDistance: Double = 0,
         fuelPricePerGallon: Double? = nil,
         isFuelPriceEstimated: Bool = false,
+        isFuelGradeConfirmed: Bool = false,
         nightlyRate: Double? = nil,
         isLodgingRateEstimated: Bool = false,
         lodgingProvider: String? = nil,
@@ -64,6 +67,7 @@ public struct StopCandidate: Hashable, Sendable, Identifiable {
         self.detourDistance = detourDistance
         self.fuelPricePerGallon = fuelPricePerGallon
         self.isFuelPriceEstimated = isFuelPriceEstimated
+        self.isFuelGradeConfirmed = isFuelGradeConfirmed
         self.nightlyRate = nightlyRate
         self.isLodgingRateEstimated = isLodgingRateEstimated
         self.lodgingProvider = lodgingProvider

@@ -17,8 +17,8 @@ in [`test-logs/TEST_LOG.md`](../test-logs/TEST_LOG.md).
 | UI (sandbox) | `AppUITests` | XCUITest | plan flow, validation, plan comparison, drive → arrive → continue → route preview → start, exit and resume, resume after relaunch, end trip, a trip starting far away (note, directions to start, start from here), zoom buttons return to the same view (route position measured in screenshots), settings persistence, App Store screenshots | iOS simulator |
 | Gateway | `Backend/gateway/test` | Vitest | Expedia signature (independent vector), Rapid client, lodging service, EIA client, PADD mapping, cache, HTTP API (auth, validation, errors, rate limit), config | Node 22 |
 
-Current counts: **241** core tests (35 suites, more with parameterized cases), **66** gateway
-tests, **26** app unit tests, **12** UI tests + 3 screenshot tests (light, dark and the launch intro).
+Current counts: **254** core tests (36 suites, more with parameterized cases), **66** gateway
+tests, **26** app unit tests, **13** UI tests + 3 screenshot tests (light, dark and the launch intro).
 
 ## Running tests
 

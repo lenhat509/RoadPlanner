@@ -134,7 +134,10 @@ public final class TripPlanningService: TripPlanning, Sendable {
     struct RouteAnalysis: Sendable {
         var route: ComputedRoute
         var profile: RouteProfile
+        /// Stops for the car's fuel grade.
         var candidates: [StopCandidate]
+        /// For E85: the same stops for regular gasoline, in case E85 is too scarce.
+        var fallbackCandidates: [StopCandidate]?
         var warnings: [PlanWarning]
     }
 
@@ -419,7 +422,12 @@ public final class TripPlanningService: TripPlanning, Sendable {
         var regionalPrices: [(GeoCoordinate, Double)] = []
         if let fuelPrices {
             let midpoints = chunks.map { profile.geometry.coordinate(atDistance: ($0.startDistance + $0.endDistance) / 2) }
-            let fuelType = request.vehicle.fuelType
+            // Regional averages exist for the gasoline grades and diesel; any grade and E85 (whose
+            // fallback is regular) use regular's.
+            let fuelType: FuelType = switch request.vehicle.fuelType {
+            case .any, .e85: .regular
+            case let grade: grade
+            }
             let prices = await concurrentMap(midpoints, limit: configuration.maxConcurrentRequests) { point in
                 defer { counter.increment() }
                 return try? await fuelPrices.averagePrice(near: point, fuelType: fuelType)
@@ -436,16 +444,22 @@ public final class TripPlanningService: TripPlanning, Sendable {
             ))
         }
         let found = placeResults.flatMap { (try? $0.get()) ?? [] }
-        let candidates = configuration.candidateBuilder.build(
-            profile: profile,
-            places: found,
-            lodgingOffers: offers,
-            fuelType: request.vehicle.fuelType,
-            regionalFuelPrice: { coordinate in
-                regionalPrices.min { GeoMath.distance($0.0, coordinate) < GeoMath.distance($1.0, coordinate) }?.1
-            }
+        func candidates(for grade: FuelType) -> [StopCandidate] {
+            configuration.candidateBuilder.build(
+                profile: profile,
+                places: found,
+                lodgingOffers: offers,
+                fuelType: grade,
+                regionalFuelPrice: { coordinate in
+                    regionalPrices.min { GeoMath.distance($0.0, coordinate) < GeoMath.distance($1.0, coordinate) }?.1
+                }
+            )
+        }
+        let grade = request.vehicle.fuelType
+        return RouteAnalysis(
+            route: route, profile: profile, candidates: candidates(for: grade),
+            fallbackCandidates: grade == .e85 ? candidates(for: .regular) : nil, warnings: warnings
         )
-        return RouteAnalysis(route: route, profile: profile, candidates: candidates, warnings: warnings)
     }
 
     // MARK: - Optimization
@@ -456,15 +470,15 @@ public final class TripPlanningService: TripPlanning, Sendable {
         analyses: [RouteAnalysis],
         safetyMargin: Double = 1
     ) -> (Itinerary, RouteAnalysis)? {
-        var best: (FeasibleSchedule, RouteAnalysis)?
+        var best: (FeasibleSchedule, RouteAnalysis, TripRequest)?
         for analysis in analyses {
-            let feasible = solve(goal: goal, request: request, analysis: analysis, safetyMargin: safetyMargin)
-            guard let current = best else { best = (feasible, analysis); continue }
-            if isBetter(feasible, than: current.0) { best = (feasible, analysis) }
+            let (feasible, planned) = solve(goal: goal, request: request, analysis: analysis, safetyMargin: safetyMargin)
+            guard let current = best else { best = (feasible, analysis, planned); continue }
+            if isBetter(feasible, than: current.0) { best = (feasible, analysis, planned) }
         }
-        guard let (feasible, analysis) = best else { return nil }
+        guard let (feasible, analysis, planned) = best else { return nil }
         let itinerary = ItineraryAssembler().assemble(
-            request: request,
+            request: planned,
             goal: goal,
             profile: analysis.profile,
             feasible: feasible,
@@ -481,12 +495,37 @@ public final class TripPlanningService: TripPlanning, Sendable {
         return lhs.schedule.score < rhs.schedule.score
     }
 
-    private func solve(goal: OptimizationGoal, request: TripRequest, analysis: RouteAnalysis, safetyMargin: Double) -> FeasibleSchedule {
+    /// The best schedule for the car's grade, and the request it was planned for: E85 that is sold
+    /// too rarely along the route (the plan would need emergency fuel) is replaced by regular
+    /// gasoline, which a flex-fuel car can also use.
+    private func solve(
+        goal: OptimizationGoal, request: TripRequest, analysis: RouteAnalysis, safetyMargin: Double
+    ) -> (FeasibleSchedule, TripRequest) {
+        let feasible = solve(goal: goal, request: request, candidates: analysis.candidates, profile: analysis.profile, safetyMargin: safetyMargin)
+        let hasGap = { (schedule: FeasibleSchedule) in schedule.warnings.contains { $0.code == .fuelGap } }
+        guard request.vehicle.fuelType == .e85, let fallback = analysis.fallbackCandidates, hasGap(feasible) else {
+            return (feasible, request)
+        }
+        var regular = request
+        regular.vehicle.fuelType = .regular
+        var alternative = solve(goal: goal, request: regular, candidates: fallback, profile: analysis.profile, safetyMargin: safetyMargin)
+        guard !hasGap(alternative) else { return (feasible, request) }
+        alternative.warnings.append(PlanWarning(
+            code: .fuelGradeUnavailable,
+            message: "E85 isn't sold often enough along this route, so this plan fills up with regular gasoline "
+                + "(your flex-fuel car can use both)."
+        ))
+        return (alternative, regular)
+    }
+
+    private func solve(
+        goal: OptimizationGoal, request: TripRequest, candidates: [StopCandidate], profile: RouteProfile, safetyMargin: Double
+    ) -> FeasibleSchedule {
         var policy = request.policy
         policy.maxContinuousDriving *= safetyMargin
         policy.maxDailyDriving *= safetyMargin
         let planner = FeasibilityPlanner(policy: policy, pricing: configuration.pricing)
-        let problem = OptimizationProblem(profile: analysis.profile, candidates: analysis.candidates, request: request, goal: goal)
+        let problem = OptimizationProblem(profile: profile, candidates: candidates, request: request, goal: goal)
         var feasible = planner.solve(problem)
         // Report against the user's limits, not the internal safety margin.
         feasible.appliedPolicy.maxContinuousDriving = request.policy.maxContinuousDriving

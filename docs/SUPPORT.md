@@ -23,6 +23,13 @@ is saved automatically. Waystage shows the route from where you are to your next
 Waystage › Location › While Using the App) and Location Services on. Indoors a first position can
 take a few seconds; try again, or type the starting place instead.
 
+**Why can't I choose E15 or ethanol-free gas?** Waystage only plans fuel stops where the grade is
+known to be sold, and station data (Google Maps) doesn't list E15 or ethanol-free (E0) gas.
+Choose the grade with the same octane (e.g. Regular 87 · E10) and check for E0 pumps on the way.
+
+**My car takes premium (or diesel, or E85).** Pick it under Fuel grade on the plan form or in
+Settings. Fuel stops are then stations that sell it, priced at that grade.
+
 **My trip starts somewhere else.** Plans can start anywhere. The plan screen shows how far the
 start is from you; when you start driving, Waystage first offers directions to the start (the trip
 begins when you get there), or choose **Start the trip from here** in the ••• menu.

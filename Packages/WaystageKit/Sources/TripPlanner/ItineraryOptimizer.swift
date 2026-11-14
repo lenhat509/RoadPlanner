@@ -521,9 +521,9 @@ private struct Search {
     }
 
     private func diagnose() -> InfeasibilityReason {
-        let usableRangeMeters = Units.meters(fromMiles: (tank - reserve) * problem.vehicle.milesPerGallon)
+        let usableRangeMeters = Units.meters(fromMiles: (tank - reserve) * problem.vehicle.effectiveMilesPerGallon)
         let initialRangeMeters = Units.meters(
-            fromMiles: max(0, tank * problem.vehicle.initialFuelFraction - originReserve) * problem.vehicle.milesPerGallon
+            fromMiles: max(0, tank * problem.vehicle.initialFuelFraction - originReserve) * problem.vehicle.effectiveMilesPerGallon
         )
         var previous = 0.0
         var range = initialRangeMeters

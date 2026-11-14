@@ -51,8 +51,9 @@ public struct StopPresentation: Hashable, Sendable, Identifiable {
             if let tank = tankCapacityGallons, tank > 0, let fuel = stop.fuelOnArrivalGallons {
                 arrivalLevel = "Arrive with \(Int((fuel / tank * 100).rounded()))% · "
             }
+            let grade = purchase.grade.flatMap { $0 == .any ? nil : " of \($0.title)" } ?? ""
             detail = arrivalLevel
-                + "Fill about \(formatters.gallons(purchase.gallons)) at \(price)/gal\(purchase.isPriceEstimated ? " (est.)" : "")"
+                + "Fill about \(formatters.gallons(purchase.gallons))\(grade) at \(price)/gal\(purchase.isPriceEstimated ? " (est.)" : "")"
                 + " · \(formatters.currency(purchase.cost))"
         } else if let lodging = stop.lodging {
             isEstimate = lodging.isRateEstimated

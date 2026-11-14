@@ -267,9 +267,11 @@ public final class PlanTripViewModel {
         guard let mpg = PlanTripViewModel.parse(mpgText), mpg > 0,
               let tank = PlanTripViewModel.parse(tankGallonsText), tank > 0 else { return nil }
         let formatters = dependencies.formatters
-        let range = formatters.distance(Units.meters(fromMiles: mpg * tank))
+        // E85 goes about a quarter fewer miles per gallon than gasoline.
+        let range = formatters.distance(Units.meters(fromMiles: mpg * fuelType.relativeEnergy * tank))
         let minimum = formatters.gallons(tank * minimumFuelPercent / 100)
-        return "A full tank goes about \(range). Fuel stops keep at least \(Int(minimumFuelPercent))% (\(minimum)) in the tank."
+        let tankOf = fuelType == .e85 ? "A full tank of E85" : "A full tank"
+        return "\(tankOf) goes about \(range). Fuel stops keep at least \(Int(minimumFuelPercent))% (\(minimum)) in the tank."
     }
 
     public var errorMessage: String? {

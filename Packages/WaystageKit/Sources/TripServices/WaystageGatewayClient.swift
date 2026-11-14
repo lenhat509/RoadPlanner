@@ -50,11 +50,19 @@ public struct WaystageGatewayClient: LodgingRateProvider, RegionalFuelPriceProvi
         }
     }
 
+    /// Regional averages (EIA) exist for regular, midgrade, premium and diesel; any grade uses
+    /// regular's, and E85 has none.
     public func averagePrice(near coordinate: GeoCoordinate, fuelType: FuelType) async throws -> Double? {
+        let series: FuelType
+        switch fuelType {
+        case .e85: return nil
+        case .any: series = .regular
+        default: series = fuelType
+        }
         let request = makeRequest(path: "v1/fuel/average", items: [
             "lat": String(format: "%.4f", coordinate.latitude),
             "lng": String(format: "%.4f", coordinate.longitude),
-            "fuelType": fuelType.rawValue,
+            "fuelType": series.rawValue,
         ])
         let response = try await transport.send(request).validated()
         return try JSON.decode(FuelAverageResponse.self, from: response.body).pricePerGallon

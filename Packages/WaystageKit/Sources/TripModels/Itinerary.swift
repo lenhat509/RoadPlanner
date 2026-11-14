@@ -28,11 +28,21 @@ public struct FuelPurchase: Codable, Hashable, Sendable {
     public var pricePerGallon: Double
     /// `true` when the price is a regional or default estimate rather than the station's price.
     public var isPriceEstimated: Bool
+    /// The grade bought (nil in plans saved before grades were tracked).
+    public var grade: FuelType?
+    /// `true` when the station lists the grade; `false` when it's assumed (a gasoline grade at a
+    /// station that lists none).
+    public var isGradeConfirmed: Bool?
 
-    public init(gallons: Double, pricePerGallon: Double, isPriceEstimated: Bool) {
+    public init(
+        gallons: Double, pricePerGallon: Double, isPriceEstimated: Bool,
+        grade: FuelType? = nil, isGradeConfirmed: Bool? = nil
+    ) {
         self.gallons = gallons
         self.pricePerGallon = pricePerGallon
         self.isPriceEstimated = isPriceEstimated
+        self.grade = grade
+        self.isGradeConfirmed = isGradeConfirmed
     }
 
     public var cost: Double { gallons * pricePerGallon }
@@ -263,6 +273,8 @@ public struct PlanWarning: Codable, Hashable, Sendable, Identifiable {
         case lodgingAreaOnly
         /// A stretch longer than the car's range has no known gas station.
         case fuelGap
+        /// The chosen grade is sold too rarely along the route; the plan uses another (E85 → regular).
+        case fuelGradeUnavailable
         /// Some prices are estimates.
         case estimatedPrices
         /// Live directions were unavailable; times are estimates.

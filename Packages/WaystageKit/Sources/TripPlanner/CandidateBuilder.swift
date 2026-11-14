@@ -6,7 +6,8 @@ import TripModels
 /// Responsibilities:
 /// * project each place onto the route (distance/time along the route, lateral offset),
 /// * compute the detour (from the provider's routing summary or a conservative estimate),
-/// * attach prices (live → regional average → national default, flagging estimates),
+/// * keep as fuel stops only stations that sell the car's grade (`FuelOffer`); others are breaks,
+/// * attach prices for that grade (live → regional average → national default, flagging estimates),
 /// * merge duplicates and attach live lodging offers to matching places,
 /// * thin dense clusters so the optimizer stays fast,
 /// * add roadside pull-offs and lodging search areas so a feasible plan always exists.
@@ -141,8 +142,14 @@ public struct CandidateBuilder: Sendable {
         guard projection.offsetMeters <= limit else { return nil }
 
         var capabilities: StopCapabilities = []
+        var fuelOffer = FuelOffer.unavailable
         if found.categories.contains(.rest) { capabilities.insert(.rest) }
-        if found.categories.contains(.fuel) { capabilities.formUnion([.fuel, .rest]) }
+        if found.categories.contains(.fuel) {
+            // A gas station is always fine for a break; it's a fuel stop only if it sells the grade.
+            capabilities.insert(.rest)
+            fuelOffer = FuelOffer.at(found, for: fuelType)
+            if fuelOffer != .unavailable { capabilities.insert(.fuel) }
+        }
         if found.categories.contains(.lodging) { capabilities.insert(.lodging) }
         guard !capabilities.isEmpty else { return nil }
 
@@ -153,13 +160,14 @@ public struct CandidateBuilder: Sendable {
 
         var fuelPrice: Double?
         var fuelEstimated = false
-        if capabilities.contains(.fuel) {
-            if let live = found.fuelPrices[fuelType], live > 0 {
-                fuelPrice = live
-            } else {
-                fuelPrice = regionalFuelPrice(found.place.coordinate) ?? pricing.fuelPrice(for: fuelType)
-                fuelEstimated = true
-            }
+        switch fuelOffer {
+        case let .confirmed(price):
+            fuelPrice = price
+        case .assumed:
+            fuelPrice = regionalFuelPrice(found.place.coordinate) ?? pricing.fuelPrice(for: fuelType)
+            fuelEstimated = true
+        case .unavailable:
+            break
         }
 
         var nightlyRate: Double?
@@ -183,6 +191,7 @@ public struct CandidateBuilder: Sendable {
             detourDistance: detourDistance,
             fuelPricePerGallon: fuelPrice,
             isFuelPriceEstimated: fuelEstimated,
+            isFuelGradeConfirmed: { if case .confirmed = fuelOffer { return true } else { return false } }(),
             nightlyRate: nightlyRate,
             isLodgingRateEstimated: rateEstimated,
             lodgingProvider: found.rateProvider ?? (capabilities.contains(.lodging) ? "Google" : nil),

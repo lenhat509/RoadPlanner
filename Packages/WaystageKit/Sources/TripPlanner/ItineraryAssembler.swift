@@ -46,7 +46,9 @@ public struct ItineraryAssembler: Sendable {
                 stop.fuelPurchase = FuelPurchase(
                     gallons: gallons,
                     pricePerGallon: price,
-                    isPriceEstimated: candidate.isFuelPriceEstimated || candidate.fuelPricePerGallon == nil
+                    isPriceEstimated: candidate.isFuelPriceEstimated || candidate.fuelPricePerGallon == nil,
+                    grade: request.vehicle.fuelType,
+                    isGradeConfirmed: candidate.isFuelGradeConfirmed
                 )
                 usesEstimatedPrices = usesEstimatedPrices || stop.fuelPurchase!.isPriceEstimated
             case let .overnight(rate):

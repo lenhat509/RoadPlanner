@@ -56,6 +56,29 @@ struct GooglePlacesClientTests {
         #expect(places[1].detourDuration == 300)
     }
 
+    @Test("Reads E85, and premium or truck-lane diesel when plain diesel isn't listed")
+    func fuelGrades() async throws {
+        func price(_ type: String, _ units: Int, _ nanos: Int) -> String {
+            #"{"type": "\#(type)", "price": {"currencyCode": "USD", "units": "\#(units)", "nanos": \#(nanos)}}"#
+        }
+        func station(_ id: String, _ prices: [String]) -> String {
+            #"{"id": "\#(id)", "displayName": {"text": "\#(id)"}, "location": {"latitude": 41.6, "longitude": -93.6}, "#
+                + #""types": ["gas_station"], "fuelOptions": {"fuelPrices": [\#(prices.joined(separator: ","))]}}"#
+        }
+        let body = #"{"places": ["# + [
+            station("flex", [price("REGULAR_UNLEADED", 3, 190_000_000), price("E85", 2, 590_000_000), price("TRUCK_DIESEL", 3, 890_000_000)]),
+            station("both", [price("DIESEL", 3, 790_000_000), price("DIESEL_PLUS", 3, 990_000_000)]),
+        ].joined(separator: ",") + "]}"
+        let transport = StubHTTPTransport()
+        transport.stub("places:searchText", body: Data(body.utf8))
+        let places = try await GooglePlacesClient(configuration: configuration, transport: transport).searchAlongRoute(search(.fuel))
+        let flex = try #require(places.first { $0.place.id == "flex" })
+        #expect(abs((flex.fuelPrices[.e85] ?? 0) - 2.59) < 1e-9)
+        #expect(abs((flex.fuelPrices[.diesel] ?? 0) - 3.89) < 1e-9, "truck-lane diesel when plain diesel isn't listed")
+        let both = try #require(places.first { $0.place.id == "both" })
+        #expect(abs((both.fuelPrices[.diesel] ?? 0) - 3.79) < 1e-9, "plain diesel wins")
+    }
+
     @Test("Decodes lodging with its price level")
     func lodgingSearch() async throws {
         let transport = StubHTTPTransport()

@@ -216,6 +216,31 @@ final class WaystageUITests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
 
+    // MARK: Fuel grade
+
+    func testChoosingAFuelGradePlansFuelStopsThatSellIt() {
+        launch()
+        app.buttons[AccessibilityID.Home.planTrip].tap()
+        let grade = app.buttons[AccessibilityID.Plan.fuelGrade]
+        XCTAssertTrue(grade.waitForExistence(timeout: 5))
+        XCTAssertTrue("\(grade.label) \(grade.value ?? "")".contains("Any gasoline"), "any grade by default: \(grade.label)")
+        choosePlace(field: AccessibilityID.Plan.origin, typing: "Los", pick: "Los Angeles")
+        choosePlace(field: AccessibilityID.Plan.destination, typing: "Vegas", pick: "Las Vegas")
+        // A small tank, so the drive needs fuel stops.
+        let tank = app.textFields[AccessibilityID.Plan.tank]
+        tank.tap()
+        tank.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 6) + "5")
+        grade.tap()
+        let premium = app.buttons["Premium 91+ · E10"].firstMatch
+        XCTAssertTrue(premium.waitForExistence(timeout: 3), "grades are listed with their ethanol level")
+        premium.tap()
+        XCTAssertTrue("\(grade.label) \(grade.value ?? "")".contains("Premium 91+"))
+        app.buttons[AccessibilityID.Plan.submit].tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 30))
+        XCTAssertTrue(elementWithLabel(containing: "of Premium 91+ · E10").waitForExistence(timeout: 10),
+                      "fuel stops say what to fill up with")
+    }
+
     // MARK: Route alternatives
 
     func testALongTripOffersDifferentRoutesAndTheChosenOneIsDriven() {

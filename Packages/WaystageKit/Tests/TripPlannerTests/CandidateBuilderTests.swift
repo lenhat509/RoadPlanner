@@ -58,8 +58,12 @@ struct CandidateBuilderTests {
         #expect(regionalCandidate.fuelPricePerGallon == 3.77)
         #expect(regionalCandidate.isFuelPriceEstimated)
 
-        let national = builder.build(profile: profile, places: [noPrice], fuelType: .diesel)
-        #expect(try #require(national.first { $0.id == "noprice" }).fuelPricePerGallon == PricingDefaults.standard.fuelPrice(for: .diesel))
+        let national = builder.build(profile: profile, places: [noPrice], fuelType: .premium)
+        #expect(try #require(national.first { $0.id == "noprice" }).fuelPricePerGallon == PricingDefaults.standard.fuelPrice(for: .premium))
+
+        // Few stations sell diesel: one that lists no grades isn't assumed to.
+        let diesel = builder.build(profile: profile, places: [noPrice], fuelType: .diesel)
+        #expect(try #require(diesel.first { $0.id == "noprice" }).capabilities.contains(.fuel) == false)
     }
 
     @Test("Merges duplicate places and their categories")

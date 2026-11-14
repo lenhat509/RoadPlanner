@@ -3,7 +3,7 @@ Waystage plans long drives the way a seasoned road-tripper would — then guides
 Tell Waystage where you're starting, where you're going, when you leave and how many miles your car gets per gallon. In seconds it builds a complete, safe itinerary:
 
 • Breaks every 2–3 hours (or your own interval), so you never drive tired
-• Fuel stops placed before your tank runs low, favouring cheaper stations
+• Fuel stops placed before your tank runs low, only at stations that sell your car's grade (Regular, Midgrade, Premium, E85 or Diesel), favouring cheaper ones
 • Overnight stays near the end of each driving day, with live hotel rates where available
 • An optional "arrive by" time that the plan respects whenever it's possible
 

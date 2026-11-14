@@ -45,7 +45,15 @@ Comfort penalties (small) prefer real rest areas over roadside pull-offs, and re
 (projection onto the polyline using a spatial grid index), time along the route, detour time and
 distance (from Places routing summaries, else an estimate), and prices:
 
-* fuel: live station price for the car's grade → EIA regional average → national default,
+* fuel, **only at stations that sell the car's grade** (`FuelOffer`): a station that lists its
+  grades (Places `fuelOptions`) sells exactly those, at its listed price; one that lists none is
+  assumed to sell the gasoline grades (practically every US station does), priced at the EIA
+  regional average → national default; diesel is assumed only at truck stops and E85 never (it
+  must be listed). "Any gasoline" uses a station's cheapest gasoline. A station without the
+  grade is still a candidate for a break. E85 uses 75 % of the car's gasoline MPG; if E85 is too
+  scarce for a plan without emergency fuel, the plan is redone with regular (a flex-fuel car takes
+  both) and says so (`fuelGradeUnavailable`). Since the optimizer minimizes cost over these
+  candidates, a cheapest plan fills up at the cheapest stations that sell the grade,
 * lodging: live Expedia nightly rate → Google price-level estimate → default.
 
 Clusters are thinned per 15-minute bucket (cheapest and closest kept). **Roadside pull-offs** are

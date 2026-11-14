@@ -204,12 +204,42 @@ struct PlanTripScreen: View {
 
     // MARK: Car
 
+    /// The grade the car takes, with its ethanol level; fuel stops are stations that sell it.
+    private var fuelGradeRow: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+            HStack {
+                Label("Fuel grade", systemImage: "fuelpump")
+                    .labelStyle(.titleAndIcon)
+                Spacer(minLength: Theme.Spacing.xs)
+                Picker("Fuel grade", selection: $model.fuelType) {
+                    ForEach(FuelType.allCases) { grade in
+                        Text(grade.title).tag(grade)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(Theme.accent)
+                .accessibilityIdentifier(AccessibilityID.Plan.fuelGrade)
+            }
+            Text("\(model.fuelType.ethanolDescription) \(model.fuelType.planningNote)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(Self.unlistedGradesNote)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    static let unlistedGradesNote = "E15 and ethanol-free (E0) aren't offered: station data doesn't show which stations sell them."
+
     private var carCard: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
             HStack(spacing: Theme.Spacing.s) {
                 NumberTile(title: "Fuel economy", unit: "mpg", text: $model.mpgText, identifier: AccessibilityID.Plan.mpg)
                 NumberTile(title: "Tank size", unit: "gal", text: $model.tankGallonsText, identifier: AccessibilityID.Plan.tank)
             }
+            fuelGradeRow
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 HStack {
                     Text("Refuel before **\(Int(model.minimumFuelPercent))% left**")
@@ -294,10 +324,6 @@ struct PlanTripScreen: View {
                     Slider(value: $model.startingFuelPercent, in: 10...100, step: 5)
                         .tint(Theme.accent)
                 }
-                Picker("Fuel type", selection: $model.fuelType) {
-                    ForEach(FuelType.allCases) { Text($0.displayName).tag($0) }
-                }
-                .pickerStyle(.segmented)
                 Stepper(value: $model.maxDailyDrivingHours, in: 4...12, step: 0.5) {
                     Text("Up to \(Self.hoursText(model.maxDailyDrivingHours)) of driving a day")
                 }

@@ -285,7 +285,9 @@ extension FuelType {
         case .regular: "REGULAR_UNLEADED"
         case .midgrade: "MIDGRADE"
         case .premium: "PREMIUM"
+        case .e85: "E85"
         case .diesel: "DIESEL"
+        case .any: "FUEL_TYPE_UNSPECIFIED"
         }
     }
 }

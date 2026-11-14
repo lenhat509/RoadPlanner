@@ -20,6 +20,7 @@ enum AccessibilityID {
         static let mpg = "plan.mpg"
         static let tank = "plan.tank"
         static let minimumFuel = "plan.minimumFuel"
+        static let fuelGrade = "plan.fuelGrade"
         static let customRestToggle = "plan.customRestToggle"
         static let restInterval = "plan.restInterval"
         static let goal = "plan.goal"

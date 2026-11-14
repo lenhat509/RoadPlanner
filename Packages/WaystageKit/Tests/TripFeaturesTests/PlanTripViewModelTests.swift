@@ -240,6 +240,28 @@ struct PlanTripViewModelTests {
         #expect(model.origin.place?.utcOffsetMinutes == -480) // estimated from Los Angeles' longitude
     }
 
+    @Test("Fuel grade: any gasoline by default; the chosen grade is planned and remembered")
+    func fuelGrade() async throws {
+        let harness = FeatureHarness()
+        let model = PlanTripViewModel(dependencies: harness.dependencies)
+        #expect(model.fuelType == .any)
+        try await select(model, "Los", .origin)
+        try await select(model, "Vegas", .destination)
+        model.mpgText = "30"
+        model.tankGallonsText = "15"
+        model.fuelType = .e85
+        guard case let .valid(request) = model.makeRequest() else {
+            Issue.record("Expected a valid request")
+            return
+        }
+        #expect(request.vehicle.fuelType == .e85)
+        // 30 mpg on gasoline is about 22.5 on E85: 15 gal go ~338 mi.
+        #expect(model.rangeSummary?.hasPrefix("A full tank of E85 goes about 338 mi.") == true, "\(model.rangeSummary ?? "")")
+        await model.plan()
+        #expect(harness.preferences.load().vehicle.fuelType == .e85)
+        #expect(PlanTripViewModel(dependencies: harness.dependencies).fuelType == .e85)
+    }
+
     @Test("Tank size and minimum fuel level flow into the request and are remembered")
     func fuelSettings() async throws {
         let harness = FeatureHarness()

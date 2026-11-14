@@ -93,11 +93,17 @@ public struct GooglePlacesClient: PlaceSearchProvider, PlaceAutocompleteProvider
         if !types.isDisjoint(with: ["lodging", "hotel", "motel"]) { categories.insert(.lodging) }
 
         var fuelPrices: [FuelType: Double] = [:]
+        var otherDiesel: Double?
         for price in place.fuelOptions?.fuelPrices ?? [] {
-            guard let fuelType = fuelType(for: price.type), let money = price.price,
-                  (money.currencyCode ?? "USD") == "USD", money.amount > 0 else { continue }
-            fuelPrices[fuelType] = money.amount
+            guard let money = price.price, (money.currencyCode ?? "USD") == "USD", money.amount > 0 else { continue }
+            if let fuelType = fuelType(for: price.type) {
+                fuelPrices[fuelType] = money.amount
+            } else if ["DIESEL_PLUS", "TRUCK_DIESEL"].contains(price.type) {
+                otherDiesel = min(otherDiesel ?? .infinity, money.amount)
+            }
         }
+        // Premium or truck-lane diesel still fuels a diesel car when plain diesel isn't listed.
+        if fuelPrices[.diesel] == nil, let otherDiesel { fuelPrices[.diesel] = otherDiesel }
 
         var detourDuration: TimeInterval?
         var detourDistance: Double?
@@ -131,6 +137,7 @@ public struct GooglePlacesClient: PlaceSearchProvider, PlaceAutocompleteProvider
         case "MIDGRADE": .midgrade
         case "PREMIUM": .premium
         case "DIESEL": .diesel
+        case "E85": .e85
         default: nil
         }
     }

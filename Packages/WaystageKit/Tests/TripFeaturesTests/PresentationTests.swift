@@ -84,6 +84,25 @@ struct PresentationTests {
         #expect(text.detail?.hasPrefix("Arrive with 25% · ") == true)
     }
 
+    @Test("Fuel stops name the grade to buy, with its ethanol level")
+    func fuelGrade() {
+        let place = Place(name: "Shell", coordinate: GeoCoordinate(latitude: 0, longitude: 0), utcOffsetMinutes: 0)
+        func detail(_ grade: FuelType?) -> String {
+            let stop = ItineraryStop(
+                kind: .fuel, place: place, arrival: Date(timeIntervalSince1970: 0), departure: Date(timeIntervalSince1970: 900),
+                distanceFromStartMeters: 0,
+                fuelPurchase: FuelPurchase(gallons: 10.5, pricePerGallon: 4.19, isPriceEstimated: false, grade: grade, isGradeConfirmed: true),
+                dayIndex: 0
+            )
+            return StopPresentation(stop: stop, formatters: formatters).detail ?? ""
+        }
+        #expect(detail(.premium).hasPrefix("Fill about 10.5 gal of Premium 91+ · E10 at "), "\(detail(.premium))")
+        #expect(detail(.premium).contains("4.19/gal"))
+        #expect(detail(.e85).contains("of Flex fuel · E85"))
+        #expect(detail(.any).hasPrefix("Fill about 10.5 gal at "), "any grade: just the cheapest")
+        #expect(detail(nil).contains("Fill about 10.5 gal at"), "plans saved before grades")
+    }
+
     @Test("Every maneuver has a banner symbol")
     func maneuverSymbols() {
         for maneuver in Maneuver.allCases { #expect(!maneuver.symbolName.isEmpty) }

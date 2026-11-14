@@ -49,11 +49,16 @@ public struct FakePlaceSearchProvider: PlaceSearchProvider {
     public var density: SyntheticPlaces.Density
     public var failingCategories: Set<PlaceCategory>
     public var seed: UInt64
+    public var fuelMix: SyntheticPlaces.FuelMix
 
-    public init(density: SyntheticPlaces.Density = .interstate, failingCategories: Set<PlaceCategory> = [], seed: UInt64 = 7) {
+    public init(
+        density: SyntheticPlaces.Density = .interstate, failingCategories: Set<PlaceCategory> = [], seed: UInt64 = 7,
+        fuelMix: SyntheticPlaces.FuelMix = .typical
+    ) {
         self.density = density
         self.failingCategories = failingCategories
         self.seed = seed
+        self.fuelMix = fuelMix
     }
 
     public struct SearchFailed: Error {
@@ -71,7 +76,7 @@ public struct FakePlaceSearchProvider: PlaceSearchProvider {
         }
         // Seed by section start so repeated searches return the same places.
         let sectionSeed = seed &+ UInt64(abs(Int(coordinates.first.map { $0.latitude * 1_000 + $0.longitude * 10 } ?? 0)))
-        return SyntheticPlaces.along(profile, category: search.category, everyMinutes: every, seed: sectionSeed)
+        return SyntheticPlaces.along(profile, category: search.category, everyMinutes: every, seed: sectionSeed, fuelMix: fuelMix)
     }
 }
 

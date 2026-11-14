@@ -143,9 +143,11 @@ public struct FeasibilityPlanner: Sendable {
             ))
         }
         if schedule.stops.contains(where: { $0.candidate.isRoadsidePullOff && isRefuel($0.action) }) {
+            let grade = problem.vehicle.fuelType
+            let station = grade == .any ? "gas station" : "station selling \(grade == .diesel ? "diesel" : grade.title)"
             warnings.append(PlanWarning(
                 code: .fuelGap,
-                message: "Part of the route has no known gas station within your range. Fill up early and carry extra fuel."
+                message: "Part of the route has no known \(station) within your range. Fill up early and carry extra fuel."
             ))
         }
         return warnings

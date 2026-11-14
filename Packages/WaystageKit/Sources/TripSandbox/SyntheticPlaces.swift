@@ -19,6 +19,27 @@ public enum SyntheticPlaces {
         public static let interstate = Density()
     }
 
+    /// Which grades synthetic gas stations sell, roughly as in Google's US station data.
+    public struct FuelMix: Hashable, Sendable {
+        /// Share of stations that list their grades and prices (the others list nothing).
+        public var reporting: Double
+        /// Of those, the share selling each grade (all sell regular).
+        public var midgrade: Double
+        public var premium: Double
+        public var diesel: Double
+        public var e85: Double
+
+        public init(reporting: Double, midgrade: Double, premium: Double, diesel: Double, e85: Double) {
+            self.reporting = reporting
+            self.midgrade = midgrade
+            self.premium = premium
+            self.diesel = diesel
+            self.e85 = e85
+        }
+
+        public static let typical = FuelMix(reporting: 0.75, midgrade: 0.85, premium: 0.9, diesel: 0.55, e85: 0.25)
+    }
+
     /// Places for one category along `profile`, offset slightly from the road.
     ///
     /// Prices vary deterministically with `seed` so "cheapest" and "fastest" plans differ.
@@ -28,7 +49,8 @@ public enum SyntheticPlaces {
         everyMinutes: Double,
         seed: UInt64 = 1,
         utcOffsetMinutes: ((GeoCoordinate) -> Int)? = nil,
-        withinTime: ClosedRange<TimeInterval>? = nil
+        withinTime: ClosedRange<TimeInterval>? = nil,
+        fuelMix: FuelMix = .typical
     ) -> [FoundPlace] {
         var generator = SeededGenerator(seed: seed &+ UInt64(category.hashValueStable))
         var result: [FoundPlace] = []
@@ -61,10 +83,7 @@ public enum SyntheticPlaces {
                 result.append(FoundPlace(
                     place: place,
                     categories: [.fuel],
-                    fuelPrices: [
-                        .regular: rounded(base), .midgrade: rounded(base + 0.45),
-                        .premium: rounded(base + 0.85), .diesel: rounded(base + 0.4),
-                    ],
+                    fuelPrices: grades(base: base, mix: fuelMix, seed: seed &+ UInt64(index) &* 7_919),
                     rating: Double.random(in: 3.2...4.6, using: &generator),
                     detourDuration: detour,
                     detourDistance: 2 * offset * 1.3
@@ -89,6 +108,19 @@ public enum SyntheticPlaces {
             }
         }
         return result
+    }
+
+    /// The grades a station lists (none for a station that doesn't publish them). Drawn from its
+    /// own generator so the rest of the synthetic data doesn't change with the mix.
+    static func grades(base: Double, mix: FuelMix, seed: UInt64) -> [FuelType: Double] {
+        var generator = SeededGenerator(seed: seed)
+        guard Double.random(in: 0..<1, using: &generator) < mix.reporting else { return [:] }
+        var prices: [FuelType: Double] = [.regular: rounded(base)]
+        if Double.random(in: 0..<1, using: &generator) < mix.midgrade { prices[.midgrade] = rounded(base + 0.45) }
+        if Double.random(in: 0..<1, using: &generator) < mix.premium { prices[.premium] = rounded(base + 0.85) }
+        if Double.random(in: 0..<1, using: &generator) < mix.diesel { prices[.diesel] = rounded(base + 0.4) }
+        if Double.random(in: 0..<1, using: &generator) < mix.e85 { prices[.e85] = rounded(base - 0.55) }
+        return prices
     }
 
     /// All categories at the given density.

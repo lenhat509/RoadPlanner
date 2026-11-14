@@ -12,7 +12,9 @@ public struct PricingDefaults: Hashable, Sendable {
     public var unknownNightlyRate: Double
 
     public init(
-        fuelPricePerGallon: [FuelType: Double] = [.regular: 3.35, .midgrade: 3.85, .premium: 4.25, .diesel: 3.85],
+        fuelPricePerGallon: [FuelType: Double] = [
+            .any: 3.35, .regular: 3.35, .midgrade: 3.85, .premium: 4.25, .e85: 2.95, .diesel: 3.85,
+        ],
         nightlyRateByPriceLevel: [PriceLevel: Double] = [
             .free: 0, .inexpensive: 95, .moderate: 145, .expensive: 225, .veryExpensive: 360,
         ],
