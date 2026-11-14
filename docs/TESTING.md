@@ -18,7 +18,7 @@ in [`test-logs/TEST_LOG.md`](../test-logs/TEST_LOG.md).
 | Gateway | `Backend/gateway/test` | Vitest | Expedia signature (independent vector), Rapid client, lodging service, EIA client, PADD mapping, cache, HTTP API (auth, validation, errors, rate limit), config | Node 22 |
 
 Current counts: **241** core tests (35 suites, more with parameterized cases), **66** gateway
-tests, **25** app unit tests, **12** UI tests + 2 screenshot tests (light and dark).
+tests, **26** app unit tests, **12** UI tests + 3 screenshot tests (light, dark and the launch intro).
 
 ## Running tests
 

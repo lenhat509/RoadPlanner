@@ -7,6 +7,9 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- A two-second opening when the app launches: the icon's scene comes to life (the sun rises,
+  the road draws to the horizon, the stops appear along it, then the name), then it fades to
+  Home. Tap to skip; with Reduce Motion it simply fades.
 - **Route choices.** A search now looks for up to three noticeably different, reasonable routes
   (e.g. San Jose → Denver through Salt Lake City or through Las Vegas, but not through Idaho),
   each with its own breaks, fuel stops and nights. The map shows them all, the chosen one in

@@ -13,4 +13,7 @@ enum LaunchArgument {
     /// Simulated car drives a short way into each leg and parks, so drive mode holds still for a
     /// capture (screenshot runs); otherwise it drives very fast so tests reach stops quickly.
     static let screenshotPace = "-ScreenshotPace"
+    /// Plays the launch intro in the sandbox and holds its last scene a few seconds, so a
+    /// screenshot can capture it (UI tests otherwise skip the intro).
+    static let showIntro = "-ShowIntro"
 }

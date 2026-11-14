@@ -109,6 +109,19 @@ final class ScreenshotTests: XCTestCase {
         capture("06-Preview")
     }
 
+    /// The launch intro's finished scene (held for the capture), then Home after it.
+    func testCaptureLaunchIntro() {
+        app.launchArguments = [LaunchArgument.uiTestSandbox, LaunchArgument.resetState, LaunchArgument.showIntro]
+        app.launch()
+        Thread.sleep(forTimeInterval: 1.5) // the intro builds in ~1.7 s, then holds
+        capture("07-Intro")
+        let plan = app.buttons[AccessibilityID.Home.planTrip]
+        XCTAssertTrue(plan.waitForExistence(timeout: 10))
+        let deadline = Date().addingTimeInterval(10)
+        while !plan.isHittable && Date() < deadline { Thread.sleep(forTimeInterval: 0.5) }
+        XCTAssertTrue(plan.isHittable, "Home is usable once the intro has gone")
+    }
+
     func testCaptureDarkModeScreenshots() {
         launch(dark: true)
         XCTAssertTrue(app.buttons[AccessibilityID.Home.planTrip].waitForExistence(timeout: 5))

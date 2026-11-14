@@ -47,6 +47,16 @@ struct AppEnvironmentTests {
         #expect(environment.dependencies.speech is SpeechAnnouncer)
     }
 
+    @Test("The launch intro plays for people, not for UI tests")
+    func launchIntro() {
+        #expect(LaunchIntroView.isShown(in: .production))
+        #expect(LaunchIntroView.isShown(in: .demo))
+        #expect(!LaunchIntroView.isShown(in: .uiTest))
+        #expect(LaunchIntroView.isShown(in: .uiTest, arguments: [LaunchArgument.showIntro]), "a screenshot run can ask for it")
+        #expect(LaunchIntroView.hold(arguments: []) < 1, "about two seconds in all")
+        #expect(LaunchIntroView.hold(arguments: [LaunchArgument.showIntro]) >= 3)
+    }
+
     @Test("Drive mode presentation state")
     func driveState() async throws {
         let environment = AppEnvironment.make(arguments: [LaunchArgument.uiTestSandbox, LaunchArgument.resetState], configuration: unconfigured)
