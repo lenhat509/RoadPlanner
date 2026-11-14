@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Release builds take the Google key and gateway settings from their own GitHub secrets
+  (`GOOGLE_MAPS_API_KEY`, `WAYSTAGE_GATEWAY_URL`, `WAYSTAGE_GATEWAY_TOKEN`) and the bundle and
+  team IDs from repository variables, instead of one `SECRETS_XCCONFIG` secret holding a file.
+  The setup docs now say keys go in GitHub, never in a file in the repository.
+
 ### Removed
 - The browser-preview workflow. TestFlight replaces it, and it published the built app (with the
   Google Maps key inside) as a downloadable file on each run; those runs and files are deleted.

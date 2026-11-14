@@ -124,13 +124,13 @@ platform :ios do
   # may run without the gateway (hotel rates and fuel averages then fall back to estimates).
   private_lane :verify_release_configuration do |options|
     secrets = File.expand_path("../Config/Secrets.xcconfig", __dir__)
-    UI.user_error!("Config/Secrets.xcconfig is missing (copy Secrets.example.xcconfig)") unless File.exist?(secrets)
+    UI.user_error!("Config/Secrets.xcconfig is missing (the Release workflow writes it from the repository's secrets)") unless File.exist?(secrets)
     content = File.read(secrets)
     required = %w[GOOGLE_MAPS_API_KEY WAYSTAGE_BUNDLE_ID WAYSTAGE_TEAM_ID]
     required += %w[WAYSTAGE_GATEWAY_URL WAYSTAGE_GATEWAY_TOKEN] if options[:require_gateway]
     required.each do |key|
-      value = content[/^\s*#{key}\s*=\s*(\S.*)$/, 1].to_s.strip
-      UI.user_error!("#{key} is not set in Config/Secrets.xcconfig") if value.empty? || value.include?("...")
+      value = content[/^[ \t]*#{key}[ \t]*=[ \t]*(\S.*)$/, 1].to_s.strip
+      UI.user_error!("#{key} is not set: add it under Settings → Secrets and variables → Actions (see docs/API_KEYS.md)") if value.empty? || value.include?("...")
     end
   end
 end

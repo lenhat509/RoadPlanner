@@ -48,8 +48,9 @@ open Waystage.xcodeproj
 ```
 
 Without an API key the app runs in **demo mode** on offline data, so it builds and runs out
-of the box. For real trips add the keys described in [docs/API_KEYS.md](docs/API_KEYS.md) to
-`Config/Secrets.xcconfig` (git-ignored).
+of the box. For real trips, see [docs/API_KEYS.md](docs/API_KEYS.md): keys are saved as GitHub
+Actions secrets (builds on GitHub need no Mac), or, on your own Mac, in the git-ignored
+`Config/Secrets.xcconfig`.
 
 ## Testing
 

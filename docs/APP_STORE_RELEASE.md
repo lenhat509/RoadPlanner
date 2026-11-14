@@ -21,9 +21,10 @@ To do:
       ("Waystage: Road Trip Planner"); otherwise the first upload renames it. The name under the
       icon is "Waystage" either way.
 - [ ] Create a new Google Maps key, restricted to the bundle ID and the three APIs, with quotas
-      and a budget alert, then delete the old key (copies of it were downloadable from the former
-      preview builds). See [API_KEYS.md](API_KEYS.md).
-- [ ] Add the GitHub secrets and variables for the Release workflow
+      and a budget alert; save it as the `GOOGLE_MAPS_API_KEY` secret; then delete the old key
+      in Google Cloud (copies of it were downloadable from the former preview builds) and the
+      old `SECRETS_XCCONFIG` secret on GitHub. See [API_KEYS.md](API_KEYS.md).
+- [ ] Add the other GitHub secrets and variables for the Release workflow
       ([TRY_ON_IPHONE.md](TRY_ON_IPHONE.md#github-secrets-and-variables)).
 - [ ] First TestFlight build: **Actions → Release**, lane `beta`, with **create_certificates**
       ticked (first run only; it creates the signing certificate and profile).

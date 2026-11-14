@@ -22,6 +22,10 @@ jobs:
     runs-on: macos-15
     environment: app-store
     timeout-minutes: 120
+    env:
+      # Repository variables made before the rename used the CADENCE_ prefix.
+      WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
+      WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
@@ -33,10 +37,24 @@ jobs:
           bundler-cache: true
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Write build secrets
+      - name: Hand the key and IDs to the build
+        # The build reads them from Config/Secrets.xcconfig, which exists only on this temporary
+        # machine: it is written here from the repository's secrets and variables, is git-ignored,
+        # is never uploaded, and is deleted with the machine when the job ends.
         env:
-          SECRETS_XCCONFIG: ${{ secrets.SECRETS_XCCONFIG }}
-        run: printf '%s\n' "$SECRETS_XCCONFIG" > Config/Secrets.xcconfig
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          WAYSTAGE_GATEWAY_URL: ${{ secrets.WAYSTAGE_GATEWAY_URL }}
+          WAYSTAGE_GATEWAY_TOKEN: ${{ secrets.WAYSTAGE_GATEWAY_TOKEN }}
+        run: |
+          setting() { [ -n "$2" ] && printf '%s = %s\n' "$1" "$2"; return 0; }
+          {
+            setting WAYSTAGE_BUNDLE_ID "$WAYSTAGE_BUNDLE_ID"
+            setting WAYSTAGE_TEAM_ID "$WAYSTAGE_TEAM_ID"
+            setting GOOGLE_MAPS_API_KEY "$GOOGLE_MAPS_API_KEY"
+            # xcconfig treats "//" as the start of a comment; "$()" keeps the URL whole.
+            setting WAYSTAGE_GATEWAY_URL "$(printf '%s' "$WAYSTAGE_GATEWAY_URL" | sed 's#//#/$()/#g')"
+            setting WAYSTAGE_GATEWAY_TOKEN "$WAYSTAGE_GATEWAY_TOKEN"
+          } > Config/Secrets.xcconfig
       - name: Test before shipping
         if: ${{ inputs.run_tests }}
         run: scripts/test-all.sh ios
@@ -48,9 +66,6 @@ jobs:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          # Repository variables made before the rename used the CADENCE_ prefix.
-          WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
-          WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
           MATCH_READONLY: ${{ inputs.create_certificates && 'false' || 'true' }}
         run: |
           # The release lane captures App Store screenshots on the newest 6.9-inch (Pro Max) iPhone.

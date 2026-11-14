@@ -24,9 +24,10 @@ them (or share them).
 ### One-time Apple setup
 
 1. Join the **Apple Developer Program**: <https://developer.apple.com/programs/>.
-2. **Certificates, IDs & Profiles → Identifiers → +** → App ID, e.g. `com.yourname.waystage`.
+2. **Certificates, IDs & Profiles → Identifiers → +** → App ID, e.g. `com.waystage.waystage`
+   (no capabilities needed).
 3. **App Store Connect → Apps → +** → New App: iOS, name (must be unique, e.g.
-   "Waystage Road Trip <yourname>"), the bundle ID above, any SKU.
+   "Waystage: Road Trip Planner"), the bundle ID above, SKU e.g. `waystage-ios`, Full Access.
 4. **App Store Connect → Users and Access → Integrations → App Store Connect API → +**: role
    *App Manager*. Download the `.p8` file (only once!) and note the **Key ID** and **Issuer ID**.
 5. Create an **empty private** GitHub repository for signing certificates, e.g.
@@ -36,30 +37,23 @@ them (or share them).
 
 ### GitHub secrets and variables
 
-**Settings → Secrets and variables → Actions**
+Everything goes in GitHub, under **Settings → Secrets and variables → Actions**: secrets on the
+*Secrets* tab, variables on the *Variables* tab. Nothing goes in a file in the repository.
 
 | Kind | Name | Value |
 |---|---|---|
+| Secret | `GOOGLE_MAPS_API_KEY` | your Google Maps key ([API_KEYS.md](API_KEYS.md)) |
 | Secret | `ASC_KEY_ID` | Key ID from step 4 |
 | Secret | `ASC_ISSUER_ID` | Issuer ID from step 4 |
 | Secret | `ASC_KEY_CONTENT` | base64 of the `.p8` file (`base64 -i AuthKey_XXXX.p8`, or any base64 tool) |
 | Secret | `MATCH_GIT_URL` | `https://github.com/<you>/RoadPlanner-certificates.git` |
 | Secret | `MATCH_PASSWORD` | a new strong passphrase (encrypts the certificates; keep it) |
 | Secret | `MATCH_GIT_BASIC_AUTHORIZATION` | base64 of `<github-username>:<token from step 5>` |
-| Secret | `SECRETS_XCCONFIG` | see below |
-| Variable | `WAYSTAGE_BUNDLE_ID` | e.g. `com.yourname.waystage` |
+| Variable | `WAYSTAGE_BUNDLE_ID` | your bundle ID, e.g. `com.waystage.waystage` |
 | Variable | `WAYSTAGE_TEAM_ID` | your Team ID |
+| Secret (optional) | `WAYSTAGE_GATEWAY_URL`, `WAYSTAGE_GATEWAY_TOKEN` | only once the gateway is deployed |
 
-`SECRETS_XCCONFIG` (same format as `Config/Secrets.example.xcconfig`):
-
-```
-WAYSTAGE_BUNDLE_ID = com.yourname.waystage
-WAYSTAGE_TEAM_ID = ABCDE12345
-GOOGLE_MAPS_API_KEY = AIza...
-// Optional until the gateway is deployed:
-WAYSTAGE_GATEWAY_URL =
-WAYSTAGE_GATEWAY_TOKEN =
-```
+If an older `SECRETS_XCCONFIG` secret is listed, delete it: nothing uses it any more.
 
 Never paste these values into issues, chats or commits.
 
