@@ -31,7 +31,9 @@ platform :ios do
     )
   end
 
-  desc "Captures the App Store screenshots (00-Home … 06-Preview) from the UI-test sandbox"
+  # Offline sandbox data (made-up places, simplified routes): for checking the design, never for
+  # the App Store, whose screenshots come from the real app (see docs/APP_STORE_RELEASE.md).
+  desc "Captures review screenshots (00-Home … 06-Preview) from the offline UI-test sandbox"
   lane :screenshots do
     result_path = File.expand_path("screenshots/Screenshots.xcresult", __dir__)
     output_path = File.expand_path("screenshots/en-US", __dir__)
@@ -81,21 +83,18 @@ platform :ios do
     upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
   end
 
-  desc "Uploads the listing, screenshots, review notes and age rating to App Store Connect (does not submit by default)"
+  desc "Uploads the listing, review notes and age rating to App Store Connect (does not submit by default)"
   lane :release do |options|
     # No build happens here: the app that goes to the store is the TestFlight build from `beta`,
-    # which checks its own configuration. Screenshots come from the offline UI-test sandbox.
-    # Screenshots aren't committed. The Release workflow captures them for both iPhone sizes before
-    # this lane; on a Mac without a set, capture one here.
-    screenshots if Dir.glob(File.expand_path("screenshots/en-US/*.{png,jpg}", __dir__)).empty?
+    # which checks its own configuration. Screenshots are taken on a real iPhone with real Google
+    # data and uploaded in App Store Connect by hand, so this lane leaves them alone.
     api_key = asc_api_key
     deliver(
       api_key: api_key,
       app_version: marketing_version,
       skip_binary_upload: true,
       metadata_path: "fastlane/metadata",
-      screenshots_path: "fastlane/screenshots",
-      overwrite_screenshots: true, # replace the set each time instead of adding to it
+      skip_screenshots: true,
       app_rating_config_path: "fastlane/app_rating_config.json",
       submit_for_review: options[:submit] == true,
       automatic_release: false,

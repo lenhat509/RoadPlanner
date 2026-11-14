@@ -67,10 +67,27 @@ Export compliance: `ITSAppUsesNonExemptEncryption = NO` (HTTPS only).
 3. **Actions → Release**, lane `beta`. Test the TestFlight build on your iPhone in a real car,
    with a passenger operating the phone: planning, voice guidance with the screen locked,
    arrival at a stop, "Continue to next stop", resume after force-quitting, rerouting.
-4. **Actions → Release**, lane `release`. It captures the screenshots for both iPhone slots
-   (6.1/6.3-inch and 6.9-inch) and uploads them with the listing, review notes and age rating,
-   replacing the previous set. Then, in App Store Connect, select the build and submit it for
-   review.
+4. **Actions → Release**, lane `release`. It uploads the listing, review notes and age rating.
+5. **Screenshots**, the first time and when the app looks different: take them on your iPhone with
+   the TestFlight build, planning a real trip (real Google routes, places and prices), and upload
+   them in App Store Connect → the version → **Previews and Screenshots** (see below).
+6. In App Store Connect, select the build and submit it for review.
+
+## Screenshots
+
+Taken by hand on a real iPhone, with real data: the offline UI-test sandbox (made-up places,
+simplified routes) is for checking the design, not for the store (guideline 2.3.3: screenshots
+show the app in use).
+
+* Up to 10; the first 2–3 matter most. A good set: the plan form, the route choices on the map,
+  a plan's timeline with its stops, a stop's details, and the drive screen.
+* Press the side button and volume up together. Hide personal things first (your home address,
+  notifications); a full battery and good signal look tidier.
+* Drive-screen shots: parked, or by a passenger. Never while driving.
+* Sizes: the main slot ("iPhone with Dynamic Island, medium display") takes 1179 × 2556 or
+  1206 × 2622, what an iPhone 14 Pro, 15, 15 Pro, 16, 16 Pro, 17 or 17 Pro produces. Pro Max
+  and Plus models produce the larger size, which goes in the 6.9-inch slot under **View All Sizes
+  in Media Manager**; the store scales down from it.
 
 ## Guideline notes
 

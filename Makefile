@@ -47,11 +47,11 @@ format: ## SwiftFormat
 icon: ## Regenerate the App Store icon
 	python3 scripts/generate_app_icon.py
 
-screenshots: ## Capture App Store screenshots (macOS)
+screenshots: ## Capture sandbox screenshots for design review (macOS; not for the App Store)
 	bundle exec fastlane screenshots
 
 beta: ## Build and upload to TestFlight
 	bundle exec fastlane beta
 
-release: ## Upload metadata + screenshots for App Review
+release: ## Upload the listing, review notes and age rating to App Store Connect
 	bundle exec fastlane release

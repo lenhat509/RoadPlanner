@@ -1,6 +1,4 @@
-Screenshots are generated, not hand-made: the Release workflow's `release` lane captures them
-before uploading (on a Mac: `make screenshots`). The UI-test sandbox plans a Los Angeles → New York
-trip offline and captures the home screen, plan form, plan comparison, timeline, drive mode,
-arrival and next-leg preview (00-Home … 06-Preview). On GitHub it captures them on the newest
-iPhone Pro (6.1/6.3-inch slot) and Pro Max (6.9-inch slot) as JPEGs; `make screenshots` on a Mac
-uses one 6.9-inch iPhone.
+Not App Store screenshots. `make screenshots` (macOS) captures the offline UI-test sandbox
+(made-up places, simplified routes) to check the design; the Screenshots workflow does the same on
+GitHub. App Store screenshots are taken on a real iPhone with real data and uploaded in App Store
+Connect: see docs/APP_STORE_RELEASE.md#screenshots.
