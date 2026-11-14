@@ -23,9 +23,10 @@ jobs:
     environment: app-store
     timeout-minutes: 120
     env:
-      # Repository variables made before the rename used the CADENCE_ prefix.
-      WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
-      WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
+      # From the Variables tab, or the Secrets tab if they were saved there. Names from before the
+      # rename used the CADENCE_ prefix.
+      WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || secrets.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
+      WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || secrets.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
@@ -55,6 +56,10 @@ jobs:
             setting WAYSTAGE_GATEWAY_URL "$(printf '%s' "$WAYSTAGE_GATEWAY_URL" | sed 's#//#/$()/#g')"
             setting WAYSTAGE_GATEWAY_TOKEN "$WAYSTAGE_GATEWAY_TOKEN"
           } > Config/Secrets.xcconfig
+          # Which settings arrived (names only, never values).
+          for name in WAYSTAGE_BUNDLE_ID WAYSTAGE_TEAM_ID GOOGLE_MAPS_API_KEY WAYSTAGE_GATEWAY_URL WAYSTAGE_GATEWAY_TOKEN; do
+            if [ -n "${!name}" ]; then echo "set:     $name"; else echo "not set: $name"; fi
+          done
       - name: Test before shipping
         if: ${{ inputs.run_tests }}
         run: scripts/test-all.sh ios

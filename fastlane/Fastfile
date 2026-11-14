@@ -128,9 +128,14 @@ platform :ios do
     content = File.read(secrets)
     required = %w[GOOGLE_MAPS_API_KEY WAYSTAGE_BUNDLE_ID WAYSTAGE_TEAM_ID]
     required += %w[WAYSTAGE_GATEWAY_URL WAYSTAGE_GATEWAY_TOKEN] if options[:require_gateway]
-    required.each do |key|
+    missing = required.select do |key|
       value = content[/^[ \t]*#{key}[ \t]*=[ \t]*(\S.*)$/, 1].to_s.strip
-      UI.user_error!("#{key} is not set: add it under Settings → Secrets and variables → Actions (see docs/API_KEYS.md)") if value.empty? || value.include?("...")
+      value.empty? || value.include?("...")
+    end
+    unless missing.empty?
+      UI.user_error!("Not set: #{missing.join(", ")}. Add them in GitHub under Settings → Secrets and variables → " \
+                     "Actions: WAYSTAGE_BUNDLE_ID and WAYSTAGE_TEAM_ID on the Variables tab, the others on the " \
+                     "Secrets tab (see docs/API_KEYS.md).")
     end
   end
 end
