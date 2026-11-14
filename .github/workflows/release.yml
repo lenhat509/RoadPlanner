@@ -21,7 +21,7 @@ jobs:
   release:
     runs-on: macos-15
     environment: app-store
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
@@ -52,4 +52,7 @@ jobs:
           WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
           WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
           MATCH_READONLY: ${{ inputs.create_certificates && 'false' || 'true' }}
-        run: bundle exec fastlane ${{ inputs.lane }}
+        run: |
+          # The release lane captures App Store screenshots on the newest 6.9-inch (Pro Max) iPhone.
+          export SCREENSHOT_DEVICE="$(xcrun simctl list devices available | grep -Eo 'iPhone [0-9]+ Pro Max' | sort -V | tail -1)"
+          bundle exec fastlane ${{ inputs.lane }}

@@ -2,30 +2,43 @@
 
 ## One-time setup
 
-- [ ] Choose the final app name and check availability in App Store Connect (current:
-      "Waystage: Road Trip Planner"; edit `fastlane/metadata/en-US/name.txt` and
-      `CFBundleDisplayName` in `App/Resources/Info.plist`).
-- [ ] Register the bundle ID; create the app record in App Store Connect
-      (category: Navigation, secondary: Travel).
-- [ ] Configure keys — [API_KEYS.md](API_KEYS.md). Release builds refuse to proceed if the Google
-      key or gateway are missing (`verify_release_configuration` lane), so production never ships
-      in demo mode.
-- [ ] Deploy the gateway (`Backend/gateway/README.md`).
-- [ ] Publish the website (privacy policy, support, terms): set `contactEmail` in
-      `site/site.json`, then in the repository's Settings → Pages choose Source **GitHub Actions**.
-      The **Website** workflow builds the pages from [PRIVACY_POLICY.md](PRIVACY_POLICY.md),
-      [SUPPORT.md](SUPPORT.md) and [TERMS_OF_USE.md](TERMS_OF_USE.md) (`scripts/build_site.py`)
-      and publishes them at https://lenhat509.github.io/RoadPlanner/ (`privacy/`, `support/`,
-      `terms/`), the URLs already used in `fastlane/metadata/en-US/*_url.txt` and `AppLinks`. For
-      a custom domain later, add it under Settings → Pages and update those URLs.
-- [ ] Enter the App Review contact (name, phone, email) in App Store Connect → your app → the
-      version → **App Review Information**. Only Apple sees it, but this repository is public, so
-      it isn't kept here: fastlane uploads the review notes and leaves the contact as you set it
-      (the contact files are git-ignored if you'd rather keep them locally).
-- [ ] `fastlane match appstore` once to create certificates and profiles.
-- [ ] Add repository secrets for `.github/workflows/release.yml`: `SECRETS_XCCONFIG`,
-      `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_CONTENT`, `MATCH_GIT_URL`, `MATCH_PASSWORD`,
-      `MATCH_GIT_BASIC_AUTHORIZATION`; variables `WAYSTAGE_BUNDLE_ID`, `WAYSTAGE_TEAM_ID`.
+Status as of November 14, 2026. Everything runs on GitHub's Mac machines, so no Mac is needed.
+
+Done:
+
+- [x] Join the Apple Developer Program.
+- [x] Register the bundle ID (no capabilities needed: background location and audio are declared
+      in `Info.plist`) and create the app in App Store Connect. The categories (Navigation, then
+      Travel) are uploaded by fastlane.
+- [x] Publish the website (privacy policy, support, terms) at
+      https://lenhat509.github.io/RoadPlanner/. The **Website** workflow rebuilds it whenever
+      [PRIVACY_POLICY.md](PRIVACY_POLICY.md), [SUPPORT.md](SUPPORT.md),
+      [TERMS_OF_USE.md](TERMS_OF_USE.md) or `site/site.json` change.
+
+To do:
+
+- [ ] Check that the app name in App Store Connect matches `fastlane/metadata/en-US/name.txt`
+      ("Waystage: Road Trip Planner"); otherwise the first upload renames it. The name under the
+      icon is "Waystage" either way.
+- [ ] Create a new Google Maps key, restricted to the bundle ID and the three APIs, with quotas
+      and a budget alert, then delete the old key (copies of it were downloadable from the former
+      preview builds). See [API_KEYS.md](API_KEYS.md).
+- [ ] Add the GitHub secrets and variables for the Release workflow
+      ([TRY_ON_IPHONE.md](TRY_ON_IPHONE.md#github-secrets-and-variables)).
+- [ ] First TestFlight build: **Actions → Release**, lane `beta`, with **create_certificates**
+      ticked (first run only; it creates the signing certificate and profile).
+- [ ] In App Store Connect:
+  - [ ] **App Review Information** on the version page: your name, phone and email. Only Apple
+        sees it, so it isn't kept in this public repository; fastlane uploads the review notes
+        and leaves the contact as you set it.
+  - [ ] **App Privacy**: answer as in the table below.
+  - [ ] **Pricing and Availability**: Free. Prices, fuel grades and units are for the US, so start
+        with the United States.
+- [ ] Decide on the gateway (`Backend/gateway/README.md`): live hotel rates (Expedia Rapid,
+      which needs partner approval) and regional fuel averages (EIA). TestFlight builds work
+      without it, using estimates; the `release` lane currently refuses to run until
+      `WAYSTAGE_GATEWAY_URL` and `WAYSTAGE_GATEWAY_TOKEN` are set.
+- [ ] Have a lawyer review the points under [Legal and disclaimers](#legal-and-disclaimers).
 
 ## App Privacy ("nutrition label") answers
 
@@ -42,21 +55,21 @@ privacy manifest.
 
 ## Review notes
 
-`fastlane/metadata/review_information/notes.txt` explains the flow and why background location is
-used (voice guidance during an active trip). Background modes declared: `location`, `audio`.
+`fastlane/metadata/review_information/notes.txt` (uploaded by the `release` lane) explains the
+flow and why background location is used (voice guidance during an active trip). Background modes declared: `location`, `audio`.
 Export compliance: `ITSAppUsesNonExemptEncryption = NO` (HTTPS only).
 
 ## Each release
 
 1. Update `CHANGELOG.md`, `MARKETING_VERSION` in `project.yml`, and
-   `fastlane/metadata/en-US/release_notes.txt`.
-2. `make test` on a Mac — all suites green and logged.
-3. `make screenshots` (6.9-inch iPhone; review the PNGs in `fastlane/screenshots/en-US`).
-4. `make beta` → test the TestFlight build on a real device and in a real car (passenger
-   operating the phone): planning, voice guidance with the screen locked, arrival detection,
-   "Continue to next stop", resume after force-quit, reroute.
-5. `make release` (uploads metadata and screenshots; select the build and submit in App Store
-   Connect, or `bundle exec fastlane release submit:true`).
+   `fastlane/metadata/en-US/release_notes.txt`, and push to `main`.
+2. Wait for the **CI** workflow to pass (every test suite, including the UI tests).
+3. **Actions → Release**, lane `beta`. Test the TestFlight build on your iPhone in a real car,
+   with a passenger operating the phone: planning, voice guidance with the screen locked,
+   arrival at a stop, "Continue to next stop", resume after force-quitting, rerouting.
+4. **Actions → Release**, lane `release`. It captures the 6.9-inch screenshots and uploads them
+   with the listing and review notes. Then, in App Store Connect, select the build and submit it
+   for review.
 
 ## Guideline notes
 

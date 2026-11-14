@@ -65,8 +65,9 @@ XCUITests drive the real app in an offline sandbox. Every run is recorded in
 
 ## Shipping
 
-See [docs/APP_STORE_RELEASE.md](docs/APP_STORE_RELEASE.md): `make screenshots`, `make beta`
-(TestFlight), `make release` (App Store submission), or the manual *Release* GitHub workflow.
+See [docs/APP_STORE_RELEASE.md](docs/APP_STORE_RELEASE.md). The manual *Release* GitHub workflow
+runs lane `beta` (TestFlight) or `release` (screenshots, listing and review notes for App Store
+submission); on a Mac, `make beta` and `make release` do the same.
 
 ## Third-party services
 

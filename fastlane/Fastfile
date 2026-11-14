@@ -11,7 +11,8 @@ default_platform(:ios)
 
 PROJECT = "Waystage.xcodeproj"
 SCHEME = "Waystage"
-SCREENSHOT_DEVICE = ENV.fetch("SCREENSHOT_DEVICE", "iPhone 16 Pro Max") # 6.9-inch display
+# A 6.9-inch iPhone, the size App Store Connect asks for (CI passes its newest Pro Max).
+SCREENSHOT_DEVICE = ENV["SCREENSHOT_DEVICE"].to_s.empty? ? "iPhone 16 Pro Max" : ENV["SCREENSHOT_DEVICE"]
 
 platform :ios do
   before_all do
@@ -30,7 +31,7 @@ platform :ios do
     )
   end
 
-  desc "Captures App Store screenshots from the UI-test sandbox"
+  desc "Captures the App Store screenshots (00-Home … 06-Preview) from the UI-test sandbox"
   lane :screenshots do
     result_path = File.expand_path("screenshots/Screenshots.xcresult", __dir__)
     output_path = File.expand_path("screenshots/en-US", __dir__)
@@ -40,7 +41,8 @@ platform :ios do
       project: PROJECT,
       scheme: SCHEME,
       device: SCREENSHOT_DEVICE,
-      only_testing: ["WaystageUITests/ScreenshotTests"],
+      # The dark-mode and intro captures are for design review (the Screenshots workflow).
+      only_testing: ["WaystageUITests/ScreenshotTests/testCaptureAppStoreScreenshots"],
       result_bundle_path: result_path,
       xcargs: "CODE_SIGNING_ALLOWED=NO"
     )
@@ -80,6 +82,8 @@ platform :ios do
   desc "Uploads metadata, screenshots and the latest build for App Review (does not submit by default)"
   lane :release do |options|
     verify_release_configuration(require_gateway: true)
+    # Screenshots aren't committed: capture them unless this checkout already has a set.
+    screenshots if Dir.glob(File.expand_path("screenshots/en-US/*.png", __dir__)).empty?
     api_key = asc_api_key
     deliver(
       api_key: api_key,
