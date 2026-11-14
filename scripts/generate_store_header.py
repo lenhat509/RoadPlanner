@@ -2,9 +2,10 @@
 """Renders the App Store product-page header in both accepted sizes (RGB, no alpha).
 
 One long driving day as a panorama: daylight on the left turns to sunset in the middle and night
-on the right. A road winds from the foreground into the distance, and the trip's stops stand along
-it as pins in the app's stop colours: a break, fuel, and a motel lit up for the night. There's no
-text, and the stops sit in the middle so the App Store can crop the sides for each device.
+on the right. A road winds from the foreground into the distance, toward a city lit up on the horizon (the
+destination). The trip's stops are places beside the road, each with a driveway: a rest area, a
+gas station and a motel for the night; their markers stand on the road as pins in the app's stop
+colours. There's no text, and the stops sit in the middle so the App Store can crop the sides.
 
 Usage: python3 scripts/generate_store_header.py [output-directory]
 """
@@ -34,8 +35,8 @@ LINE = (246, 196, 106)
 WINDOW = (255, 214, 140)
 WHITE = (255, 255, 255)
 STOPS = [  # (position along the road, colour, glyph)
-    (0.36, (0, 158, 115), "rest"),
-    (0.57, (230, 159, 0), "fuel"),
+    (0.30, (0, 158, 115), "rest"),
+    (0.56, (230, 159, 0), "fuel"),
     (0.77, (204, 121, 167), "bed"),
 ]
 
@@ -109,6 +110,93 @@ def glyph(draw, kind, cx, cy, r):
         draw.rounded_rectangle([cx - 2 * k, cy - 16 * k, cx + 54 * k, cy + 2 * k], radius=8 * k, fill=255)
 
 
+class Site:
+    """A roadside place drawn in design units from its base centre (x right, y down, k px/unit)."""
+
+    def __init__(self, c, bx, by, k):
+        self.c, self.bx, self.by, self.k = c, bx, by, k
+
+    def box(self, x0, y0, x1, y1):
+        return [(self.bx + x0 * self.k) * SS, (self.by + y0 * self.k) * SS, (self.bx + x1 * self.k) * SS, (self.by + y1 * self.k) * SS]
+
+    def points(self, *xy):
+        return [((self.bx + x * self.k) * SS, (self.by + y * self.k) * SS) for x, y in xy]
+
+    def paint(self, color, shapes, opacity=1.0):
+        layer, draw = self.c.mask()
+        shapes(draw)
+        self.c.fill(layer, color, opacity)
+
+
+def rest_area(site):
+    """A small rest-area building with a gabled roof, trees and a picnic table."""
+    for tx, tr in ((-82, 26), (74, 33)):
+        site.paint((84, 64, 48), lambda d: d.rectangle(site.box(tx - 4, -tr * 1.1, tx + 4, 0), fill=255))
+        site.paint((46, 136, 100), lambda d: d.ellipse(site.box(tx - tr, -tr * 2.9, tx + tr, -tr * 0.9), fill=255))
+        site.paint((34, 110, 84), lambda d: d.ellipse(site.box(tx - tr * 0.2, -tr * 2.3, tx + tr, -tr * 0.9), fill=255))
+    site.paint((232, 234, 228), lambda d: d.rectangle(site.box(-42, -40, 42, 0), fill=255))
+    site.paint((168, 96, 72), lambda d: d.polygon(site.points((-52, -38), (52, -38), (0, -74)), fill=255))
+    site.paint((58, 82, 92), lambda d: d.rectangle(site.box(-9, -27, 9, 0), fill=255))
+    site.paint((176, 214, 222), lambda d: [d.rectangle(site.box(x, -30, x + 15, -16), fill=255) for x in (-34, 19)])
+    site.paint((128, 90, 62), lambda d: [d.rectangle(site.box(*b), fill=255) for b in
+                                         ((104, -16, 144, -12), (108, -12, 111, 0), (137, -12, 140, 0), (100, -7, 148, -5))])
+
+
+def gas_station(site):
+    """A canopy over two pumps, the shop behind, and a tall price sign."""
+    site.paint((214, 204, 192), lambda d: d.rectangle(site.box(14, -46, 100, 0), fill=255))
+    site.paint((255, 226, 160), lambda d: d.rectangle(site.box(24, -36, 90, -16), fill=255))
+    site.paint((255, 236, 190), lambda d: d.ellipse(site.box(-104, -40, 32, 14), fill=255), 0.18)
+    site.paint((172, 178, 184), lambda d: [d.rectangle(site.box(x, -70, x + 6, 0), fill=255) for x in (-88, 12)])
+    site.paint((246, 246, 242), lambda d: [d.rectangle(site.box(x, -30, x + 13, 0), fill=255) for x in (-64, -30)])
+    site.paint((230, 159, 0), lambda d: [d.rectangle(site.box(x, -30, x + 13, -23), fill=255) for x in (-64, -30)])
+    site.paint((246, 246, 242), lambda d: d.rectangle(site.box(-100, -86, 26, -70), fill=255))
+    site.paint((230, 159, 0), lambda d: d.rectangle(site.box(-100, -77, 26, -70), fill=255))
+    site.paint((150, 156, 164), lambda d: d.rectangle(site.box(122, -104, 128, 0), fill=255))
+    site.paint((230, 159, 0), lambda d: d.rounded_rectangle(site.box(105, -140, 145, -100), radius=3 * site.k * SS, fill=255))
+    site.paint((255, 255, 255), lambda d: [d.rectangle(site.box(111, y, 139, y + 6), fill=255) for y in (-132, -119, -107)])
+
+
+def motel(site):
+    """A two-storey motel at night with lit windows and a glowing sign."""
+    site.paint((26, 30, 56), lambda d: d.rectangle(site.box(-80, -58, 80, 0), fill=255))
+    site.paint((44, 50, 84), lambda d: d.rectangle(site.box(-86, -64, 86, -56), fill=255))
+
+    def windows(d):
+        for row in range(2):
+            for col in range(8):
+                if (row * 8 + col) % 5 != 3:
+                    x, y = -70 + col * 18.5, -48 + row * 24
+                    d.rectangle(site.box(x, y, x + 10, y + 13), fill=255)
+    site.paint(WINDOW, windows)
+    site.paint((150, 156, 164), lambda d: d.rectangle(site.box(100, -118, 105, 0), fill=255))
+    site.paint((204, 121, 167), lambda d: d.ellipse(site.box(72, -176, 134, -96), fill=255), 0.28)
+    site.paint((204, 121, 167), lambda d: d.rounded_rectangle(site.box(86, -150, 120, -114), radius=4 * site.k * SS, fill=255))
+    site.paint((255, 236, 246), lambda d: d.rectangle(site.box(92, -136, 114, -128), fill=255))
+
+
+def city(c, x0, x1, base, unit):
+    """The destination: a small skyline with lit windows and a warm glow above it."""
+    rng = random.Random(21)
+    towers, x = [], x0
+    while x < x1:
+        w = rng.uniform(9, 22) * unit
+        h = rng.uniform(16, 46) * unit * (1.5 if abs(x - (x0 + x1) / 2) < (x1 - x0) * 0.2 else 1.0)
+        towers.append((x, w, h))
+        x += w + rng.uniform(1, 4) * unit
+    layer, draw = c.mask()
+    for x, w, h in towers:
+        draw.rectangle([x * SS, (base - h) * SS, (x + w) * SS, (base + 4 * unit) * SS], fill=255)
+    c.fill(layer, (18, 22, 46))
+    layer, draw = c.mask()
+    for x, w, h in towers:
+        for wy in np.arange(base - h + 4 * unit, base - 3 * unit, 6 * unit):
+            for wx in np.arange(x + 2.5 * unit, x + w - 3 * unit, 5 * unit):
+                if rng.random() < 0.45:
+                    draw.rectangle([wx * SS, wy * SS, (wx + 2.2 * unit) * SS, (wy + 2.8 * unit) * SS], fill=255)
+    c.fill(layer, WINDOW)
+
+
 def render(width, height):
     c = Canvas(width, height)
     xs = np.linspace(0, 1, width, dtype=np.float32)
@@ -159,8 +247,15 @@ def render(width, height):
     draw.polygon(ridge_points(c, HORIZON + 0.012, 0.04, [(5, 0.6), (13, 0.3), (29, 0.1)], 11), fill=255)
     c.fill(layer, land)
 
+    # The destination: a city on the horizon where the road leads, with a warm glow above it.
+    city_x0, city_x1, city_base = 0.865 * width, 0.975 * width, horizon + 26 * unit
+    gx, gy = (np.arange(width)[None, :] - (city_x0 + city_x1) / 2) / width, (np.arange(height)[:, None] - city_base) / height
+    glow = np.clip(1 - np.sqrt((gx * 1.0) ** 2 + (gy * 2.4) ** 2) / 0.11, 0, 1) ** 2 * 0.35
+    c.pixels = c.pixels * (1 - glow[..., None]) + np.array((255, 196, 140), np.float32) * glow[..., None]
+    city(c, city_x0, city_x1, city_base, unit)
+
     # The road: from the bottom left, winding right into the distance, narrowing with depth.
-    p0, p1, p2, p3 = (0.24 * width, 1.30 * height), (0.44 * width, 0.80 * height), (0.50 * width, 0.66 * height), (0.84 * width, horizon + 22 * unit)
+    p0, p1, p2, p3 = (-0.03 * width, 0.89 * height), (0.30 * width, 0.755 * height), (0.56 * width, 0.655 * height), (0.86 * width, horizon + 22 * unit)
 
     def road_at(s):
         x, y = bezier(p0, p1, p2, p3, s)
@@ -168,7 +263,7 @@ def render(width, height):
         x1, y1 = bezier(p0, p1, p2, p3, max(0, s - 0.002))
         length = math.hypot(x2 - x1, y2 - y1) or 1
         nx, ny = -(y2 - y1) / length, (x2 - x1) / length
-        half = (160 * (1 - s) ** 1.5 + 1.2) * unit
+        half = (118 * (1 - s) ** 1.5 + 1.2) * unit
         return x, y, nx, ny, half
 
     samples = [road_at(i / 600) for i in range(601)]
@@ -190,24 +285,26 @@ def render(width, height):
         s += step
     c.fill(layer, LINE, fade)
 
-    # The motel for the night: just off the road by the last stop, windows lit.
-    bx, by, _, _, bhalf = road_at(0.81)
-    scale = 0.5
-    bw, bh = 300 * unit * scale, 110 * unit * scale
-    bx += 34 * unit
-    by -= 6 * unit
-    layer, draw = c.mask()
-    draw.rectangle([bx * SS, (by - bh) * SS, (bx + bw) * SS, by * SS], fill=255)
-    draw.rectangle([(bx + bw * 0.12) * SS, (by - bh * 1.35) * SS, (bx + bw * 0.3) * SS, (by - bh) * SS], fill=255)
-    c.fill(layer, (22, 26, 48))
-    layer, draw = c.mask()
-    for row in range(2):
-        for col in range(7):
-            wx = bx + bw * (0.06 + col * 0.135)
-            wy = by - bh * (0.82 - row * 0.42)
-            draw.rectangle([wx * SS, wy * SS, (wx + bw * 0.07) * SS, (wy + bh * 0.22) * SS], fill=255 if (row * 7 + col) % 5 else 90)
-    draw.rectangle([(bx + bw * 0.14) * SS, (by - bh * 1.3) * SS, (bx + bw * 0.28) * SS, (by - bh * 1.06) * SS], fill=255)
-    c.fill(layer, WINDOW)
+    # The places to stop, beside the road with a driveway each: (where, which side, gap, scale).
+    def place(at, side, gap, scale, lot, draw_site):
+        x, y, nx, ny, half = road_at(at)
+        ex, ey = x + side * nx * half, y + side * ny * half  # the road's edge
+        bx, by = x + side * nx * (half + gap * unit), y + side * ny * (half + gap * unit)
+        k = scale * unit
+        tx, ty = road_at(at + 0.01)[:2]
+        ux, uy = (tx - x), (ty - y)
+        length = math.hypot(ux, uy) or 1
+        ux, uy = ux / length * 22 * k, uy / length * 22 * k
+        layer, draw = c.mask()
+        draw.polygon([((ex - ux) * SS, (ey - uy) * SS), ((ex + ux) * SS, (ey + uy) * SS),
+                      ((bx + 24 * k) * SS, (by - 6 * k) * SS), ((bx - 24 * k) * SS, (by - 6 * k) * SS)], fill=255)
+        draw.rounded_rectangle([(bx - lot * k) * SS, (by - 8 * k) * SS, (bx + lot * k) * SS, (by + 10 * k) * SS], radius=4 * k * SS, fill=255)
+        c.fill(layer, palette(ROAD, xs)[None] * 0.72, fade * 0.9)
+        draw_site(Site(c, bx, by, k))
+
+    place(0.30, 1, 82, 0.92, 110, rest_area)
+    place(0.56, 1, 110, 0.78, 120, gas_station)
+    place(0.78, 1, 78, 0.68, 100, motel)
 
     # The stops: pins standing on the road, with a soft shadow, in the app's stop colours.
     for at, color, kind in STOPS:
