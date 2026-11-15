@@ -128,6 +128,25 @@ struct RouteAlternativesTests {
         #expect(along[1] - along[0] > 0.2, "labels are spread along the trip, not piled up: \(along)")
     }
 
+    @Test("A route's label stays clear of its stops")
+    func labelsAvoidStops() throws {
+        let north = coordinates(route(sanJose, saltLake, denver))
+        let south = coordinates(route(sanJose, lasVegas, denver))
+        let northGeometry = PolylineGeometry(coordinates: north)
+        // A stop right where the label would otherwise go.
+        let plain = alternatives.labelPoints(for: [north, south])
+        let stop = plain[0]
+        let labels = alternatives.labelPoints(for: [north, south], avoiding: [[stop], []])
+        #expect(GeoMath.distance(labels[0], stop) > 30_000, "moved off the stop")
+        #expect(try #require(northGeometry.project(labels[0])).offsetMeters < 1_000, "still on its own route")
+        #expect(labels[1] == plain[1], "other routes' labels don't move")
+
+        // A lone route: near the middle, between its stops rather than on one.
+        let middle = northGeometry.coordinate(atDistance: northGeometry.totalLength / 2)
+        let lone = try #require(RouteAlternatives.labelPoint(on: northGeometry, near: 0.5, window: 0.15, stops: [middle]))
+        #expect(GeoMath.distance(lone, middle) > 50_000)
+    }
+
     @Test("Shown routes are named by a place, else by a unique highway name, else by number")
     func routeNames() {
         #expect(TripPlanningService.routeNames(places: [nil], summaries: ["I-80"]) == [nil], "one route needs no name")

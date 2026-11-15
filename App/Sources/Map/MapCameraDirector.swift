@@ -68,6 +68,80 @@ enum MapCameraDirector {
         }
     }
 
+    /// Whether a flight to `new` starts from the whole-trip overview instead of from the camera the
+    /// map reports: when the overview is what the map was last asked to show (drive mode opening
+    /// on the whole trip, then zooming into the leg) and nobody has moved the map since. Right
+    /// after a map appears, the camera it reports can still be its default one (far from the
+    /// route) even though the overview is being drawn; starting there would sweep across
+    /// unrelated places.
+    static func flightStartsFromOverview(previous: TripMapView.Camera?, next: TripMapView.Camera, userMoved: Bool) -> Bool {
+        guard previous == .overview, !userMoved, case .frame = next else { return false }
+        return true
+    }
+
+    /// Whether a map of `size` is laid out enough to frame routes clear of `chrome` (it can first
+    /// get a placeholder size while a screen slides in, which would frame them wrongly).
+    static func canFrame(in size: CGSize, chrome: UIEdgeInsets) -> Bool {
+        size.width > chrome.left + chrome.right + 40 && size.height > chrome.top + chrome.bottom + 40
+    }
+
+    // MARK: Drive mode
+
+    /// What the camera does while guiding.
+    enum GuidingView: Equatable {
+        /// Behind the car, heading up.
+        case follow
+        /// The route to the next stop ("Show route").
+        case overview([GeoCoordinate])
+        /// Where the user panned or zoomed to; "Re-center" returns to `follow`.
+        case free
+    }
+
+    /// How long drive mode shows the whole trip (once its directions are loaded) before zooming
+    /// into the leg.
+    static let wholeTripHold: TimeInterval = 0.7
+
+    /// Drive mode's camera. Every way into drive mode (Start driving, Resume, continuing from a
+    /// stop) goes through here and through the same flights, so they all move alike: the whole
+    /// trip first, then the leg to the next stop (flying from the whole trip and keeping the leg in
+    /// view, see `flightStartsFromOverview`), then, on Start, down to the car (keeping the car in
+    /// view). Change the choreography here, in one place.
+    /// - Parameters:
+    ///   - showsWholeTrip: drive mode has just opened (see `wholeTripHold`).
+    ///   - route: the route from the car to the next stop (to face along before the car moves).
+    static func driveCamera(
+        showsWholeTrip: Bool, mode: DriveViewModel.Mode, stage: DriveViewModel.Stage, guiding: GuidingView,
+        previewFrame: [GeoCoordinate], car: GeoCoordinate?, course: Double?, route: [GeoCoordinate]
+    ) -> TripMapView.Camera {
+        if showsWholeTrip { return .overview }
+        switch mode {
+        case .completed:
+            return .overview
+        case .atStop:
+            return .frame(previewFrame)
+        case .driving:
+            guard stage == .navigating else { return .frame(previewFrame) }
+            switch guiding {
+            case .follow:
+                guard let car else { return .frame(previewFrame) }
+                // Before the car has a course (standing still), face along the route.
+                return .follow(car, course: course ?? heading(along: route))
+            case let .overview(coordinates):
+                return .frame(coordinates)
+            case .free:
+                return .free
+            }
+        }
+    }
+
+    /// The direction a route leaves its first point in (ignoring points within 30 m).
+    static func heading(along route: [GeoCoordinate]) -> Double? {
+        guard let start = route.first, let ahead = route.dropFirst().first(where: { GeoMath.distance(start, $0) > 30 }) else {
+            return nil
+        }
+        return GeoMath.bearing(from: start, to: ahead)
+    }
+
     /// Where the follow camera points: ahead of the car along its course (or the map's heading).
     static func followCenter(car: GeoCoordinate, heading: Double) -> GeoCoordinate {
         GeoMath.destination(from: car, bearing: heading, distance: followLookAhead)

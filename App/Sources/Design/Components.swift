@@ -330,6 +330,50 @@ struct NumberTile: View {
     }
 }
 
+/// A full-width tile, styled like `NumberTile`, that opens a menu to choose one value (e.g. the
+/// fuel grade): the title above, the choice on one line, and a chevron. It keeps its place in
+/// the layout however long the choice is.
+struct MenuTile<Value: Hashable, Options: View>: View {
+    let title: String
+    let systemImage: String
+    /// What the tile shows for the current choice.
+    let valueText: String
+    @Binding var selection: Value
+    let identifier: String
+    @ViewBuilder let options: () -> Options
+
+    var body: some View {
+        Menu {
+            Picker(title, selection: $selection) { options() }
+        } label: {
+            HStack(spacing: Theme.Spacing.xs) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(title, systemImage: systemImage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(valueText)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+            }
+            .padding(Theme.Spacing.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(valueText)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
 /// A selectable tile with an icon, title and short explanation (optimization goal).
 struct ChoiceTile: View {
     let systemImage: String

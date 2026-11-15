@@ -12,14 +12,7 @@ import UIKit
 /// keeping it in view), with a Start button that zooms down to the car (keeping the car in view).
 struct DriveScreen: View {
     /// What the camera does while guiding.
-    enum CameraMode: Equatable {
-        /// Behind the car, heading up.
-        case follow
-        /// The route to the next stop ("Show route").
-        case overview([GeoCoordinate])
-        /// Where the user panned or zoomed to; "Re-center" returns to `follow`.
-        case free
-    }
+    typealias CameraMode = MapCameraDirector.GuidingView
 
     @State private var model: DriveViewModel
     @State private var showsSafetyNotice: Bool
@@ -59,7 +52,7 @@ struct DriveScreen: View {
             guard !showsSafetyNotice else { return }
             await model.start()
             // A moment on the whole trip (while the screen finishes sliding in), then the leg.
-            try? await Task.sleep(nanoseconds: 700_000_000)
+            try? await Task.sleep(nanoseconds: UInt64(MapCameraDirector.wholeTripHold * 1_000_000_000))
             showsWholeTrip = false
         }
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
@@ -131,35 +124,13 @@ struct DriveScreen: View {
         return paths
     }
 
+    /// The same for every way into drive mode (see `MapCameraDirector.driveCamera`).
     private var camera: TripMapView.Camera {
-        if showsWholeTrip { return .overview }
-        switch model.mode {
-        case .completed:
-            return .overview
-        case .atStop:
-            return .frame(model.previewFrame)
-        case .driving:
-            guard model.stage == .navigating else { return .frame(model.previewFrame) }
-            switch cameraMode {
-            case .follow:
-                guard let location = model.currentLocation else { return .frame(model.previewFrame) }
-                // Before the car has a course (standing still), face along the route.
-                return .follow(location, course: model.currentCourse ?? routeHeading)
-            case let .overview(coordinates):
-                return .frame(coordinates)
-            case .free:
-                return .free
-            }
-        }
-    }
-
-    /// The direction the route leaves the car in.
-    private var routeHeading: Double? {
-        let route = model.routeToTarget
-        guard let car = route.first, let ahead = route.dropFirst().first(where: { GeoMath.distance(car, $0) > 30 }) else {
-            return nil
-        }
-        return GeoMath.bearing(from: car, to: ahead)
+        MapCameraDirector.driveCamera(
+            showsWholeTrip: showsWholeTrip, mode: model.mode, stage: model.stage, guiding: cameraMode,
+            previewFrame: model.previewFrame, car: model.currentLocation, course: model.currentCourse,
+            route: model.routeToTarget
+        )
     }
 
     /// The parts of the map covered by the header and the bottom sheet, which framed routes stay

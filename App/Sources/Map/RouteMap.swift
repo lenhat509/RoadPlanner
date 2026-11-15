@@ -110,6 +110,9 @@ private struct AppleFlight: Equatable {
     let target: CameraFlight.Camera
     let kind: CameraFlight.Kind
     let duration: TimeInterval
+    /// Where the flight starts when not from the camera on screen (see
+    /// `MapCameraDirector.flightStartsFromOverview`).
+    var start: CameraFlight.Camera?
 
     /// Keyframes per second (between them the camera moves in straight lines, which keeps a
     /// flight's promise: see `CameraFlight`).
@@ -117,7 +120,7 @@ private struct AppleFlight: Equatable {
 
     /// The flight's cameras after `initial` (the camera on screen when it starts).
     func samples(from initial: MapCamera) -> [CameraFlight.Camera] {
-        let start = CameraFlight.Camera(
+        let start = self.start ?? CameraFlight.Camera(
             center: GeoCoordinate(initial.centerCoordinate), scale: initial.distance,
             heading: initial.heading, pitch: initial.pitch
         )
@@ -158,6 +161,8 @@ struct AppleRouteMap: View {
     @State private var flightEnds = Date.distantPast
     /// A flight the user interrupted by moving the map (it isn't finished off).
     @State private var interruptedFlight: UUID?
+    /// The user has panned or zoomed since the current camera was applied.
+    @State private var userMovedSinceCamera = false
 
     init(
         paths: [[GeoCoordinate]], markers: [MapStopMarker], camera: TripMapView.Camera, chrome: UIEdgeInsets,
@@ -210,7 +215,8 @@ struct AppleRouteMap: View {
                 .annotationTitles(.hidden)
             }
             ForEach(MapRouteBadge.drawingOrder(badges)) { badge in
-                Annotation(badge.accessibilityLabel, coordinate: badge.coordinate.clCoordinate, anchor: .center) {
+                // Standing above its point, the pointer at the bottom (see `RouteBadgeLabel`).
+                Annotation(badge.accessibilityLabel, coordinate: badge.coordinate.clCoordinate, anchor: .bottom) {
                     Button {
                         onSelectBadge?(badge.id)
                     } label: {
@@ -266,6 +272,7 @@ struct AppleRouteMap: View {
         .onChange(of: position.positionedByUser) { _, byUser in
             guard byUser else { return }
             interruptedFlight = flight?.id
+            userMovedSinceCamera = true
             onUserMoved?()
         }
         .onChange(of: command) { _, newValue in
@@ -278,12 +285,13 @@ struct AppleRouteMap: View {
 
     private func resized(to size: CGSize) {
         viewSize = size
-        // First placement once the map has a size; later size changes are handled by the screen.
-        if appliedCamera == nil, size.width > 0, size.height > 0 { update(to: camera) }
+        // First placement once the map has its real size; later size changes are handled by the
+        // screen.
+        if appliedCamera == nil, MapCameraDirector.canFrame(in: size, chrome: chrome) { update(to: camera) }
     }
 
     private func update(to newCamera: TripMapView.Camera) {
-        guard viewSize.width > 0, viewSize.height > 0 else { return }
+        guard MapCameraDirector.canFrame(in: viewSize, chrome: chrome) else { return }
         let now = Date()
         var lag: Double?
         if case let .follow(car, course) = newCamera, let shown = tracker.camera {
@@ -294,13 +302,17 @@ struct AppleRouteMap: View {
             from: appliedCamera, to: newCamera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flightEnds, lag: lag
         )
         if newCamera.isFollow { lastFix = now }
+        let fromOverview = MapCameraDirector.flightStartsFromOverview(
+            previous: appliedCamera, next: newCamera, userMoved: userMovedSinceCamera
+        )
+        if newCamera != appliedCamera { userMovedSinceCamera = false }
         appliedCamera = newCamera
-        if let motion { apply(newCamera, motion: motion) }
+        if let motion { apply(newCamera, motion: motion, fromOverview: fromOverview) }
     }
 
-    private func apply(_ camera: TripMapView.Camera, motion: MapCameraDirector.Motion) {
+    private func apply(_ camera: TripMapView.Camera, motion: MapCameraDirector.Motion, fromOverview: Bool = false) {
         if case let .flight(kind) = motion {
-            fly(to: camera, kind: kind)
+            fly(to: camera, kind: kind, fromOverview: fromOverview)
             return
         }
         guard let target = target(for: camera) else { return }
@@ -316,8 +328,9 @@ struct AppleRouteMap: View {
         }
     }
 
-    /// Flies from the camera on screen to `camera` (see `CameraFlight`), then pins the map there.
-    private func fly(to camera: TripMapView.Camera, kind: CameraFlight.Kind) {
+    /// Flies from the camera on screen (or, see `MapCameraDirector.flightStartsFromOverview`, from
+    /// the whole-trip overview) to `camera` (see `CameraFlight`), then pins the map there.
+    private func fly(to camera: TripMapView.Camera, kind: CameraFlight.Kind, fromOverview: Bool = false) {
         guard let end = flightTarget(for: camera), let current = tracker.camera else {
             // The map hasn't reported a camera yet: let MapKit animate.
             if let target = target(for: camera) {
@@ -325,8 +338,10 @@ struct AppleRouteMap: View {
             }
             return
         }
+        let start = fromOverview ? flightTarget(for: .overview) : nil
         let newFlight = AppleFlight(
-            target: end, kind: kind, duration: CameraFlight.duration(fromScale: current.distance, toScale: end.scale)
+            target: end, kind: kind, duration: CameraFlight.duration(fromScale: start?.scale ?? current.distance, toScale: end.scale),
+            start: start
         )
         flight = newFlight
         flightEnds = Date().addingTimeInterval(newFlight.duration)

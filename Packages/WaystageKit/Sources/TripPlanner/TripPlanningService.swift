@@ -16,7 +16,7 @@ public struct RoutePlan: Sendable, Identifiable {
     public var name: String?
     /// The routing provider's description of the route, e.g. "I-80 E".
     public var summary: String
-    /// Where to label the route on a map: where it is farthest from the other routes.
+    /// Where to label the route on a map: clear of its stops and of the other routes.
     public var labelCoordinate: GeoCoordinate
     public var itineraries: [OptimizationGoal: Itinerary]
 
@@ -34,11 +34,12 @@ public struct RoutePlan: Sendable, Identifiable {
     /// Plans in display order (fastest, cheapest, balanced).
     public var options: [Itinerary] { OptimizationGoal.allCases.compactMap { itineraries[$0] } }
 
-    /// The middle of an itinerary's route (its start when it has no geometry).
+    /// Where to label a lone route: near the middle, clear of its stops (its start when it has
+    /// no geometry).
     static func middle(of itinerary: Itinerary) -> GeoCoordinate? {
         let geometry = PolylineGeometry(coordinates: (try? PolylineCodec.decode(itinerary.overviewPolyline)) ?? [])
-        guard geometry.totalLength > 0 else { return itinerary.stops.first?.place.coordinate }
-        return geometry.coordinate(atDistance: geometry.totalLength / 2)
+        return RouteAlternatives.labelPoint(on: geometry, near: 0.5, window: 0.15, stops: itinerary.stops.map(\.place.coordinate))
+            ?? itinerary.stops.first?.place.coordinate
     }
 }
 
@@ -177,7 +178,9 @@ public final class TripPlanningService: TripPlanning, Sendable {
         let names = Self.routeNames(
             places: configuration.alternatives.names(for: shapes), summaries: corridors.map(\.primary.summary)
         )
-        let labels = configuration.alternatives.labelPoints(for: shapes)
+        // Labels stay clear of each route's stops, whichever plan style is shown.
+        let stops = planned.map { itineraries in itineraries.values.flatMap { $0.stops.map(\.place.coordinate) } }
+        let labels = configuration.alternatives.labelPoints(for: shapes, avoiding: stops)
         let routes = planned.enumerated().compactMap { index, itineraries -> RoutePlan? in
             guard !itineraries.isEmpty else { return nil }
             return RoutePlan(

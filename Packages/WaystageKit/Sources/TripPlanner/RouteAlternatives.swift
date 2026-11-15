@@ -165,25 +165,42 @@ public struct RouteAlternatives: Sendable {
         }
     }
 
-    /// Where to put each route's label so labels don't pile up: spread along the trip by the
-    /// route's place in the list (a quarter, a half and three quarters of the way for three
-    /// routes), at the point near there farthest from the other routes.
-    public func labelPoints(for routes: [[GeoCoordinate]]) -> [GeoCoordinate] {
+    /// Where to put each route's label (its travel-time tag) so it covers neither a stop nor
+    /// another route, and the labels don't pile up: spread along the trip by the route's place in
+    /// the list (a quarter, a half and three quarters of the way for three routes), at the point
+    /// near there that is farthest from both the other routes and `stops[index]` (the route's own
+    /// stops, for every plan style).
+    public func labelPoints(for routes: [[GeoCoordinate]], avoiding stops: [[GeoCoordinate]] = []) -> [GeoCoordinate] {
         let geometries = routes.map(Self.geometry)
         return geometries.indices.compactMap { index in
-            let own = geometries[index]
-            guard own.totalLength > 0 else { return routes[index].first }
             let others = geometries.indices.filter { $0 != index }.map { geometries[$0] }
-            let centre = Double(index + 1) / Double(routes.count + 1)
-            var best = (point: own.coordinate(atDistance: own.totalLength * centre), apart: -1.0)
-            guard !others.isEmpty else { return best.point }
-            for step in -6...6 {
-                let point = own.coordinate(atDistance: own.totalLength * (centre + 0.01 * Double(step)))
-                let apart = others.map { $0.project(point)?.offsetMeters ?? .infinity }.min() ?? .infinity
-                if apart > best.apart { best = (point, apart) }
-            }
-            return best.point
+            return Self.labelPoint(
+                on: geometries[index], near: Double(index + 1) / Double(routes.count + 1),
+                awayFrom: others, stops: stops.indices.contains(index) ? stops[index] : []
+            ) ?? routes[index].first
         }
+    }
+
+    /// The point along `route`, within `window` of the way along either side of `near`, farthest
+    /// from the `others` routes and from `stops` (whichever is closer counts); nearer `near` wins
+    /// a tie. The default window keeps several routes' labels spread along the trip.
+    public static func labelPoint(
+        on route: PolylineGeometry, near centre: Double, window: Double = 0.06,
+        awayFrom others: [PolylineGeometry] = [], stops: [GeoCoordinate] = []
+    ) -> GeoCoordinate? {
+        guard route.totalLength > 0 else { return nil }
+        let steps = 20
+        var best: (point: GeoCoordinate, clearance: Double)?
+        for step in -steps...steps {
+            let share = min(0.95, max(0.05, centre + window * Double(step) / Double(steps)))
+            let point = route.coordinate(atDistance: route.totalLength * share)
+            let fromRoutes = others.map { $0.project(point)?.offsetMeters ?? .infinity }.min() ?? .infinity
+            let fromStops = stops.map { GeoMath.distance($0, point) }.min() ?? .infinity
+            // A metre per step off centre breaks ties in favour of the spread point.
+            let clearance = min(fromRoutes, fromStops, 1e9) - Double(abs(step))
+            if clearance > (best?.clearance ?? -.infinity) { best = (point, clearance) }
+        }
+        return best?.point
     }
 
     // MARK: Geometry

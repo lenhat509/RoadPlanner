@@ -108,6 +108,53 @@ struct DesignSystemTests {
         #expect(Director.motion(from: follow, to: frame, sinceLastFix: 1, isFlyingIn: false) == .flight(.frame))
     }
 
+    @Test("Opening a leg flies from the whole trip, not from wherever the map happens to report")
+    func legFlightStartsFromOverview() {
+        let leg = TripMapView.Camera.frame([GeoCoordinate(latitude: 39.7, longitude: -105)])
+        typealias Director = MapCameraDirector
+        #expect(Director.flightStartsFromOverview(previous: .overview, next: leg, userMoved: false),
+                "Start driving and Resume both open on the whole trip, then zoom into the leg")
+        #expect(!Director.flightStartsFromOverview(previous: .overview, next: leg, userMoved: true), "the user's view is respected")
+        #expect(!Director.flightStartsFromOverview(previous: leg, next: leg, userMoved: false))
+        #expect(!Director.flightStartsFromOverview(previous: nil, next: leg, userMoved: false), "the first placement jumps")
+        #expect(!Director.flightStartsFromOverview(previous: .overview, next: .follow(GeoCoordinate(latitude: 39.7, longitude: -105), course: 0),
+                                                   userMoved: false))
+    }
+
+    @Test("Every way into drive mode moves the camera alike: the whole trip, the leg, then the car")
+    func driveCameraSequence() {
+        let car = GeoCoordinate(latitude: 39.7, longitude: -105)
+        let leg = [car, GeoCoordinate(latitude: 39.7, longitude: -106.5)]
+        typealias Director = MapCameraDirector
+        func camera(_ showsWholeTrip: Bool, _ stage: DriveViewModel.Stage, course: Double? = nil,
+                    guiding: Director.GuidingView = .follow) -> TripMapView.Camera {
+            Director.driveCamera(
+                showsWholeTrip: showsWholeTrip, mode: .driving, stage: stage, guiding: guiding,
+                previewFrame: leg, car: car, course: course, route: leg
+            )
+        }
+        // Start driving and Resume take the same path; only the trip differs.
+        #expect(camera(true, .preview) == .overview, "opens on the whole trip")
+        #expect(camera(false, .preview) == .frame(leg), "then the leg")
+        #expect(Director.motion(from: .overview, to: .frame(leg), sinceLastFix: 0, isFlyingIn: false) == .flight(.frame))
+        #expect(Director.flightStartsFromOverview(previous: .overview, next: .frame(leg), userMoved: false),
+                "flying from the whole trip, not from the map's last reported camera")
+        let west = Director.heading(along: leg) ?? 0
+        #expect(camera(false, .navigating) == .follow(car, course: west), "on Start, the car, facing along the route")
+        #expect(camera(false, .navigating, course: 90) == .follow(car, course: 90), "then its own course")
+        #expect(camera(false, .navigating, guiding: .free) == .free)
+        #expect(abs(west - 270) < 1)
+    }
+
+    @Test("A map frames routes only once it is bigger than the chrome it keeps them clear of")
+    func canFrame() {
+        let chrome = UIEdgeInsets(top: 150, left: 24, bottom: 340, right: 64)
+        #expect(MapCameraDirector.canFrame(in: CGSize(width: 393, height: 852), chrome: chrome))
+        #expect(MapCameraDirector.canFrame(in: CGSize(width: 375, height: 667), chrome: chrome), "the smallest iPhones")
+        #expect(!MapCameraDirector.canFrame(in: CGSize(width: 10, height: 10), chrome: chrome), "a placeholder size while sliding in")
+        #expect(!MapCameraDirector.canFrame(in: .zero, chrome: .zero))
+    }
+
     @Test("Route tags draw the chosen route's on top")
     func badgeOrder() {
         let place = GeoCoordinate(latitude: 36, longitude: -115)

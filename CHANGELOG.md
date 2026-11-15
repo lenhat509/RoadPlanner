@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **Start driving** now opens like **Resume**: on the whole trip, then a zoom into the leg. It
+  used to start the zoom from an unrelated place (the map's default camera, e.g. over Europe)
+  when the map hadn't finished its first placement. Leg flights now start from the whole-trip
+  view, and maps place their first camera only once they have their real size.
+- Route time tags on the plan's map no longer cover stops: each stands above its route as a
+  callout pointing at it, at a point clear of that route's stops and of the other routes.
+- The fuel grade on the plan form is a full-width field like Fuel economy and Tank size, instead
+  of a dropdown whose label wrapped over the text below it.
+
+### Changed
+- Drive mode's camera sequence (whole trip, leg, car) is one shared function
+  (`MapCameraDirector.driveCamera`) used by every way into drive mode.
+
 ## [1.0.1] — 2026-11-15
 
 ### Changed

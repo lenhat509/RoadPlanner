@@ -56,7 +56,12 @@ struct TripMapView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> GMSMapView {
-        let mapView = GMSMapView()
+        let mapView = LayoutReportingMapView()
+        // Places the first camera as soon as the map has its real size.
+        mapView.onLayout = { [weak coordinator = context.coordinator, weak mapView] in
+            guard let coordinator, let mapView else { return }
+            coordinator.placePendingCamera(on: mapView)
+        }
         mapView.settings.compassButton = false
         mapView.settings.myLocationButton = false
         mapView.settings.tiltGestures = false
@@ -109,6 +114,10 @@ struct TripMapView: UIViewRepresentable {
         private var flight: (plan: CameraFlight, began: CFTimeInterval, duration: TimeInterval)?
         private var flightLink: CADisplayLink?
         private weak var flightMap: GMSMapView?
+        /// The user has panned or zoomed since the current camera was applied.
+        private var userMovedSinceCamera = false
+        /// A camera asked for before the map had its size, placed on the next layout.
+        private var pendingCamera: (camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker])?
 
         /// A route's travel-time tag chooses that route; other markers behave as usual.
         nonisolated func mapView(_ mapView: GMSMapView, didTap marker: GMSMarker) -> Bool {
@@ -123,6 +132,7 @@ struct TripMapView: UIViewRepresentable {
             guard gesture else { return }
             MainActor.assumeIsolated {
                 endFlight()
+                userMovedSinceCamera = true
                 onUserMoved?()
             }
         }
@@ -153,14 +163,12 @@ struct TripMapView: UIViewRepresentable {
             let planChanged = camera == .overview && appliedCamera == .overview && overview != framedOverview
             // updateUIView runs on every SwiftUI update: act only on a new camera (or a new plan).
             guard camera != appliedCamera || planChanged else { return }
-            guard mapView.bounds.width > 0, mapView.bounds.height > 0 else {
-                // Not laid out yet: place it on the next turn of the run loop.
-                DispatchQueue.main.async { [weak self, weak mapView] in
-                    guard let self, let mapView, mapView.bounds.width > 0 else { return }
-                    self.updateCamera(camera, paths: paths, markers: markers, on: mapView)
-                }
+            guard MapCameraDirector.canFrame(in: mapView.bounds.size, chrome: chrome) else {
+                // Not laid out yet: placed once it is (see `placePendingCamera`).
+                pendingCamera = (camera, paths, markers)
                 return
             }
+            pendingCamera = nil
             let now = Date()
             var lag: Double?
             if case let .follow(car, course) = camera {
@@ -173,29 +181,44 @@ struct TripMapView: UIViewRepresentable {
             )
             if planChanged { motion = .flight(.frame) }
             if camera.isFollow { lastFix = now }
+            let fromOverview = MapCameraDirector.flightStartsFromOverview(
+                previous: appliedCamera, next: camera, userMoved: userMovedSinceCamera
+            )
+            if camera != appliedCamera { userMovedSinceCamera = false }
             appliedCamera = camera
             if camera == .overview { framedOverview = overview }
             guard let motion else { return }
             if case let .flight(kind) = motion {
-                fly(mapView, to: camera, kind: kind, paths: paths, markers: markers)
+                fly(mapView, to: camera, kind: kind, paths: paths, markers: markers, fromOverview: fromOverview)
                 return
             }
             guard let update = cameraUpdate(for: camera, paths: paths, markers: markers, on: mapView) else { return }
             move(mapView, with: update, motion: motion)
         }
 
+        /// Places a camera that was asked for before the map had its size.
+        func placePendingCamera(on mapView: GMSMapView) {
+            guard let pending = pendingCamera, MapCameraDirector.canFrame(in: mapView.bounds.size, chrome: chrome) else { return }
+            updateCamera(pending.camera, paths: pending.paths, markers: pending.markers, on: mapView)
+        }
+
         // MARK: Flights
 
-        /// Flies from the camera on screen to `camera` (see `CameraFlight`), one step per frame.
+        /// Flies from the camera on screen (or, see `MapCameraDirector.flightStartsFromOverview`,
+        /// from the whole-trip overview) to `camera` (see `CameraFlight`), one step per frame.
         private func fly(
-            _ mapView: GMSMapView, to camera: Camera, kind: CameraFlight.Kind, paths: [[GeoCoordinate]], markers: [MapStopMarker]
+            _ mapView: GMSMapView, to camera: Camera, kind: CameraFlight.Kind, paths: [[GeoCoordinate]], markers: [MapStopMarker],
+            fromOverview: Bool = false
         ) {
             guard let end = flightTarget(for: camera, paths: paths, markers: markers, on: mapView) else { return }
             let current = mapView.camera
-            let start = CameraFlight.Camera(
+            var start = CameraFlight.Camera(
                 center: GeoCoordinate(current.target), scale: Self.scale(zoom: current.zoom),
                 heading: current.bearing, pitch: current.viewingAngle
             )
+            if fromOverview, let overview = flightTarget(for: .overview, paths: paths, markers: markers, on: mapView) {
+                start = overview
+            }
             let plan = CameraFlight(from: start, to: end, kind: kind)
             flight = (plan, CACurrentMediaTime(), plan.duration)
             flightEnds = Date().addingTimeInterval(plan.duration)
@@ -446,8 +469,10 @@ struct TripMapView: UIViewRepresentable {
             let scheme = styledScheme ?? .light
             badgeMarkers = MapRouteBadge.drawingOrder(badges).enumerated().map { index, badge in
                 let marker = GMSMarker(position: badge.coordinate.clCoordinate)
-                marker.icon = Self.image(for: badge, scheme: scheme)
-                marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
+                let icon = Self.image(for: badge, scheme: scheme)
+                marker.icon = icon
+                // The pointer's tip on the route; the tag stands above it.
+                marker.groundAnchor = RouteBadgeLabel.tipAnchor(in: icon?.size ?? .zero)
                 marker.zIndex = Int32(30 + index)
                 marker.userData = badge.id
                 marker.accessibilityLabel = badge.accessibilityLabel
@@ -490,5 +515,16 @@ struct TripMapView: UIViewRepresentable {
             }
             return hasher.finalize()
         }
+    }
+}
+
+/// A Google map view that reports its layout passes, so the first camera can be placed as soon as
+/// the map has its real size (not a guess made before SwiftUI sized it).
+final class LayoutReportingMapView: GMSMapView {
+    var onLayout: (() -> Void)?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
     }
 }
