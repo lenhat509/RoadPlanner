@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-11-15
+
+### Changed
+- Version number only. 1.0.0 is approved for the App Store, and TestFlight accepts builds for
+  external testers (public link) only under a newer version.
+
+## [1.0.0] — 2026-11-15
+
+First App Store release: everything below.
+
 ### Changed
 - Release builds take the Google key and gateway settings from their own GitHub secrets
   (`GOOGLE_MAPS_API_KEY`, `WAYSTAGE_GATEWAY_URL`, `WAYSTAGE_GATEWAY_TOKEN`) and the bundle and
@@ -101,7 +111,7 @@ All notable changes to this project are documented here. The format follows
 - Stops are plain colored dots (color-blind-safe palette) with a legend below the map.
 - Fuel stops show the tank level on arrival; the cost breakdown shows gallons used.
 
-## [1.0.0] — Unreleased
+### From the first build
 
 ### Added
 - Trip planning from start, destination, departure time, MPG, optional arrive-by time and
