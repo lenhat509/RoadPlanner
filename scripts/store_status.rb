@@ -209,6 +209,17 @@ puts "Not found in: #{missing.join(' ')}" unless missing.empty?
 status, body = fetch("https://itunes.apple.com/lookup?bundleId=#{URI.encode_www_form_component(bundle_id)}&country=us")
 puts "Lookup by bundle ID in the US: #{body.is_a?(Hash) ? body['resultCount'] : "HTTP #{status}"} result(s)"
 
+heading "Public App Store: search (US)"
+[attributes["name"], attributes["name"].to_s.split(/[:\-–]/).first.to_s.strip].uniq.each do |term|
+  status, body = fetch("https://itunes.apple.com/search?term=#{URI.encode_www_form_component(term)}&country=us&entity=software&limit=200")
+  unless status == 200 && body.is_a?(Hash)
+    puts "  #{term.inspect}: HTTP #{status}"
+    next
+  end
+  rank = body["results"].index { |r| r["trackId"].to_s == app_id }
+  puts "  #{term.inspect}: #{rank ? "found, result #{rank + 1} of #{body['resultCount']}" : "not in the first #{body['resultCount']} results"}"
+end
+
 heading "Public App Store: product page"
 uri = URI("https://apps.apple.com/us/app/id#{app_id}")
 response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 15, read_timeout: 30) { |http| http.get(uri.request_uri) }
