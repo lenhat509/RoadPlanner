@@ -218,6 +218,10 @@ heading "Public App Store: search (US)"
   end
   rank = body["results"].index { |r| r["trackId"].to_s == app_id }
   puts "  #{term.inspect}: #{rank ? "found, result #{rank + 1} of #{body['resultCount']}" : "not in the first #{body['resultCount']} results"}"
+  # What ranks above it (or the top 10).
+  body["results"].first([(rank || 9) + 1, 15].min).each_with_index do |r, index|
+    puts format("    %2d. %s (%s, %s ratings)", index + 1, r["trackName"], r["sellerName"], r["userRatingCount"] || 0)
+  end
 end
 
 heading "Public App Store: product page"
