@@ -224,7 +224,25 @@ heading "Public App Store: search (US)"
   end
 end
 
-heading "Public App Store: product page"
-uri = URI("https://apps.apple.com/us/app/id#{app_id}")
-response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 15, read_timeout: 30) { |http| http.get(uri.request_uri) }
-puts "#{uri}: HTTP #{response.code}#{response['location'] ? " -> #{response['location']}" : ''}"
+heading "Public App Store: product page, and what a shared link shows"
+# A shared link opens the App Store page of the reader's own country; link previews (Messages,
+# Messenger, ...) come from the page's Open Graph tags.
+def page(url, limit = 5)
+  uri = URI(url)
+  limit.times do
+    response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 15, read_timeout: 30) do |http|
+      http.get(uri.request_uri, "User-Agent" => "Mozilla/5.0 (compatible; link preview check)")
+    end
+    return [response.code.to_i, response.body.to_s, uri.to_s] unless response.is_a?(Net::HTTPRedirection)
+    uri = URI.join(uri.to_s, response["location"])
+  end
+  [0, "", uri.to_s]
+end
+
+%w[us gb ca au vn de jp in].each do |country|
+  status, html, final = page("https://apps.apple.com/#{country}/app/id#{app_id}")
+  title = html[/<meta[^>]+property="og:title"[^>]+content="([^"]*)"/i, 1] || html[/<title>([^<]*)</i, 1]
+  image = html[/<meta[^>]+property="og:image"[^>]+content="([^"]*)"/i, 1]
+  puts "  #{country.upcase}: HTTP #{status} #{final}"
+  puts "      preview title: #{title.to_s.strip[0, 90].inspect}  image: #{image ? 'yes' : 'none'}"
+end
