@@ -1,0 +1,30 @@
+name: Store status
+
+# Read-only check of where the app stands on the App Store: App Store Connect (versions and their
+# states, countries, price) and the public App Store (lookup in every country, product page).
+# Changes nothing. See scripts/store_status.rb.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    environment: app-store
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: Check the App Store
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || secrets.WAYSTAGE_BUNDLE_ID }}
+        run: bundle exec ruby scripts/store_status.rb
