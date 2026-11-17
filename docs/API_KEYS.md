@@ -18,11 +18,14 @@ Secrets can't be read back once saved, not even by you; to change one, save a ne
 ## 1. Google Maps Platform (required)
 
 1. Create a Google Cloud project and enable billing.
-2. Enable **Maps SDK for iOS**, **Routes API** and **Places API (New)**.
+2. Enable **Maps SDK for iOS**, **Navigation SDK**, **Routes API** and **Places API (New)**.
+   The Navigation SDK gives turn-by-turn directions on the phone and on CarPlay (Google's terms
+   don't allow building them from the Routes API). If it isn't enabled, drive mode shows
+   "Directions are unavailable right now" and planning still works.
 3. Create an API key and restrict it:
    * *Application restriction:* iOS apps → your bundle ID (e.g. `com.waystage.waystage`).
      The app sends `X-Ios-Bundle-Identifier` on web-service calls so the restriction applies.
-   * *API restriction:* only the three APIs above.
+   * *API restriction:* only the four APIs above.
 4. Set daily quotas and a budget alert (Billing → Budgets).
 5. Save the key as the `GOOGLE_MAPS_API_KEY` secret.
 
@@ -35,6 +38,15 @@ TestFlight).
 Typical cost per planned cross-country trip: one Routes request with alternatives, ~25–45 Places
 Text Search (Enterprise SKU because of `fuelOptions`) requests and one Routes request for final
 directions. Lodging is only searched where a night is likely, to keep costs down.
+
+While driving: one Navigation SDK request ("Navigation Request" SKU, 1,000 free a month, then
+$25 per 1,000) each time a leg is loaded — each stop driven to, plus resuming, skipping or ending
+guidance on CarPlay and starting again. Guidance and reroutes within a leg are free.
+
+Opening a saved trip: one Place Details (Pro) request per Google place in it, once per app
+session (5,000 free a month, then $17 per 1,000). Google doesn't allow keeping place names and
+addresses on the phone, only place IDs, so they're fetched again (see
+[COMPLIANCE.md](COMPLIANCE.md#what-is-stored)).
 
 Attribution: the Maps SDK shows the Google logo; Places data is always displayed on a Google map
 or with "Google" attribution in the stop details, as required by the Places policies.

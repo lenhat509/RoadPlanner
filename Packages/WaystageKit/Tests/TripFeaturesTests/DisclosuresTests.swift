@@ -24,6 +24,8 @@ struct DisclosuresTests {
         // Beyond those: safety, and the vehicles it's made for.
         #expect(text.contains("don't use the app while moving"))
         #expect(text.contains("trucks, RVs or trailers"))
+        // Google's Navigation SDK policies: independent judgment, and tolls / HOV lanes are the user's.
+        #expect(text.contains("use your own judgment") && text.contains("Tolls and HOV-lane fees"))
         #expect(Disclosures.agreementLine.contains("Google Maps Terms of Service"), "Google Maps' terms flow down to users")
         #expect(Set(Disclosures.keyPoints.map(\.id)).count == Disclosures.keyPoints.count)
     }
@@ -61,7 +63,10 @@ struct DisclosuresTests {
             }
         }
         let terms = Disclosures.termsOfUse.flatMap(\.paragraphs).joined(separator: " ")
-        for topic in ["Google Maps", "doesn't make reservations", "estimates", "by phone", "as is", "passenger cars"] {
+        for topic in [
+            "Google Maps", "doesn't make reservations", "estimates", "by phone", "as is", "passenger cars",
+            "Navigation SDK", "your own judgment", "high-occupancy vehicle",
+        ] {
             #expect(terms.contains(topic), "the terms cover \(topic)")
         }
     }

@@ -73,7 +73,8 @@ other context outside of the user session, this action constitutes scraping."
 
 **Before:** saved trips and the trip in progress were stored indefinitely with place names,
 addresses, turn instructions, route lines, route names and fuel prices. **Now:** see
-[What is stored](#what-is-stored).
+[What is stored](#what-is-stored). Implemented by `GoogleContentRetention` and
+`RetainingTripRepository` (App Store build), with tests in `GoogleContentRetentionTests`.
 
 ### 4. Google content only on Google maps
 
@@ -110,13 +111,15 @@ From the Navigation SDK policies:
 - **Commercial use:** "You can use the Navigation SDK for iOS only for commercial applications."
   (see open questions)
 - **Vehicles:** heavy or large vehicles (buses, trucks, vehicles with road restrictions) need
-  Google's large-vehicle routing. Waystage plans for cars only and says so (Terms, section 3).
+  Google's large-vehicle routing. Waystage plans for cars only and says so (Terms, section 10).
 - **Shown at first use:** "The Navigation SDK terms of use", that users "should always exercise
   independent judgment [...] because information from the Navigation SDK service might differ
   from actual real-time conditions", and that "Users are solely responsible for costs incurred
   when following the directions [...] such as for toll fees or high-occupancy vehicle lanes."
   Waystage shows Google's terms dialog (`GMSNavigationServices.showTermsAndConditionsDialogIfNeeded`)
-  before the first drive, and the other two points are in "Before you start" and the Terms.
+  right after its own first-launch agreement, and again before a drive while it hasn't been
+  accepted. The other two points are in the first-launch agreement ("Directions can differ from
+  the road") and the Terms (section 9).
 - **UI changes must not inhibit safe use:** no distracting animations during active navigation,
   no overlays without explicit driver action, nothing covering the car's position, "upcoming
   turns, lane guidance, compass orientation, and all standard UI elements". During guidance
@@ -181,11 +184,19 @@ once.
 | Data | Allowed | Waystage stores |
 |---|---|---|
 | Place IDs | Indefinitely | Yes, for every Google place |
-| Coordinates (Places, Routes, Navigation SDK) | Up to 30 days | Yes, dropped after 30 days and fetched again from the place ID |
-| Place names, addresses | No | No: fetched from the place ID when a trip is opened |
-| Route lines, turn instructions, route names | No (lines: coordinates, 30 days) | No: routes are fetched again when needed |
-| Fuel prices, ratings | No | No: shown while planning only |
+| Coordinates and route lines (Places, Routes) | Up to 30 days | Yes, for 30 days after planning. Then the plan becomes an outline (place IDs, dates, vehicle, preferences) that is planned again with fresh data |
+| Place names, addresses, time-zone offsets | No | No: fetched by place ID (Place Details) when a trip is opened, kept in memory for the session |
+| Turn instructions, route descriptions | No | No |
+| Navigation SDK routes, road names, speed limits | No | No: in memory during the drive only |
+| Station fuel prices | No | No: a saved plan shows the national estimate instead (marked as an estimate) |
 | Your own data (dates, times, plan structure, progress, vehicle) | Yours | Yes |
+
+## Privacy: what the Navigation SDK collects
+
+Google's Navigation SDK 11.3.0 declares in its privacy manifest that it collects precise location
+and a device ID (linked to the user), crash, performance and product-interaction data, and other
+data, for app functionality and analytics (not tracking). The privacy policy says so, and the App
+Store privacy answers include it ([APP_STORE_RELEASE.md](APP_STORE_RELEASE.md#app-privacy-nutrition-label-answers)).
 
 ## Open questions for a lawyer (or Google Maps Platform sales)
 
@@ -196,6 +207,7 @@ once.
 3. **Company name in Google's terms dialog.** The dialog names "the company releasing the app and
    in the agreement with Google to share location data". Waystage passes `WAYSTAGE_COMPANY_NAME`
    (default "Waystage"); set it to the legal name on the Google Maps Platform account.
-4. **Derived planning data.** Waystage stores its own schedule (stop order, times) computed from
-   Google durations. Confirm this is Waystage's content and not "content based on Google Maps
-   Content" (3.2.3(c)).
+4. **Derived planning data.** Waystage stores its own schedule (stop order, times), leg distances
+   and durations and cost totals computed from Google data. Confirm this is Waystage's content
+   and not "content based on Google Maps Content" (3.2.3(c)); if not, saved plans would keep only
+   place IDs and the driver's choices.

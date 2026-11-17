@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import TripModels
+import TripPlanner
 
 /// Start screen: resume the active trip or open a saved plan.
 @MainActor
@@ -10,6 +11,8 @@ public final class HomeViewModel {
     public private(set) var savedItineraries: [Itinerary] = []
     public private(set) var isLoading = false
     public private(set) var errorMessage: String?
+    /// The saved plan being planned again (`planAgain`).
+    public private(set) var replanningID: UUID?
 
     private let dependencies: AppDependencies
 
@@ -50,6 +53,45 @@ public final class HomeViewModel {
     public func deleteItinerary(_ id: UUID) async {
         try? await dependencies.repository.deleteItinerary(id: id)
         savedItineraries.removeAll { $0.id == id }
+    }
+
+    /// Whether a saved plan is only an outline: it was saved over 30 days ago, and Google's
+    /// coordinates and route lines can't be kept that long, so it's planned again to be used.
+    public func needsPlanningAgain(_ itinerary: Itinerary) -> Bool {
+        GoogleContentRetention.isOutline(itinerary)
+    }
+
+    /// A saved plan with everything it shows (place names are fetched again by place ID).
+    public func details(of itinerary: Itinerary) async -> Itinerary {
+        await dependencies.repository.withDetails(itinerary)
+    }
+
+    /// Plans an outlined trip again with today's information: same places, vehicle and
+    /// preferences; a departure that has passed moves to the next hour.
+    public func planAgain(_ itinerary: Itinerary) async -> PlanResult? {
+        replanningID = itinerary.id
+        defer { replanningID = nil }
+        var request = await dependencies.repository.withDetails(itinerary).request
+        let unknown = GeoCoordinate(latitude: 0, longitude: 0)
+        guard request.origin.coordinate != unknown, request.destination.coordinate != unknown else {
+            errorMessage = "This trip's places couldn't be found. Check your connection and try again."
+            return nil
+        }
+        let now = dependencies.now()
+        if request.departure < now {
+            let nextHour = Date(timeIntervalSinceReferenceDate: (now.timeIntervalSinceReferenceDate / 3_600).rounded(.up) * 3_600)
+            let shift = nextHour.timeIntervalSince(request.departure)
+            request.departure = nextHour
+            request.arriveBy = request.arriveBy.map { $0.addingTimeInterval(shift) }
+        }
+        do {
+            let result = try await dependencies.planner.plan(request) { _ in }
+            errorMessage = nil
+            return result
+        } catch {
+            errorMessage = "This trip couldn't be planned again. Check your connection and try again."
+            return nil
+        }
     }
 
     /// Starts driving a saved plan, replacing any active trip.

@@ -242,4 +242,13 @@ public struct PlaceSuggestion: Hashable, Sendable, Identifiable {
 public protocol PlaceAutocompleteProvider: Sendable {
     func suggestions(for query: String, near bias: GeoCoordinate?, sessionToken: String) async throws -> [PlaceSuggestion]
     func place(for placeID: String, sessionToken: String) async throws -> Place
+    /// A place's current details (name, address, position, time zone) by place ID, outside an
+    /// autocomplete session: for trips saved on the phone, which keep only place IDs.
+    func details(for placeID: String) async throws -> Place
+}
+
+extension PlaceAutocompleteProvider {
+    public func details(for placeID: String) async throws -> Place {
+        try await place(for: placeID, sessionToken: UUID().uuidString)
+    }
 }

@@ -1,1 +1,1 @@
-Welcome to Waystage! Plan long drives with built-in breaks, fuel stops and overnight stays, then follow turn-by-turn directions.
+Turn-by-turn directions now come from Google's navigation, with its voice, lane guidance and rerouting. Waystage also works on CarPlay: start a saved trip from the car's screen and follow each leg stop by stop.

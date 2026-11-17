@@ -10,6 +10,13 @@ public protocol TripRepository: Sendable {
     func savedItineraries() async throws -> [Itinerary]
     func saveItinerary(_ itinerary: Itinerary) async throws
     func deleteItinerary(id: UUID) async throws
+    /// `itinerary` with the details that aren't kept on the phone filled back in (Google place
+    /// names and addresses, fetched by place ID). Repositories that keep everything return it as is.
+    func withDetails(_ itinerary: Itinerary) async -> Itinerary
+}
+
+extension TripRepository {
+    public func withDetails(_ itinerary: Itinerary) async -> Itinerary { itinerary }
 }
 
 /// Versioned on-disk envelope so future releases can migrate old files.

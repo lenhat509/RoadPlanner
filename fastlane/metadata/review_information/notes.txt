@@ -4,8 +4,10 @@ To try the full flow:
 1. On first launch, read "Before you start" and tap "Agree and continue".
 2. Tap "Plan a road trip". Choose a start (or "Use current location") and a destination a few hours away, for example Los Angeles to Las Vegas, then tap "Plan my trip".
 3. When there are 2–3 reasonable routes, they are all drawn on the map with their driving times; tap one to choose it. Compare the Fastest / Cheapest / Balanced plans, each with breaks, fuel stops and hotels for overnight trips.
-4. Tap "Start driving", then "Start" for turn-by-turn voice guidance.
+4. Tap "Start driving". Before the first drive, Google's navigation terms appear (turn-by-turn directions are provided by Google's Navigation SDK); accept them. Then tap "Start" for turn-by-turn voice guidance.
 
-Location: used for directions, to detect arrival at a stop, and to plan from where you are. Background location and audio keep voice guidance running while the screen is locked during an active trip only; both stop when the trip ends.
+CarPlay (navigation app): connect the iPhone to CarPlay or the CarPlay Simulator after accepting the terms and the driving safety notice on the iPhone once. On the car's screen, "Trips" lists the trip in progress and saved plans; choosing one shows the next leg with "Start", which begins Google's turn-by-turn guidance (map, maneuvers, voice through the car). "End", or the car's own navigation starting, stops guidance immediately. At a stop, "Continue" previews the next leg. Planning a new trip needs typing and is done on the iPhone.
+
+Location: used for directions, to detect arrival at a stop, and to plan from where you are. Background location and audio keep voice guidance running while the screen is locked (or the app is shown on CarPlay) during an active trip only; both stop when the trip ends.
 
 Waystage doesn't book anything: hotel buttons open the hotel's or a partner's website. Fuel and lodging prices are estimates and are labeled as such. Routes and places come from Google Maps Platform.

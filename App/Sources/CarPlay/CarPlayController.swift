@@ -391,23 +391,24 @@ final class CarPlayController: NSObject {
         if let active, active.progress.phase != .completed {
             let item = CPListItem(text: Self.title(of: active.itinerary), detailText: progressText(of: active))
             item.handler = { [weak self] _, completion in
-                MainActor.assumeIsolated {
-                    Task { @MainActor [weak self] in
-                        await self?.drive(active, makeActive: false)
-                        completion()
-                    }
+                Task { @MainActor [weak self] in
+                    await self?.drive(active, makeActive: false)
+                    completion()
                 }
             }
             sections.append(CPListSection(items: [item], header: "In progress", sectionIndexTitle: nil))
         }
-        let plans = saved.filter { $0.id != active?.itinerary.id }.prefix(12).map { itinerary in
+        // Plans saved over 30 days ago are planned again on the iPhone (that needs text review).
+        let drivable = saved.filter { $0.id != active?.itinerary.id && !GoogleContentRetention.isOutline($0) }
+        let plans = drivable.prefix(12).map { itinerary in
             let item = CPListItem(text: Self.title(of: itinerary), detailText: summary(of: itinerary))
             item.handler = { [weak self] _, completion in
-                MainActor.assumeIsolated {
-                    Task { @MainActor [weak self] in
-                        await self?.drive(ActiveTrip(itinerary: itinerary), makeActive: true)
-                        completion()
-                    }
+                Task { @MainActor [weak self] in
+                    guard let self else { return completion() }
+                    // Place names are fetched again by place ID (they aren't kept on the phone).
+                    let full = await self.environment.dependencies.repository.withDetails(itinerary)
+                    await self.drive(ActiveTrip(itinerary: full), makeActive: true)
+                    completion()
                 }
             }
             return item

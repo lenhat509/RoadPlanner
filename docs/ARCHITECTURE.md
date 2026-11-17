@@ -14,7 +14,7 @@
 
 ```mermaid
 graph TD
-  App[App: SwiftUI views, GoogleMaps view,<br/>CoreLocation, AVSpeech] --> Features
+  App[App: SwiftUI views, GoogleMaps view,<br/>Navigation SDK, CarPlay, CoreLocation] --> Features
   App --> Services
   App --> Sandbox
   Features[TripFeatures<br/>view models] --> Planner
@@ -38,11 +38,11 @@ graph TD
 | `TripModels` | Codable value types (`TripRequest`, `Itinerary`, `ActiveTrip`, …), `GeoMath`, `PolylineCodec`, `PolylineGeometry` (spatial index) | — |
 | `TripPlanner` | `RouteProfile`, `CandidateBuilder`, `ItineraryOptimizer`, `FeasibilityPlanner`, `ScheduleValidator`, `ScheduleRetimer`, `LodgingWindowEstimator`, `TripPlanningService`, **ports** | Models |
 | `TripServices` | `GoogleRoutesClient`, `GooglePlacesClient`, `WaystageGatewayClient`, `HTTPTransport` + retry | Models, Planner (ports) |
-| `TripNavigation` | `GuidanceEngine` (snapping, steps, voice prompts, off-route, arrival), trip state machine | Models |
+| `TripNavigation` | Trip state machine; `GuidanceEngine` (snapping, steps, prompts, off-route, arrival), used only by the offline simulation | Models |
 | `TripPersistence` | `FileTripRepository` (versioned, atomic JSON), preferences | Models |
-| `TripFeatures` | `@Observable` view models, formatters, deep links, platform ports (`LocationProviding`, `SpeechAnnouncing`) | Models, Planner, Navigation, Persistence |
-| `TripSandbox` | Simulated Google backend (speaks the real wire formats), simulated GPS, fixtures | all |
-| App | Views, `TripMapView` (Google Maps SDK), `CoreLocationProvider`, `SpeechAnnouncer`, composition root (`AppEnvironment`) | all |
+| `TripFeatures` | `@Observable` view models, formatters, deep links, platform ports (`LocationProviding`, `TurnByTurnGuidance`), `GoogleContentRetention` + `RetainingTripRepository` | Models, Planner, Navigation, Persistence |
+| `TripSandbox` | Simulated Google backend (speaks the real wire formats), simulated GPS, `SimulatedGuidance`, fixtures | all |
+| App | Views, `TripMapView` (Maps SDK + Navigation SDK), `GoogleNavigationEngine`, CarPlay scene, `CoreLocationProvider`, composition root (`AppEnvironment`) | all |
 
 ## Planning flow
 
@@ -72,11 +72,20 @@ graph TD
 
 ## Drive flow
 
-`DriveViewModel` consumes `LocationSample`s from `LocationProviding`:
-`GuidanceEngine.update` → banner + voice prompt → arrival → `ActiveTrip.markArrived` → the
-"Continue to next stop" action → next leg. Off-route fixes (3 consecutive) trigger a reroute via
-the Routes API. Driving away from a stop starts the next leg automatically. Every state change is
-persisted immediately; location-only updates at most every 30 s.
+`DriveViewModel` decides where to go next and keeps the trip's progress; each leg goes to a
+`TurnByTurnGuidance` engine: `setDestination` (the leg's preview) → `startGuidance` → events
+(`progress`, `routeChanged`, `rerouting`, `arrived`) → `ActiveTrip.markArrived` → "Continue to
+next stop" → next leg. Driving away from a stop starts the next leg automatically. Every state
+change is persisted immediately; location-only updates at most every 30 s.
+
+* App Store build: `GoogleNavigationEngine` (Google's Navigation SDK) routes from the phone,
+  draws the route, car and turn header on the map, speaks, reroutes and detects arrival.
+* Offline (demo, tests): `SimulatedGuidance` runs `GuidanceEngine` over the simulated backend
+  and drives the simulated car.
+
+The iPhone's drive screen and the CarPlay scene show the same `DriveViewModel`
+(`AppEnvironment.drive`); CarPlay's maneuver card comes from the Navigation SDK's turn-by-turn
+feed.
 
 ## Concurrency
 
@@ -119,15 +128,16 @@ checked. Migrate the shell to Swift 6 mode once it builds warning-free.
 
 ### ADR-005 — Google called directly; partner APIs behind a gateway
 *Decision:* Google web services are called from the device with an API key restricted to the
-iOS bundle ID and to the three APIs used. Expedia and EIA credentials live only in the gateway.
+iOS bundle ID and to the four APIs used. Expedia and EIA credentials live only in the gateway.
 *Why:* Google supports iOS-restricted keys for web services (`X-Ios-Bundle-Identifier`); Expedia
 secrets must never ship in a binary. The gateway can also cache and rate-limit.
 
-### ADR-006 — Own guidance engine on Routes API steps
-*Decision:* Turn-by-turn guidance is implemented in `GuidanceEngine` using Routes API steps,
-rendered on the Maps SDK, with a hand-off to the Google Maps app. *Why:* full control over stop
-arrival detection and the "next stop" flow, testable logic, no extra SDK agreement. The Google
-Navigation SDK can replace the engine later behind the same view model.
+### ADR-006 — Turn-by-turn with Google's Navigation SDK (supersedes "own guidance engine")
+*Decision:* Turn-by-turn guidance comes from Google's Navigation SDK behind the
+`TurnByTurnGuidance` port; Waystage keeps the trip and its stops. *Why:* Google's terms don't
+allow re-creating navigation from the Routes API and the Maps SDK (3.2.3(d)(iv)) or speaking
+Google content with a speech synthesizer (3.2.3(a)(iv)); the first version did both. The port
+keeps the drive logic testable offline (`SimulatedGuidance`). See `docs/COMPLIANCE.md`.
 
 ### ADR-008 — Apple Maps fallback without a Google key
 *Decision:* `RouteMap` renders with the Google Maps SDK when a key is configured (production) and

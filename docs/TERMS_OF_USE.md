@@ -1,6 +1,6 @@
 # Waystage Terms of Use
 
-Last updated: November 14, 2026
+Last updated: November 17, 2026
 
 > The same text is shown in the app (Settings › Terms of Use). Keep both in sync: a test
 > (`DisclosuresTests`) fails when they differ. Have a lawyer review these terms before release.
@@ -43,28 +43,36 @@ You are responsible for driving safely and lawfully. Set up your trip before you
 
 Planned breaks don't replace your judgment. Rest whenever you feel tired, stop only where it is legal and safe, and don't follow a route or instruction that seems unsafe, illegal or impossible.
 
-## 9. Vehicles
+## 9. Turn-by-turn directions and CarPlay
+
+Turn-by-turn directions, on your phone and on CarPlay, are provided by Google's Navigation SDK and are subject to Google's terms, which are shown before your first drive.
+
+Directions, routes and estimated times can differ from actual conditions. Always use your own judgment, and follow road signs, traffic laws and instructions from the authorities over the directions.
+
+You are responsible for any costs you incur while following directions, such as tolls and fees for high-occupancy vehicle (HOV) or express lanes.
+
+## 10. Vehicles
 
 Waystage is designed for passenger cars. Its routes and plans don't consider the size, weight, height or cargo limits of trucks, RVs, buses or vehicles towing a trailer, and its breaks are not a substitute for the hours-of-service rules that apply to commercial drivers.
 
-## 10. Your location
+## 11. Your location
 
 Waystage uses your device's location to plan from where you are and to guide you. The [Privacy Policy](PRIVACY_POLICY.md) explains how location is handled.
 
-## 11. Other websites
+## 12. Other websites
 
 Links to Google Maps, Expedia, hotels and other sites take you to services we don't control. Their own terms and privacy policies apply.
 
-## 12. No warranty
+## 13. No warranty
 
 Waystage is provided "as is" and "as available", without warranties of any kind, express or implied, including warranties of accuracy, fitness for a particular purpose and non-infringement, to the fullest extent permitted by law.
 
-## 13. Limitation of liability
+## 14. Limitation of liability
 
 To the fullest extent permitted by law, the developer of Waystage is not liable for any indirect, incidental, special or consequential damages, or for any loss, injury, damage, cost or delay arising from your use of the app or your reliance on its information, including unavailable lodging, price differences, closures and road conditions.
 
 Some places don't allow these limits, so they may not apply to you. Nothing in these terms limits rights you have under the law where you live.
 
-## 14. Changes to these terms
+## 15. Changes to these terms
 
 We may update these terms. When we do, Waystage asks you to agree again before you continue.

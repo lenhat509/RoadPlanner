@@ -1,6 +1,7 @@
 import SwiftUI
 import TripFeatures
 import TripModels
+import TripPlanner
 
 /// Start screen: a calm hero with one action, the trip in progress, and saved trips.
 struct HomeView: View {
@@ -11,6 +12,8 @@ struct HomeView: View {
     let onOpenSettings: () -> Void
     let onResume: (ActiveTrip) -> Void
     let onOpenItinerary: (Itinerary) -> Void
+    /// A plan made again from an outlined saved trip.
+    let onOpenPlan: (PlanResult) -> Void
     private let formatters: TripFormatters
 
     init(
@@ -19,7 +22,8 @@ struct HomeView: View {
         onPlanTrip: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void,
         onResume: @escaping (ActiveTrip) -> Void,
-        onOpenItinerary: @escaping (Itinerary) -> Void
+        onOpenItinerary: @escaping (Itinerary) -> Void,
+        onOpenPlan: @escaping (PlanResult) -> Void
     ) {
         _model = State(initialValue: HomeViewModel(dependencies: dependencies))
         formatters = dependencies.formatters
@@ -28,6 +32,7 @@ struct HomeView: View {
         self.onOpenSettings = onOpenSettings
         self.onResume = onResume
         self.onOpenItinerary = onOpenItinerary
+        self.onOpenPlan = onOpenPlan
     }
 
     var body: some View {
@@ -163,9 +168,10 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             SectionLabel(title: "Saved trips")
             ForEach(model.savedItineraries) { itinerary in
-                Button { onOpenItinerary(itinerary) } label: {
+                Button { open(itinerary) } label: {
                     savedRow(itinerary)
                 }
+                .disabled(model.replanningID != nil)
                 .buttonStyle(.plain)
                 .accessibilityIdentifier(AccessibilityID.Home.savedTrip)
                 .contextMenu {
@@ -173,6 +179,17 @@ struct HomeView: View {
                         Task { await model.deleteItinerary(itinerary.id) }
                     }
                 }
+            }
+        }
+    }
+
+    /// Opens a saved plan with its place names fetched again, or plans an outlined one again.
+    private func open(_ itinerary: Itinerary) {
+        Task {
+            if model.needsPlanningAgain(itinerary) {
+                if let result = await model.planAgain(itinerary) { onOpenPlan(result) }
+            } else {
+                onOpenItinerary(await model.details(of: itinerary))
             }
         }
     }
@@ -188,7 +205,17 @@ struct HomeView: View {
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
-            TripRibbonView(marks: TripRibbon.marks(for: itinerary), height: 14)
+            if model.needsPlanningAgain(itinerary) {
+                // Saved over 30 days ago: Google's map data for it can't be kept that long.
+                Label(
+                    model.replanningID == itinerary.id ? "Planning again…" : "Saved over 30 days ago · tap to plan again",
+                    systemImage: "arrow.clockwise"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            } else {
+                TripRibbonView(marks: TripRibbon.marks(for: itinerary), height: 14)
+            }
             Text([
                 formatters.dayTitle(itinerary.request.departure, utcOffsetSeconds: itinerary.request.origin.utcOffsetSeconds),
                 formatters.duration(itinerary.totals.elapsedDuration),

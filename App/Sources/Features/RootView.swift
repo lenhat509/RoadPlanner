@@ -35,7 +35,8 @@ struct RootView: View {
                 onOpenItinerary: { itinerary in
                     let result = PlanResult(itineraries: [itinerary.goal: itinerary], recommendedGoal: itinerary.goal)
                     path.append(.results(PlanResultRoute(result: result)))
-                }
+                },
+                onOpenPlan: { result in path.append(.results(PlanResultRoute(result: result))) }
             )
             .navigationDestination(for: AppRoute.self) { route in
                 switch route {

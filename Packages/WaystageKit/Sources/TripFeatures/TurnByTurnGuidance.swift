@@ -137,14 +137,3 @@ public enum GuidanceError: Error, Equatable, Sendable {
         }
     }
 }
-
-extension Place {
-    /// The Google Place ID, when the place came from Google (not a made-up roadside pull-off, a
-    /// lodging area or a gateway hotel).
-    public var googlePlaceID: String? {
-        guard id.count >= 16, UUID(uuidString: id) == nil,
-              !id.hasPrefix("pulloff-"), !id.hasPrefix("lodging-area-"),
-              id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }) else { return nil }
-        return id
-    }
-}

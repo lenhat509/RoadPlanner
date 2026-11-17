@@ -6,6 +6,33 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **CarPlay** (navigation app): Google's map on the car's screen, a list of the trip in progress
+  and saved plans, each leg previewed with **Start** (**Continue** at a stop), Google's maneuvers,
+  lane images and estimates, voice through the car, and **End**. Guidance stops at once when
+  CarPlay or the car's own navigation ends it. The iPhone and CarPlay share one drive. See
+  `docs/CARPLAY.md`.
+- Saved plans older than 30 days are planned again with fresh data (**Saved over 30 days ago ·
+  tap to plan again**).
+
+### Changed
+- **Turn-by-turn directions come from Google's Navigation SDK** (11.3.0): routes from the phone,
+  Google's turn header, lane guidance, speed, voice, rerouting and arrival. Google's terms don't
+  allow rebuilding navigation from the Routes API and the Maps SDK, or speaking Google content
+  with a speech synthesizer, which the app did before. Its own guidance engine now only runs the
+  offline demo and tests, on made-up data.
+- While Google guides, Waystage's panel sits below the map instead of over it.
+- Google's navigation terms are shown after the first-launch agreement and before a drive until
+  accepted. The Terms of Use (version 2) add a section on directions: use your own judgment;
+  tolls and HOV-lane fees are the driver's. Everyone is asked to agree again.
+- Saved trips keep only what Google allows on the phone: place IDs, and coordinates and route
+  lines for 30 days. Place names and addresses are fetched again by place ID when a trip is
+  opened; turn instructions and station prices aren't saved (a saved plan shows the fuel price
+  estimate). Directions loaded during a drive are no longer saved with the trip.
+- Privacy policy: what Google's Navigation SDK collects (location, device ID, diagnostics).
+- Release: **refresh_profile** makes a new provisioning profile (once, after turning on CarPlay
+  for the App ID), and `beta` checks the profile includes CarPlay.
+
 ### Fixed
 - **Start driving** now opens like **Resume**: on the whole trip, then a zoom into the leg. It
   used to start the zoom from an unrelated place (the map's default camera, e.g. over Europe)

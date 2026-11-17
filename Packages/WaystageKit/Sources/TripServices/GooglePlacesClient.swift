@@ -185,12 +185,19 @@ public struct GooglePlacesClient: PlaceSearchProvider, PlaceAutocompleteProvider
     }
 
     public func place(for placeID: String, sessionToken: String) async throws -> Place {
+        try await details(for: placeID, sessionToken: sessionToken)
+    }
+
+    /// Place Details (Pro: display name) without a session: saved trips keep only place IDs.
+    public func details(for placeID: String) async throws -> Place {
+        try await details(for: placeID, sessionToken: nil)
+    }
+
+    private func details(for placeID: String, sessionToken: String?) async throws -> Place {
         guard !configuration.apiKey.isEmpty else { throw ServiceError.missingAPIKey }
         var components = URLComponents(url: Self.baseURL.appendingPathComponent("places/\(placeID)"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            URLQueryItem(name: "sessionToken", value: sessionToken),
-            URLQueryItem(name: "languageCode", value: configuration.languageCode),
-        ]
+        components.queryItems = [URLQueryItem(name: "languageCode", value: configuration.languageCode)]
+        if let sessionToken { components.queryItems?.insert(URLQueryItem(name: "sessionToken", value: sessionToken), at: 0) }
         var headers = configuration.headers(fieldMask: Self.detailsFieldMask)
         headers.removeValue(forKey: "Content-Type")
         let response = try await transport.send(HTTPRequest(method: .get, url: components.url!, headers: headers)).validated()

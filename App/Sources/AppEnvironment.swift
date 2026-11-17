@@ -114,7 +114,12 @@ final class AppEnvironment {
             planner: services.planner,
             routing: services.routing,
             autocomplete: services.autocomplete,
-            repository: FileTripRepository(directory: FileTripRepository.defaultDirectory()),
+            // Keeps only what Google allows on the phone (place IDs; coordinates for 30 days) and
+            // fetches names and addresses again by place ID (see GoogleContentRetention).
+            repository: RetainingTripRepository(
+                base: FileTripRepository(directory: FileTripRepository.defaultDirectory()),
+                places: services.autocomplete
+            ),
             preferences: UserDefaultsPreferencesStore(),
             location: CoreLocationProvider(),
             // Google's Navigation SDK guides, with its own voice (no speech synthesizer: Google's

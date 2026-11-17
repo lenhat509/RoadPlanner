@@ -9,8 +9,8 @@ import TripPersistence
 /// Have a lawyer review them before release.
 public enum Disclosures {
     /// Bump when the agreement or the terms change: everyone is asked to agree again.
-    public static let termsVersion = 1
-    public static let termsLastUpdated = "November 14, 2026"
+    public static let termsVersion = 2
+    public static let termsLastUpdated = "November 17, 2026"
 
     public static let googleMapsTermsURL = URL(string: "https://maps.google.com/help/terms_maps/")!
     public static let googlePrivacyURL = URL(string: "https://policies.google.com/privacy")!
@@ -46,6 +46,11 @@ public enum Disclosures {
             id: "safety", systemImage: "steeringwheel", title: "You're the driver",
             detail: "Set up before you drive and don't use the app while moving. Rest whenever you're tired, and keep "
                 + "fuel in reserve in remote areas."
+        ),
+        Point(
+            id: "directions", systemImage: "arrow.triangle.turn.up.right.diamond", title: "Directions can differ from the road",
+            detail: "Turn-by-turn directions come from Google and can differ from real conditions: use your own judgment. "
+                + "Tolls and HOV-lane fees on the way are yours to pay."
         ),
         Point(
             id: "vehicles", systemImage: "car", title: "Made for cars",
@@ -131,6 +136,14 @@ public enum Disclosures {
                 + "use the app while the vehicle is moving: let a passenger operate it, or stop in a safe place first.",
             "Planned breaks don't replace your judgment. Rest whenever you feel tired, stop only where it is "
                 + "legal and safe, and don't follow a route or instruction that seems unsafe, illegal or impossible.",
+        ]),
+        TermsSection(title: "Turn-by-turn directions and CarPlay", paragraphs: [
+            "Turn-by-turn directions, on your phone and on CarPlay, are provided by Google's Navigation SDK and are "
+                + "subject to Google's terms, which are shown before your first drive.",
+            "Directions, routes and estimated times can differ from actual conditions. Always use your own "
+                + "judgment, and follow road signs, traffic laws and instructions from the authorities over the directions.",
+            "You are responsible for any costs you incur while following directions, such as tolls and fees for "
+                + "high-occupancy vehicle (HOV) or express lanes.",
         ]),
         TermsSection(title: "Vehicles", paragraphs: [
             "Waystage is designed for passenger cars. Its routes and plans don't consider the size, weight, "

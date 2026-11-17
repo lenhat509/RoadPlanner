@@ -22,7 +22,7 @@ directions between every stop — for three objectives: **fastest**, **cheapest*
 ## Repository layout
 
 ```
-App/                    SwiftUI app shell (views, Google Maps view, CoreLocation, speech)
+App/                    SwiftUI app shell (views, Google maps and navigation, CarPlay, CoreLocation)
 AppTests/               App-layer unit tests (Swift Testing)
 AppUITests/             XCUITest end-to-end and screenshot tests
 Packages/WaystageKit/    Platform-independent core (builds and tests on macOS, iOS and Linux)

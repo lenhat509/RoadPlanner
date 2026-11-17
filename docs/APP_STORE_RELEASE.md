@@ -20,7 +20,8 @@ To do:
 - [ ] Check that the app name in App Store Connect matches `fastlane/metadata/en-US/name.txt`
       ("Waystage: Road Trip Planner"); otherwise the first upload renames it. The name under the
       icon is "Waystage" either way.
-- [ ] Create a new Google Maps key, restricted to the bundle ID and the three APIs, with quotas
+- [ ] Create a new Google Maps key, restricted to the bundle ID and the four APIs (including
+      the **Navigation SDK**, which must be enabled in the Google Cloud project), with quotas
       and a budget alert; save it as the `GOOGLE_MAPS_API_KEY` secret; then delete the old key
       in Google Cloud (copies of it were downloadable from the former preview builds) and the
       old `SECRETS_XCCONFIG` secret on GitHub. See [API_KEYS.md](API_KEYS.md).
@@ -28,6 +29,11 @@ To do:
       ([TRY_ON_IPHONE.md](TRY_ON_IPHONE.md#github-secrets-and-variables)).
 - [ ] First TestFlight build: **Actions → Release**, lane `beta`, with **create_certificates**
       ticked (first run only; it creates the signing certificate and profile).
+- [ ] CarPlay, once: turn on **CarPlay Navigation** for the App ID in the Apple Developer portal,
+      then run **Actions → Release**, lane `beta`, with **refresh_profile** ticked. See
+      [CARPLAY.md](CARPLAY.md). Until then, `beta` stops with a message saying so.
+- [ ] Optional: the repository variable `WAYSTAGE_COMPANY_NAME`, the legal name on your Google
+      Maps Platform account, shown in Google's navigation terms dialog (default "Waystage").
 - [ ] In App Store Connect:
   - [ ] **App Review Information** on the version page: your name, phone and email. Only Apple
         sees it, so it isn't kept in this public repository; fastlane uploads the review notes
@@ -42,16 +48,24 @@ To do:
 
 ## App Privacy ("nutrition label") answers
 
-Matches `App/Resources/PrivacyInfo.xcprivacy`:
+Waystage's own data (`App/Resources/PrivacyInfo.xcprivacy`) plus what Google's Navigation SDK
+declares in its privacy manifest (`GoogleNavigation.bundle/PrivacyInfo.xcprivacy`, 11.3.0). App
+Store Connect asks about everything the app *and its SDKs* collect, so answer:
 
-| Data | Collected | Linked to user | Tracking | Purpose |
+| Data | Collected | Linked to user | Tracking | Purposes |
 |---|---|---|---|---|
-| Precise location | Yes (sent to Google for routing, place search and navigation) | No | No | App functionality |
-| Search history (place queries) | Yes (sent to Google Places) | No | No | App functionality |
+| Precise location | Yes (Google: routing, places, navigation) | Yes (the Navigation SDK links it) | No | App functionality, Analytics |
+| Search history (place queries) | Yes (Google Places) | No | No | App functionality |
+| Device ID | Yes (Navigation SDK) | Yes | No | App functionality, Analytics |
+| Crash data | Yes (Navigation SDK) | No | No | App functionality, Analytics |
+| Performance data | Yes (Navigation SDK) | No | No | Analytics |
+| Product interaction | Yes (Navigation SDK) | No | No | Analytics |
+| Other data types | Yes (Navigation SDK) | Yes | No | Analytics |
 | Everything else | No | — | — | — |
 
-No accounts, analytics, advertising or tracking SDKs are included. Google Maps SDK ships its own
-privacy manifest.
+Check the manifest again when the SDK is updated. Waystage adds no accounts, analytics,
+advertising or tracking SDKs of its own; the privacy policy explains what the Navigation SDK
+sends to Google.
 
 ## Review notes
 
