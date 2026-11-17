@@ -45,7 +45,28 @@ struct AppEnvironmentTests {
         let environment = AppEnvironment.make(arguments: [], configuration: configured)
         #expect(environment.mode == .production)
         #expect(environment.dependencies.location is CoreLocationProvider)
-        #expect(environment.dependencies.speech is SpeechAnnouncer)
+        // Navigation is Google's Navigation SDK, with its own voice (no app speech synthesizer).
+        #expect(environment.dependencies.guidance is GoogleNavigationEngine)
+        #expect(environment.navigation != nil)
+        #expect(environment.dependencies.guidance.drawsOwnGuidance)
+    }
+
+    @Test("Offline, navigation is simulated on made-up data")
+    func offlineNavigation() {
+        let demo = AppEnvironment.make(arguments: [], configuration: unconfigured)
+        #expect(demo.dependencies.guidance is SimulatedGuidance)
+        #expect(demo.navigation == nil)
+        let uiTest = AppEnvironment.make(arguments: [LaunchArgument.uiTestSandbox], configuration: configured)
+        #expect(uiTest.dependencies.guidance is SimulatedGuidance)
+    }
+
+    @Test("Google's navigation terms dialog names the configured company")
+    func companyName() {
+        #expect(unconfigured.navigationCompanyName == "Waystage")
+        let named = AppConfiguration(info: ["WAYNavigationCompanyName": "Example LLC"], bundleIdentifier: "com.example.waystage")
+        #expect(named.navigationCompanyName == "Example LLC")
+        let unexpanded = AppConfiguration(info: ["WAYNavigationCompanyName": "$(WAYSTAGE_COMPANY_NAME)"], bundleIdentifier: "x")
+        #expect(unexpanded.navigationCompanyName == "Waystage")
     }
 
     @Test("The launch intro plays for people, not for UI tests")
@@ -69,17 +90,23 @@ struct AppEnvironmentTests {
         #expect(!TermsAgreementView.isRequired(mode: .production, arguments: [], preferences: preferences))
     }
 
-    @Test("Drive mode presentation state")
+    @Test("One drive at a time, shared by the iPhone and CarPlay")
     func driveState() async throws {
         let environment = AppEnvironment.make(arguments: [LaunchArgument.uiTestSandbox, LaunchArgument.resetState], configuration: unconfigured)
-        #expect(environment.drivingTrip == nil)
+        #expect(environment.drive == nil)
         let plan = try await environment.dependencies.planner.plan(
             TripSandboxSamples.request()
         ) { _ in }
         let trip = ActiveTrip(itinerary: try #require(plan.recommended))
-        environment.beginDrive(trip)
-        #expect(environment.drivingTrip?.id == trip.id)
-        environment.endDrive()
-        #expect(environment.drivingTrip == nil)
+        await environment.beginDrive(trip)
+        let drive = try #require(environment.drive)
+        #expect(drive.id == trip.id)
+        await environment.beginDrive(trip)
+        #expect(environment.drive === drive, "opening the same trip again (from CarPlay) keeps the drive")
+        await drive.start()
+        #expect(drive.isStarted)
+        await environment.endDrive()
+        #expect(environment.drive == nil)
+        #expect(!drive.isStarted, "leaving drive mode stops it")
     }
 }

@@ -1,4 +1,5 @@
 import GoogleMaps
+import GoogleNavigation
 import SwiftUI
 import TripFeatures
 import TripModels
@@ -13,8 +14,32 @@ struct MapStopMarker: Hashable {
     let isActive: Bool
 }
 
+/// Google's navigation on the drive screen's map (App Store build): the Navigation SDK draws the
+/// route being driven, the car, the turn-by-turn header, the speed and a re-center button, and
+/// moves the camera while guiding.
+struct NavigationMapState: Equatable {
+    enum Camera: Equatable {
+        /// Behind the car.
+        case following
+        /// The whole route to the next stop.
+        case overview
+        /// Where the driver panned to (Google's re-center button returns to following).
+        case free
+    }
+
+    let session: GMSNavigationSession
+    /// Guidance is running: the camera is Google's.
+    var isGuiding: Bool
+    var camera: Camera
+
+    static func == (lhs: NavigationMapState, rhs: NavigationMapState) -> Bool {
+        lhs.session === rhs.session && lhs.isGuiding == rhs.isGuiding && lhs.camera == rhs.camera
+    }
+}
+
 /// Google Maps SDK map showing the route and stops: everything (overview), a framed leg
-/// (preview), or following the driver (drive mode). Camera moves follow `MapCameraDirector`.
+/// (preview), or following the driver (drive mode). Camera moves follow `MapCameraDirector`;
+/// with `navigation`, Google's Navigation SDK guides on it.
 struct TripMapView: UIViewRepresentable {
     enum Camera: Equatable {
         /// Everything on the map.
@@ -50,6 +75,10 @@ struct TripMapView: UIViewRepresentable {
     var badges: [MapRouteBadge] = []
     var onSelectBadge: ((String) -> Void)?
     var secondaryStyle = SecondaryPathStyle.restOfTrip
+    /// Google's navigation on this map (drive mode, App Store build).
+    var navigation: NavigationMapState?
+    /// Google's re-center button was tapped (the camera follows the car again).
+    var onRecenter: (() -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -76,7 +105,9 @@ struct TripMapView: UIViewRepresentable {
         let coordinator = context.coordinator
         coordinator.onUserMoved = onUserMoved
         coordinator.onSelectBadge = onSelectBadge
+        coordinator.onRecenter = onRecenter
         coordinator.chrome = chrome
+        coordinator.updateNavigation(navigation, on: mapView)
         coordinator.applyStyle(colorScheme, to: mapView)
         coordinator.render(paths: paths, style: secondaryStyle, on: mapView)
         coordinator.render(markers: markers, on: mapView)
@@ -88,9 +119,14 @@ struct TripMapView: UIViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, GMSMapViewDelegate {
+    final class Coordinator: NSObject, GMSMapViewDelegate, GMSMapViewNavigationUIDelegate {
         var onUserMoved: (() -> Void)?
         var onSelectBadge: ((String) -> Void)?
+        var onRecenter: (() -> Void)?
+        /// The navigation session this map shows, once enabled.
+        private weak var navigationSession: GMSNavigationSession?
+        /// The Navigation SDK's camera mode last set (nil: the camera is the app's).
+        private var navigationCamera: GMSNavigationCameraMode?
         var chrome = UIEdgeInsets.zero
         private var badgeMarkers: [GMSMarker] = []
         private var renderedBadges: [MapRouteBadge]?
@@ -133,7 +169,55 @@ struct TripMapView: UIViewRepresentable {
             MainActor.assumeIsolated {
                 endFlight()
                 userMovedSinceCamera = true
+                // The Navigation SDK stops following when the driver moves the map.
+                if navigationCamera != nil { navigationCamera = .free }
                 onUserMoved?()
+            }
+        }
+
+        nonisolated func mapViewDidTapRecenterButton(_ mapView: GMSMapView) {
+            MainActor.assumeIsolated {
+                if navigationCamera != nil { navigationCamera = .following }
+                onRecenter?()
+            }
+        }
+
+        // MARK: Navigation
+
+        /// Shows Google's navigation on the map; while guiding, the camera is the SDK's.
+        func updateNavigation(_ state: NavigationMapState?, on mapView: GMSMapView) {
+            guard let state else { return }
+            if navigationSession !== state.session {
+                navigationSession = state.session
+                _ = mapView.enableNavigation(with: state.session)
+                mapView.navigationUIDelegate = self
+                // Google's turn-by-turn header, speed and re-center button; drive mode's own panel
+                // below the map shows the time and distance left (in place of Google's footer).
+                mapView.settings.isNavigationHeaderEnabled = true
+                mapView.settings.isNavigationFooterEnabled = false
+                mapView.settings.isRecenterButtonEnabled = true
+                mapView.shouldDisplaySpeedometer = true
+                // Drive mode draws its own stop markers.
+                mapView.settings.showsDestinationMarkers = false
+                mapView.isMyLocationEnabled = true
+            }
+            let mode: GMSNavigationCameraMode?
+            switch (state.isGuiding, state.camera) {
+            case (false, _): mode = nil
+            case (true, .following): mode = .following
+            case (true, .overview): mode = .overview
+            case (true, .free): mode = .free
+            }
+            guard mode != navigationCamera else { return }
+            navigationCamera = mode
+            if let mode {
+                endFlight()
+                pendingCamera = nil
+                // The app's camera takes over again from wherever the SDK left it.
+                appliedCamera = .free
+                mapView.cameraMode = mode
+            } else {
+                mapView.cameraMode = .free
             }
         }
 
@@ -142,6 +226,7 @@ struct TripMapView: UIViewRepresentable {
         func perform(_ command: MapCommand?, camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView) {
             guard let command, command.id != lastCommandID else { return }
             lastCommandID = command.id
+            guard navigationCamera == nil else { return }
             switch command.action {
             case .zoomIn:
                 move(mapView, with: GMSCameraUpdate.zoomIn(), motion: .ease(MapCameraDirector.zoomDuration))
@@ -159,6 +244,8 @@ struct TripMapView: UIViewRepresentable {
         }
 
         func updateCamera(_ camera: Camera, paths: [[GeoCoordinate]], markers: [MapStopMarker], on mapView: GMSMapView) {
+            // While Google guides, the camera is the Navigation SDK's.
+            guard navigationCamera == nil else { return }
             let overview = Self.signature(paths) ^ markers.hashValue
             let planChanged = camera == .overview && appliedCamera == .overview && overview != framedOverview
             // updateUIView runs on every SwiftUI update: act only on a new camera (or a new plan).

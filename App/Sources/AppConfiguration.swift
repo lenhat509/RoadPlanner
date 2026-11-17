@@ -6,6 +6,9 @@ struct AppConfiguration: Equatable {
     var gatewayBaseURL: URL?
     var gatewayAppToken: String?
     var bundleIdentifier: String
+    /// Named in Google's navigation terms dialog: the company releasing the app, as in the Google
+    /// Maps Platform agreement (`WAYSTAGE_COMPANY_NAME`).
+    var navigationCompanyName: String
 
     init(info: [String: Any], bundleIdentifier: String) {
         googleMapsAPIKey = Self.resolved(info["WAYGoogleMapsAPIKey"])
@@ -13,6 +16,7 @@ struct AppConfiguration: Equatable {
             .flatMap(URL.init(string:))
             .flatMap { $0.scheme == "https" && $0.host != nil ? $0 : nil }
         gatewayAppToken = Self.resolved(info["WAYGatewayAppToken"])
+        navigationCompanyName = Self.resolved(info["WAYNavigationCompanyName"]) ?? "Waystage"
         self.bundleIdentifier = bundleIdentifier
     }
 

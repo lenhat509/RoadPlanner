@@ -27,9 +27,12 @@ public protocol LocationProviding: AnyObject {
 @MainActor
 public protocol RouteFollowingLocationProvider: LocationProviding {
     func follow(_ coordinates: [GeoCoordinate])
+    /// Parks the car where it is.
+    func stopFollowing()
 }
 
-/// Spoken guidance, implemented with AVSpeechSynthesizer in the app.
+/// Spoken prompts of the offline simulation (made-up data only: Google content is never passed
+/// to a speech synthesizer; in the App Store build the Navigation SDK speaks its own guidance).
 @MainActor
 public protocol SpeechAnnouncing: AnyObject {
     func speak(_ text: String)

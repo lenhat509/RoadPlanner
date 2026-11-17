@@ -79,6 +79,11 @@ public final class SimulatedLocationProvider: RouteFollowingLocationProvider {
         continuation?.yield(sample)
     }
 
+    public func stopFollowing() {
+        driveTask?.cancel()
+        driveTask = nil
+    }
+
     public func follow(_ coordinates: [GeoCoordinate]) {
         guard autoDrive, coordinates.count > 1 else { return }
         driveTask?.cancel()

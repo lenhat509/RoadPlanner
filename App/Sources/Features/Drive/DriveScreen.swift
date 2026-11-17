@@ -7,6 +7,11 @@ import UIKit
 /// at the very top, the map in the middle, and a bottom sheet with the time left, the next stop,
 /// a red exit button and one menu.
 ///
+/// In the App Store build, Google's Navigation SDK guides on the map: it draws the route, the car,
+/// the turn-by-turn header, the speed and its re-center button, and speaks the directions. While
+/// it guides, Waystage's panel sits below the map, not over it (Google's policies don't allow
+/// covering the navigation screen without the driver asking).
+///
 /// Every leg opens as a *preview* — starting a trip, resuming one, continuing from a stop: the map
 /// shows the whole trip, then zooms into the route from the car to the next stop (north-up,
 /// keeping it in view), with a Start button that zooms down to the car (keeping the car in view).
@@ -14,7 +19,7 @@ struct DriveScreen: View {
     /// What the camera does while guiding.
     typealias CameraMode = MapCameraDirector.GuidingView
 
-    @State private var model: DriveViewModel
+    let model: DriveViewModel
     @State private var showsSafetyNotice: Bool
     @State private var confirmsEnd = false
     @State private var cameraMode = CameraMode.follow
@@ -24,12 +29,16 @@ struct DriveScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
     private let dependencies: AppDependencies
+    /// Google's Navigation SDK (App Store build).
+    private let navigation: GoogleNavigationEngine?
+    /// Leaves drive mode (the environment stops the drive).
     let onFinish: () -> Void
 
-    init(trip: ActiveTrip, dependencies: AppDependencies, onFinish: @escaping () -> Void) {
-        _model = State(initialValue: DriveViewModel(trip: trip, dependencies: dependencies))
+    init(model: DriveViewModel, dependencies: AppDependencies, navigation: GoogleNavigationEngine?, onFinish: @escaping () -> Void) {
+        self.model = model
         _showsSafetyNotice = State(initialValue: !dependencies.preferences.load().hasAcceptedSafetyNotice)
         self.dependencies = dependencies
+        self.navigation = navigation
         self.onFinish = onFinish
     }
 
@@ -55,11 +64,9 @@ struct DriveScreen: View {
             try? await Task.sleep(nanoseconds: UInt64(MapCameraDirector.wholeTripHold * 1_000_000_000))
             showsWholeTrip = false
         }
+        // The Navigation SDK doesn't keep the screen on by itself.
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
-        .onDisappear {
-            UIApplication.shared.isIdleTimerDisabled = false
-            Task { await model.stop() }
-        }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         .onChange(of: scenePhase) { _, phase in
             // Guidance keeps running in the background; nothing to pause. Progress is auto-saved.
             if phase == .active { UIApplication.shared.isIdleTimerDisabled = true }
@@ -79,47 +86,97 @@ struct DriveScreen: View {
 
     private var isGuiding: Bool { model.mode == .driving && model.stage == .navigating }
     private var isPreviewing: Bool { model.mode == .driving && model.stage == .preview }
+    /// Google's Navigation SDK is guiding on the map (App Store build).
+    private var isGoogleGuiding: Bool { isGuiding && navigationMap != nil }
 
+    /// One map for the whole drive (so it never reloads); the panels move around it. While Google
+    /// guides, its map (with its header, speed and re-center button) sits above Waystage's panel;
+    /// otherwise the panels float over the map.
     private var driveContent: some View {
-        ZStack(alignment: .top) {
-            RouteMap(
-                paths: paths,
-                markers: markers,
-                camera: camera,
-                chrome: chrome,
-                vehicle: model.currentLocation.map { TripMapView.Vehicle(coordinate: $0, course: model.currentCourse) },
-                command: mapCommand,
-                onUserMoved: userMovedMap
-            )
-            .ignoresSafeArea()
+        VStack(spacing: 0) {
+            ZStack(alignment: .top) {
+                map
+                    .ignoresSafeArea(edges: isGoogleGuiding ? .top : .all)
 
-            VStack(spacing: Theme.Spacing.s) {
-                topArea
-                HStack(alignment: .top) {
-                    Spacer()
-                    sideControls
+                VStack(spacing: Theme.Spacing.s) {
+                    if isGoogleGuiding {
+                        // Clear of Google's header and buttons, away from the car.
+                        Spacer(minLength: 0)
+                        HStack {
+                            Spacer()
+                            sideControls
+                        }
+                        Spacer(minLength: 0)
+                    } else {
+                        topArea
+                        HStack(alignment: .top) {
+                            Spacer()
+                            sideControls
+                        }
+                        Spacer(minLength: 0)
+                        if isGuiding && cameraMode != .follow && !model.engineDrawsGuidance {
+                            recenterButton
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .transition(.move(edge: .leading).combined(with: .opacity))
+                        }
+                        bottomPanel
+                    }
                 }
-                Spacer(minLength: 0)
-                if isGuiding && cameraMode != .follow {
-                    recenterButton
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-                }
-                bottomPanel
+                .padding(.horizontal, Theme.Spacing.s)
+                .padding(.bottom, Theme.Spacing.xs)
             }
-            .padding(.horizontal, Theme.Spacing.s)
-            .padding(.bottom, Theme.Spacing.xs)
-            .animation(.easeInOut(duration: 0.25), value: model.mode)
-            .animation(.easeInOut(duration: 0.25), value: model.stage)
-            .animation(.easeInOut(duration: 0.2), value: cameraMode)
+            if isGoogleGuiding {
+                VStack(spacing: Theme.Spacing.s) {
+                    if let message = model.statusMessage {
+                        StatusPill(message: message, onDismiss: model.dismissStatus)
+                    }
+                    bottomPanel
+                }
+                .padding(.horizontal, Theme.Spacing.s)
+                .padding(.top, Theme.Spacing.s)
+                .padding(.bottom, Theme.Spacing.xs)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .background(Theme.background.ignoresSafeArea())
+        .animation(.easeInOut(duration: 0.25), value: model.mode)
+        .animation(.easeInOut(duration: 0.25), value: model.stage)
+        .animation(.easeInOut(duration: 0.2), value: cameraMode)
+    }
+
+    private var map: some View {
+        RouteMap(
+            paths: paths,
+            markers: markers,
+            camera: camera,
+            chrome: chrome,
+            // Google's map draws the car itself.
+            vehicle: model.engineDrawsGuidance
+                ? nil : model.currentLocation.map { TripMapView.Vehicle(coordinate: $0, course: model.currentCourse) },
+            command: mapCommand,
+            onUserMoved: userMovedMap,
+            navigation: navigationMap,
+            onRecenter: { cameraMode = .follow }
+        )
     }
 
     // MARK: Map
 
-    /// The leg being driven (strong) and the rest of the trip (light).
+    /// Google's navigation on the map, once its session exists (App Store build).
+    private var navigationMap: NavigationMapState? {
+        guard let session = navigation?.session, model.isGuidanceReady else { return nil }
+        let camera: NavigationMapState.Camera = switch cameraMode {
+        case .follow: .following
+        case .overview: .overview
+        case .free: .free
+        }
+        return NavigationMapState(session: session, isGuiding: isGuiding, camera: camera)
+    }
+
+    /// The leg being driven (strong) and the rest of the trip (light). Google's map draws the
+    /// route it guides along itself.
     private var paths: [[GeoCoordinate]] {
-        var paths = [model.routeToTarget]
+        var paths = [model.drawsRouteToTarget ? model.routeToTarget : []]
         if !model.routeAfterTarget.isEmpty { paths.append(model.routeAfterTarget) }
         return paths
     }
@@ -323,10 +380,7 @@ struct DriveScreen: View {
 
     /// Leaves drive mode; the trip stays saved and can be resumed from Home.
     private func exitDrive() {
-        Task {
-            await model.stop()
-            onFinish()
-        }
+        onFinish()
     }
 
     private func startNavigation() {

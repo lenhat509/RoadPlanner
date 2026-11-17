@@ -61,7 +61,11 @@ platform :ios do
     readonly = ENV.fetch("MATCH_READONLY", is_ci.to_s) == "true"
     setup_ci if is_ci
     bundle_id = ENV.fetch("WAYSTAGE_BUNDLE_ID")
-    match(type: "appstore", app_identifier: bundle_id, readonly: readonly, api_key: api_key)
+    # MATCH_FORCE=true (the workflow's "refresh_profile") makes a new profile, e.g. after CarPlay
+    # was turned on for the App ID.
+    force = ENV["MATCH_FORCE"] == "true"
+    match(type: "appstore", app_identifier: bundle_id, readonly: readonly && !force, force: force, api_key: api_key)
+    verify_profile_has_carplay(bundle_id)
     # Sign only the app target manually with the match profile (Swift package targets are not signed).
     update_code_signing_settings(
       path: PROJECT,
@@ -165,4 +169,19 @@ def rename_exported_screenshots(directory)
     end
   end
   FileUtils.rm_f(manifest_path)
+end
+
+# The app asks for the CarPlay navigation entitlement (App/Waystage.entitlements), so the profile
+# must include it, or the export fails with a much less helpful message.
+def verify_profile_has_carplay(bundle_id)
+  path = ENV["sigh_#{bundle_id}_appstore_profile-path"]
+  return if path.nil? || !File.exist?(path)
+  profile = `security cms -D -i "#{path}" 2>/dev/null`
+  return if profile.include?("com.apple.developer.carplay-maps")
+  UI.user_error!(
+    "The provisioning profile doesn't include CarPlay yet. In the Apple Developer portal, open " \
+    "Certificates, IDs & Profiles > Identifiers > #{bundle_id}, turn on CarPlay Navigation (listed " \
+    "once Apple has granted it to your account) and save. Then run the Release workflow again with " \
+    "\"refresh_profile\" ticked."
+  )
 end

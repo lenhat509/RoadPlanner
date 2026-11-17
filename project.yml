@@ -27,7 +27,12 @@ packages:
     path: Packages/WaystageKit
   GoogleMaps:
     url: https://github.com/googlemaps/ios-maps-sdk
-    from: 9.0.0
+    from: 11.3.0
+  # Turn-by-turn navigation (Google's terms don't allow rebuilding it from the Routes API and
+  # the Maps SDK). Needs Xcode 26 and the Maps SDK version it was built with.
+  GoogleNavigation:
+    url: https://github.com/googlemaps/ios-navigation-sdk
+    exactVersion: 11.3.0
 targets:
   Waystage:
     type: application
@@ -50,6 +55,10 @@ targets:
         DEVELOPMENT_TEAM: $(WAYSTAGE_TEAM_ID)
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        # CarPlay navigation (com.apple.developer.carplay-maps, granted by Apple).
+        CODE_SIGN_ENTITLEMENTS: App/Waystage.entitlements
+        # The Navigation SDK is a static library with Objective-C categories (GMSMapView+Navigation).
+        OTHER_LDFLAGS: "$(inherited) -ObjC"
     dependencies:
       - package: WaystageKit
         product: TripModels
@@ -67,6 +76,9 @@ targets:
         product: TripSandbox
       - package: GoogleMaps
         product: GoogleMaps
+      - package: GoogleNavigation
+        product: GoogleNavigation
+      - sdk: CarPlay.framework
   WaystageTests:
     type: bundle.unit-test
     platform: iOS

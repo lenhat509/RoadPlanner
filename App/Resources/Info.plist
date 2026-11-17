@@ -42,7 +42,21 @@
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
-		<false/>
+		<true/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>CPTemplateApplicationSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>CPTemplateApplicationScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>CarPlay</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict>
@@ -64,5 +78,7 @@
 	<string>$(WAYSTAGE_GATEWAY_URL)</string>
 	<key>WAYGatewayAppToken</key>
 	<string>$(WAYSTAGE_GATEWAY_TOKEN)</string>
+	<key>WAYNavigationCompanyName</key>
+	<string>$(WAYSTAGE_COMPANY_NAME)</string>
 </dict>
 </plist>

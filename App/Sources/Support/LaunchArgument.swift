@@ -18,4 +18,7 @@ enum LaunchArgument {
     static let showIntro = "-ShowIntro"
     /// Asks for the terms agreement in the sandbox (UI tests otherwise skip it).
     static let showTerms = "-ShowTerms"
+    /// With a Google key: drives each guided route with the Navigation SDK's location simulator
+    /// (testing at a desk or in the CarPlay simulator). Never set in normal use.
+    static let simulateNavigation = "-SimulateNavigation"
 }

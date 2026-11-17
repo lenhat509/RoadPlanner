@@ -16,16 +16,19 @@ struct FeatureHarness {
     let location: SimulatedLocationProvider
     let speech = RecordingSpeechAnnouncer()
     let dependencies: AppDependencies
+    /// The offline navigation engine (unless the harness was given another).
+    var guidance: SimulatedGuidance { dependencies.guidance as! SimulatedGuidance }
 
     init(
         backend: SimulatedGoogleBackend = SimulatedGoogleBackend(),
         timeZone: TimeZone = TimeZone(identifier: "America/Los_Angeles")!,
         autocompleteDebounce: TimeInterval = 0,
-        startLocation: GeoCoordinate? = SampleTrips.city("la").coordinate
+        startLocation: GeoCoordinate? = SampleTrips.city("la").coordinate,
+        guidance: (any TurnByTurnGuidance)? = nil
     ) {
         let location = SimulatedLocationProvider(start: startLocation)
         self.location = location
-        dependencies = SandboxEnvironment.makeDependencies(
+        let sandbox = SandboxEnvironment.makeDependencies(
             backend: backend,
             repository: repository,
             preferences: preferences,
@@ -36,6 +39,14 @@ struct FeatureHarness {
             timeZone: timeZone,
             now: { testNow }
         )
+        dependencies = guidance.map { guidance in
+            AppDependencies(
+                planner: sandbox.planner, routing: sandbox.routing, autocomplete: sandbox.autocomplete,
+                repository: sandbox.repository, preferences: sandbox.preferences, location: sandbox.location,
+                guidance: guidance, formatters: sandbox.formatters, autocompleteDebounce: sandbox.autocompleteDebounce,
+                timeZone: sandbox.timeZone, now: sandbox.now
+            )
+        } ?? sandbox
     }
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import GoogleMaps
 import Observation
 import TripFeatures
 import TripModels
@@ -8,7 +9,7 @@ import TripSandbox
 import TripServices
 
 /// Composition root: builds the dependency graph for the current mode and holds app-wide
-/// navigation state (the trip being driven).
+/// navigation state (the drive in progress, shared by the iPhone and CarPlay).
 @MainActor
 @Observable
 final class AppEnvironment {
@@ -24,14 +25,26 @@ final class AppEnvironment {
     let mode: Mode
     let dependencies: AppDependencies
     let configuration: AppConfiguration
-    /// The trip shown full-screen in drive mode.
-    var drivingTrip: ActiveTrip?
+    /// Google's Navigation SDK (App Store build); nil offline, where navigation is simulated.
+    let navigation: GoogleNavigationEngine?
+    /// The drive in progress, shown full screen on the iPhone and on the CarPlay screen.
+    private(set) var drive: DriveViewModel?
 
-    init(mode: Mode, dependencies: AppDependencies, configuration: AppConfiguration) {
+    init(mode: Mode, dependencies: AppDependencies, configuration: AppConfiguration, navigation: GoogleNavigationEngine? = nil) {
         self.mode = mode
         self.dependencies = dependencies
         self.configuration = configuration
+        self.navigation = navigation
     }
+
+    /// The app's environment, shared by the iPhone and CarPlay scenes (the app can be launched on
+    /// the CarPlay screen alone).
+    static let shared: AppEnvironment = {
+        let configuration = AppConfiguration.load()
+        // The Maps SDK must be initialised before any map view is created.
+        _ = GMSServices.provideAPIKey(configuration.googleMapsAPIKey ?? "MISSING_API_KEY")
+        return make(configuration: configuration)
+    }()
 
     static func make(
         arguments: [String] = ProcessInfo.processInfo.arguments,
@@ -46,20 +59,44 @@ final class AppEnvironment {
             )
         }
         guard configuration.isGoogleConfigured else { return makeDemo(configuration: configuration) }
-        return makeProduction(configuration: configuration)
+        return makeProduction(configuration: configuration, arguments: arguments)
     }
 
-    func beginDrive(_ trip: ActiveTrip) {
-        drivingTrip = trip
+    /// Opens drive mode for `trip` (on the iPhone, and on CarPlay when connected). In the App
+    /// Store build, Google's navigation terms are asked for first if they haven't been accepted
+    /// (`asksForTerms`: not from CarPlay, whose driver can't answer on the phone).
+    func beginDrive(_ trip: ActiveTrip, asksForTerms: Bool = true) async {
+        if let drive {
+            if drive.id == trip.id { return }
+            await drive.stop()
+            self.drive = nil
+        }
+        if asksForTerms, let navigation { await navigation.requestTerms() }
+        drive = DriveViewModel(trip: trip, dependencies: dependencies)
     }
 
-    func endDrive() {
-        drivingTrip = nil
+    /// Leaves drive mode (the trip stays saved unless it was ended).
+    func endDrive() async {
+        guard let drive else { return }
+        self.drive = nil
+        await drive.stop()
+    }
+
+    /// Whether a drive can be started without the iPhone (from CarPlay): the terms, the driving
+    /// safety notice and, in the App Store build, Google's navigation terms have been accepted.
+    var isReadyToDriveWithoutPhone: Bool {
+        let preferences = dependencies.preferences.load()
+        guard preferences.hasAcceptedSafetyNotice, !TermsAgreement.isNeeded(preferences) || mode == .uiTest else { return false }
+        return navigation == nil || GoogleNavigationEngine.areTermsAccepted
     }
 
     // MARK: Factories
 
-    private static func makeProduction(configuration: AppConfiguration) -> AppEnvironment {
+    private static func makeProduction(configuration: AppConfiguration, arguments: [String]) -> AppEnvironment {
+        let navigation = GoogleNavigationEngine(
+            companyName: configuration.navigationCompanyName,
+            simulatesLocation: arguments.contains(LaunchArgument.simulateNavigation)
+        )
         let gateway: WaystageGatewayClient.Configuration? = {
             guard let url = configuration.gatewayBaseURL, let token = configuration.gatewayAppToken else { return nil }
             return WaystageGatewayClient.Configuration(baseURL: url, appToken: token)
@@ -80,9 +117,11 @@ final class AppEnvironment {
             repository: FileTripRepository(directory: FileTripRepository.defaultDirectory()),
             preferences: UserDefaultsPreferencesStore(),
             location: CoreLocationProvider(),
-            speech: SpeechAnnouncer()
+            // Google's Navigation SDK guides, with its own voice (no speech synthesizer: Google's
+            // terms don't allow speaking Google content with one).
+            guidance: navigation
         )
-        return AppEnvironment(mode: .production, dependencies: dependencies, configuration: configuration)
+        return AppEnvironment(mode: .production, dependencies: dependencies, configuration: configuration, navigation: navigation)
     }
 
     private static func makeDemo(configuration: AppConfiguration) -> AppEnvironment {

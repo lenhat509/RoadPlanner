@@ -11,10 +11,8 @@ struct WaystageApp: App {
     @State private var needsTerms: Bool
 
     init() {
-        let configuration = AppConfiguration.load()
-        // The Maps SDK must be initialised before any map view is created.
-        _ = GMSServices.provideAPIKey(configuration.googleMapsAPIKey ?? "MISSING_API_KEY")
-        let environment = AppEnvironment.make(configuration: configuration)
+        // Shared with the CarPlay scene; it also gives the Maps SDK its key.
+        let environment = AppEnvironment.shared
         _environment = State(initialValue: environment)
         _showsIntro = State(initialValue: LaunchIntroView.isShown(in: environment.mode, arguments: ProcessInfo.processInfo.arguments))
         _needsTerms = State(initialValue: TermsAgreementView.isRequired(
@@ -53,5 +51,9 @@ struct WaystageApp: App {
         TermsAgreement.accept(&preferences)
         store.save(preferences)
         withAnimation(.easeOut(duration: 0.25)) { needsTerms = false }
+        // Google's Navigation SDK terms are shown at first use too (its policies require it).
+        if let navigation = environment.navigation {
+            Task { await navigation.requestTerms() }
+        }
     }
 }

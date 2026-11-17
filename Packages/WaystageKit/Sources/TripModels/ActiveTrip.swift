@@ -49,15 +49,12 @@ public struct TripProgress: Codable, Hashable, Sendable {
 public struct ActiveTrip: Codable, Hashable, Sendable, Identifiable {
     public var itinerary: Itinerary
     public var progress: TripProgress
-    /// Directions refreshed during the drive (e.g. after a reroute), keyed by the leg's start stop index.
-    public var rerouteLegs: [Int: RouteLeg]
 
     public var id: UUID { itinerary.id }
 
-    public init(itinerary: Itinerary, progress: TripProgress = TripProgress(), rerouteLegs: [Int: RouteLeg] = [:]) {
+    public init(itinerary: Itinerary, progress: TripProgress = TripProgress()) {
         self.itinerary = itinerary
         self.progress = progress
-        self.rerouteLegs = rerouteLegs
     }
 
     /// The stop being driven to (or the current stop when `atStop`).
@@ -71,10 +68,10 @@ public struct ActiveTrip: Codable, Hashable, Sendable, Identifiable {
         return itinerary.stops.indices.contains(next) ? itinerary.stops[next] : nil
     }
 
-    /// Directions into the target stop, preferring a refreshed leg.
+    /// The planned leg into the target stop. (Directions for the drive come from the navigation
+    /// engine and aren't saved.)
     public var legToTarget: RouteLeg? {
-        let fromIndex = progress.targetStopIndex - 1
-        return rerouteLegs[fromIndex] ?? itinerary.leg(after: fromIndex)
+        itinerary.leg(after: progress.targetStopIndex - 1)
     }
 
     /// Fraction of planned stops that have been reached or skipped, `0...1`.

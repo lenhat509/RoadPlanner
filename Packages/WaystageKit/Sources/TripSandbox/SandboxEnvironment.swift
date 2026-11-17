@@ -6,8 +6,9 @@ import TripPlanner
 import TripServices
 
 /// A complete offline app environment: production adapters over the simulated Google
-/// backend, in-memory storage, simulated GPS and silent speech. Used by unit tests,
-/// SwiftUI previews and the app's UI-test sandbox mode (`-UITestSandbox`).
+/// backend, in-memory storage, simulated GPS, simulated turn-by-turn navigation and silent
+/// speech. Used by unit tests, SwiftUI previews, demo mode and the app's UI-test sandbox mode
+/// (`-UITestSandbox`).
 @MainActor
 public enum SandboxEnvironment {
     public static func makeDependencies(
@@ -22,6 +23,7 @@ public enum SandboxEnvironment {
         now: @escaping @Sendable () -> Date = Date.init
     ) -> AppDependencies {
         let services = SimulatedGoogleBackend.services(backend: backend)
+        let guidance = SimulatedGuidance(routing: services.routing, location: location, speech: speech, now: now)
         return AppDependencies(
             planner: services.planner,
             routing: services.routing,
@@ -29,7 +31,7 @@ public enum SandboxEnvironment {
             repository: repository,
             preferences: preferences,
             location: location,
-            speech: speech,
+            guidance: guidance,
             formatters: formatters,
             autocompleteDebounce: autocompleteDebounce,
             timeZone: timeZone,

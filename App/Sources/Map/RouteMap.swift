@@ -66,6 +66,10 @@ struct RouteMap: View {
     /// Called with a tag's route ID when it is tapped.
     var onSelectBadge: ((String) -> Void)?
     var secondaryStyle = SecondaryPathStyle.restOfTrip
+    /// Google's navigation on the map (drive mode, App Store build; ignored by Apple Maps).
+    var navigation: NavigationMapState?
+    /// Google's re-center button was tapped.
+    var onRecenter: (() -> Void)?
 
     @Environment(\.mapProvider) private var provider
 
@@ -75,7 +79,8 @@ struct RouteMap: View {
             TripMapView(
                 paths: paths, markers: markers, camera: camera, chrome: chrome, vehicle: vehicle,
                 userLocation: userLocation, command: command, onUserMoved: onUserMoved,
-                badges: badges, onSelectBadge: onSelectBadge, secondaryStyle: secondaryStyle
+                badges: badges, onSelectBadge: onSelectBadge, secondaryStyle: secondaryStyle,
+                navigation: navigation, onRecenter: onRecenter
             )
         case .apple:
             AppleRouteMap(

@@ -1,4 +1,5 @@
 import SwiftUI
+import TripFeatures
 import TripModels
 import TripPlanner
 
@@ -24,14 +25,13 @@ struct RootView: View {
     @State private var path: [AppRoute] = []
 
     var body: some View {
-        @Bindable var bindable = environment
         NavigationStack(path: $path) {
             HomeView(
                 dependencies: environment.dependencies,
                 isDemo: environment.mode == .demo,
                 onPlanTrip: { path.append(.plan) },
                 onOpenSettings: { path.append(.settings) },
-                onResume: { trip in environment.beginDrive(trip) },
+                onResume: { trip in Task { await environment.beginDrive(trip) } },
                 onOpenItinerary: { itinerary in
                     let result = PlanResult(itineraries: [itinerary.goal: itinerary], recommendedGoal: itinerary.goal)
                     path.append(.results(PlanResultRoute(result: result)))
@@ -45,18 +45,28 @@ struct RootView: View {
                     }
                 case let .results(route):
                     PlanResultScreen(result: route.result, dependencies: environment.dependencies) { trip in
-                        environment.beginDrive(trip)
+                        Task { await environment.beginDrive(trip) }
                     }
                 case .settings:
                     SettingsScreen(dependencies: environment.dependencies)
                 }
             }
         }
-        .fullScreenCover(item: $bindable.drivingTrip) { trip in
-            DriveScreen(trip: trip, dependencies: environment.dependencies) {
-                environment.endDrive()
+        // The drive in progress, started here or on CarPlay.
+        .fullScreenCover(item: driveBinding) { drive in
+            DriveScreen(model: drive, dependencies: environment.dependencies, navigation: environment.navigation) {
+                Task { await environment.endDrive() }
                 path.removeAll()
             }
         }
+    }
+
+    private var driveBinding: Binding<DriveViewModel?> {
+        Binding(
+            get: { environment.drive },
+            set: { drive in
+                if drive == nil { Task { await environment.endDrive() } }
+            }
+        )
     }
 }

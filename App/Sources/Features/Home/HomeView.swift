@@ -57,7 +57,7 @@ struct HomeView: View {
                 .accessibilityIdentifier(AccessibilityID.Home.settings)
             }
         }
-        .task(id: environment.drivingTrip?.id) { await model.load() }
+        .task(id: environment.drive?.id) { await model.load() }
     }
 
     // MARK: Sections

@@ -12,7 +12,8 @@ public final class AppDependencies {
     public let repository: any TripRepository
     public let preferences: any PreferencesStore
     public let location: any LocationProviding
-    public let speech: any SpeechAnnouncing
+    /// Turn-by-turn navigation: Google's Navigation SDK in the App Store build, a simulation offline.
+    public let guidance: any TurnByTurnGuidance
     public let formatters: TripFormatters
     /// Delay before an autocomplete request is sent while typing.
     public let autocompleteDebounce: TimeInterval
@@ -27,7 +28,7 @@ public final class AppDependencies {
         repository: any TripRepository,
         preferences: any PreferencesStore,
         location: any LocationProviding,
-        speech: any SpeechAnnouncing,
+        guidance: any TurnByTurnGuidance,
         formatters: TripFormatters = TripFormatters(),
         autocompleteDebounce: TimeInterval = 0.25,
         timeZone: TimeZone = .current,
@@ -39,7 +40,7 @@ public final class AppDependencies {
         self.repository = repository
         self.preferences = preferences
         self.location = location
-        self.speech = speech
+        self.guidance = guidance
         self.formatters = formatters
         self.autocompleteDebounce = autocompleteDebounce
         self.timeZone = timeZone

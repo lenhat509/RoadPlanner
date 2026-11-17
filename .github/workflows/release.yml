@@ -14,6 +14,10 @@ on:
         description: "First run only: let fastlane match create the signing certificate and profile"
         type: boolean
         default: false
+      refresh_profile:
+        description: "Make a new provisioning profile (once, after turning on CarPlay Navigation for the App ID)"
+        type: boolean
+        default: false
       run_tests:
         description: "Run the iOS test suite before building"
         type: boolean
@@ -48,6 +52,8 @@ jobs:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           WAYSTAGE_GATEWAY_URL: ${{ secrets.WAYSTAGE_GATEWAY_URL }}
           WAYSTAGE_GATEWAY_TOKEN: ${{ secrets.WAYSTAGE_GATEWAY_TOKEN }}
+          # Named in Google's navigation terms dialog (optional; defaults to "Waystage").
+          WAYSTAGE_COMPANY_NAME: ${{ vars.WAYSTAGE_COMPANY_NAME }}
         run: |
           setting() { [ -n "$2" ] && printf '%s = %s\n' "$1" "$2"; return 0; }
           {
@@ -57,9 +63,10 @@ jobs:
             # xcconfig treats "//" as the start of a comment; "$()" keeps the URL whole.
             setting WAYSTAGE_GATEWAY_URL "$(printf '%s' "$WAYSTAGE_GATEWAY_URL" | sed 's#//#/$()/#g')"
             setting WAYSTAGE_GATEWAY_TOKEN "$WAYSTAGE_GATEWAY_TOKEN"
+            setting WAYSTAGE_COMPANY_NAME "$WAYSTAGE_COMPANY_NAME"
           } > Config/Secrets.xcconfig
           # Which settings arrived (names only, never values).
-          for name in WAYSTAGE_BUNDLE_ID WAYSTAGE_TEAM_ID GOOGLE_MAPS_API_KEY WAYSTAGE_GATEWAY_URL WAYSTAGE_GATEWAY_TOKEN; do
+          for name in WAYSTAGE_BUNDLE_ID WAYSTAGE_TEAM_ID GOOGLE_MAPS_API_KEY WAYSTAGE_GATEWAY_URL WAYSTAGE_GATEWAY_TOKEN WAYSTAGE_COMPANY_NAME; do
             if [ -n "${!name}" ]; then echo "set:     $name"; else echo "not set: $name"; fi
           done
       - name: Test before shipping
@@ -74,4 +81,5 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_READONLY: ${{ inputs.create_certificates && 'false' || 'true' }}
+          MATCH_FORCE: ${{ inputs.refresh_profile && 'true' || 'false' }}
         run: bundle exec fastlane ${{ inputs.lane }}
