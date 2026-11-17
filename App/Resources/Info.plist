@@ -34,6 +34,8 @@
 	<string>Waystage uses your location for turn-by-turn directions, to detect when you reach a stop, and to plan trips from where you are.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Waystage keeps guiding you when the screen is locked or you switch apps during a drive. Location is only used while a trip is active.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Google's navigation uses your phone's motion sensors with GPS to place your car more precisely on the road, for example on multi-level roads.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
