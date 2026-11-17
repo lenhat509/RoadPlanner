@@ -33,11 +33,20 @@ final class WaystageUITests: XCTestCase {
     private func choosePlace(field identifier: String, typing text: String, pick suggestion: String) {
         let field = app.textFields[identifier]
         XCTAssertTrue(field.waitForExistence(timeout: 5), "missing field \(identifier)")
-        field.tap()
+        // A tap during the screen's push animation can leave the field without keyboard focus,
+        // and typing then fails: tap again until it has focus.
+        for _ in 0..<5 where !Self.hasKeyboardFocus(field) {
+            field.tap()
+            _ = app.keyboards.firstMatch.waitForExistence(timeout: 2)
+        }
         field.typeText(text)
         let row = app.buttons[AccessibilityID.Plan.suggestion(suggestion)]
         XCTAssertTrue(row.waitForExistence(timeout: 5), "missing suggestion \(suggestion)")
         row.tap()
+    }
+
+    private static func hasKeyboardFocus(_ element: XCUIElement) -> Bool {
+        (element.value(forKey: "hasKeyboardFocus") as? Bool) ?? false
     }
 
     /// Plans Los Angeles → Las Vegas and waits for the results screen.

@@ -70,7 +70,11 @@ final class ScreenshotTests: XCTestCase {
     private func choose(_ identifier: String, typing text: String, pick suggestion: String) {
         let field = app.textFields[identifier]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        field.tap()
+        // Tap again until the field has keyboard focus (a tap during the push can miss it).
+        for _ in 0..<5 where !((field.value(forKey: "hasKeyboardFocus") as? Bool) ?? false) {
+            field.tap()
+            _ = app.keyboards.firstMatch.waitForExistence(timeout: 2)
+        }
         field.typeText(text)
         let row = app.buttons[AccessibilityID.Plan.suggestion(suggestion)]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
