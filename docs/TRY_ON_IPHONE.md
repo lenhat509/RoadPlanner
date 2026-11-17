@@ -8,7 +8,8 @@ Waystage is tested on a real iPhone through **TestFlight**. Builds run on GitHub
 | Apple account needed | Apple Developer Program ($99/year) |
 | Time to first try | About an hour once the account is approved |
 | Runs | Installed on your iPhone |
-| GPS / voice guidance | Real GPS, real voice guidance |
+| GPS / voice guidance | Real GPS; Google's turn-by-turn navigation and voice (Navigation SDK) |
+| CarPlay | Yes, once CarPlay Navigation is on for the App ID ([CARPLAY.md](CARPLAY.md)) |
 
 To look at the app without installing it, open the latest **Screenshots** workflow run: it walks
 through the main screens on a simulator and shows them in the log.
@@ -67,14 +68,16 @@ Never paste these values into issues, chats or commits.
 3. On your iPhone, install **TestFlight** from the App Store, open the invitation email and
    install Waystage.
 
-Test in a real car with a passenger operating the phone: voice guidance with the screen locked,
-arrival at a stop, **Continue to next stop**, rerouting after a wrong turn, and resuming after
-force-quitting the app.
+Test in a real car with a passenger operating the phone: Google's navigation terms before the
+first drive, voice guidance with the screen locked, arrival at a stop, **Continue to next stop**,
+rerouting after a wrong turn, and resuming after force-quitting the app. With CarPlay: start a
+saved trip from **Trips** on the car's screen, follow a leg, **End**, and **Continue** at a stop
+(see [CARPLAY.md](CARPLAY.md#testing)).
 
 ## Keeping your Google key safe
 
 The release build carries your Google Maps key inside the app (every app that uses Google Maps
 does), so it can't be fully secret. Protect it instead, as described in [API_KEYS.md](API_KEYS.md):
-restrict it to your bundle ID and to the three APIs Waystage uses, and set daily quotas and a
+restrict it to your bundle ID and to the four APIs Waystage uses (including the Navigation SDK), and set daily quotas and a
 budget alert. No workflow publishes a built app on GitHub: the Release workflow sends it straight
 to TestFlight.
