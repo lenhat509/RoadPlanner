@@ -101,10 +101,10 @@ struct DriveScreen: View {
     ///
     /// * Preview, at a stop, at the end: the panel floats over the map, and the app's camera frames
     ///   the route above the panel's measured top (`chrome`).
-    /// * While guiding: the panel (with the mute and route buttons) is docked to the bottom of the
-    ///   screen and the map ends exactly where it starts, so the car, the route and Google's
-    ///   logo, buttons and speed display are never under it, and nothing of Waystage's is drawn
-    ///   over Google's navigation map.
+    /// * While guiding: the panel itself is the bottom of the screen (full width, no margins) and
+    ///   the map ends exactly where it starts, so the car, which Google's camera keeps near the
+    ///   bottom of its map, the route and Google's logo, buttons and speed display are never
+    ///   under it. The mute and route buttons sit at the map's trailing edge, mid-height.
     private var driveContent: some View {
         ZStack(alignment: .bottom) {
             ZStack(alignment: .top) {
@@ -112,12 +112,19 @@ struct DriveScreen: View {
                     .ignoresSafeArea(edges: isGuiding ? .top : .all)
 
                 VStack(spacing: Theme.Spacing.s) {
-                    // While Google guides, nothing of Waystage's is drawn over its map.
-                    if !isGoogleGuiding {
+                    if isGoogleGuiding {
+                        // Google's turn banner is at the top of its map.
+                        Spacer(minLength: 0)
+                        HStack {
+                            Spacer()
+                            guidingButtons
+                        }
+                        Spacer(minLength: 0)
+                    } else {
                         topArea
                         HStack(alignment: .top) {
                             Spacer()
-                            sideControls
+                            if isGuiding { guidingButtons } else { sideControls }
                         }
                         Spacer(minLength: 0)
                         if isGuiding && cameraMode != .follow && !model.engineDrawsGuidance {
@@ -152,19 +159,18 @@ struct DriveScreen: View {
         .animation(.easeInOut(duration: 0.2), value: cameraMode)
     }
 
-    /// The panel while guiding: full width, attached to the bottom edge, in the same light or dark
-    /// theme as the map, set apart from Google's map by a shadow along its top edge.
+    /// The panel while guiding: the panel itself is the bottom of the screen (full width, down to
+    /// the bottom edge, no container or margins around it), in the same light or dark theme as the
+    /// map, set apart from Google's map by a shadow along its top edge.
     private var dock: some View {
-        VStack(spacing: Theme.Spacing.s) {
+        VStack(spacing: 0) {
             if isGoogleGuiding, let message = model.statusMessage {
                 StatusPill(message: message, onDismiss: model.dismissStatus)
+                    .padding(.horizontal, Theme.Spacing.s)
+                    .padding(.top, Theme.Spacing.s)
             }
-            guidingButtons
             bottomPanel
         }
-        .padding(.horizontal, Theme.Spacing.s)
-        .padding(.top, Theme.Spacing.s)
-        .padding(.bottom, Theme.Spacing.xs)
         .frame(maxWidth: .infinity)
         .background {
             Rectangle()
@@ -289,10 +295,11 @@ struct DriveScreen: View {
         }
     }
 
-    /// Mute and route overview while guiding: in the docked panel, not over the map (Google's
-    /// policies: no overlays on the navigation screen the driver didn't ask for).
+    /// Mute and route overview while guiding: at the map's trailing edge, mid-height, clear of the
+    /// car, Google's turn banner, its buttons and logo (Google's guides describe adding controls
+    /// to the navigation map this way).
     private var guidingButtons: some View {
-        HStack(spacing: Theme.Spacing.xs) {
+        VStack(spacing: Theme.Spacing.xs) {
             MapControlButton(
                 systemImage: model.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
                 label: model.isMuted ? "Unmute voice" : "Mute voice"
@@ -304,7 +311,6 @@ struct DriveScreen: View {
                 cameraMode = .overview(model.routeToTarget)
             }
             .accessibilityIdentifier(AccessibilityID.Drive.overview)
-            Spacer(minLength: 0)
         }
     }
 

@@ -101,7 +101,8 @@ struct NextStopPanel<MenuContent: View>: View {
             }
         }
         .padding(Theme.Spacing.m)
-        .driveSheet()
+        // Shown while guiding, docked to the bottom of the screen: the drive screen draws the
+        // background (full width, down to the bottom edge), so no card of its own.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(AccessibilityID.Drive.nextStop)
     }
