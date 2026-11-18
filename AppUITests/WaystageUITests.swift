@@ -91,6 +91,17 @@ final class WaystageUITests: XCTestCase {
         XCTAssertTrue(shown, "drive mode not shown; on screen: \(app.visibleIdentifiers())", file: file, line: line)
     }
 
+    /// Waits for the simulated car to stop: the arrival card (or, at the end, the completed card).
+    private func waitUntilStopped(timeout: TimeInterval = 30) {
+        let arrival = element(AccessibilityID.Drive.arrivalCard), completed = element(AccessibilityID.Drive.completedCard)
+        let deadline = Date().addingTimeInterval(timeout)
+        while !arrival.exists && !completed.exists && Date() < deadline {
+            _ = arrival.waitForExistence(timeout: 1)
+        }
+        XCTAssertTrue(arrival.exists || completed.exists, "the car didn't stop; on screen: \(app.visibleIdentifiers())")
+        Thread.sleep(forTimeInterval: 0.5) // the panel's change finishes
+    }
+
     /// After resuming: a trip paused at a stop shows its arrival card first; continuing from there
     /// opens the preview of the next leg.
     private func continueIfAtStop() {
@@ -179,6 +190,9 @@ final class WaystageUITests: XCTestCase {
         launch()
         planLosAngelesToVegas()
         startDrive()
+        // The simulated car reaches the first stop within seconds, and the panel changes when it
+        // does: tap Exit once it has stopped, not during that change.
+        waitUntilStopped()
         let exit = app.buttons[AccessibilityID.Drive.exit]
         XCTAssertTrue(exit.waitForExistence(timeout: 5), "drive mode has a dedicated exit button")
         exit.tap()
