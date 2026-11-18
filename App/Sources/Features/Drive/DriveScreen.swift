@@ -101,9 +101,10 @@ struct DriveScreen: View {
     ///
     /// * Preview, at a stop, at the end: the panel floats over the map, and the app's camera frames
     ///   the route above the panel's measured top (`chrome`).
-    /// * While guiding: the panel is docked to the bottom of the screen and the map ends where it
-    ///   starts (under its rounded corners only), so the car, the route and the navigation
-    ///   buttons, which the navigation camera keeps inside the map, are never under it.
+    /// * While guiding: the panel (with the mute and route buttons) is docked to the bottom of the
+    ///   screen and the map ends exactly where it starts, so the car, the route and Google's
+    ///   logo, buttons and speed display are never under it, and nothing of Waystage's is drawn
+    ///   over Google's navigation map.
     private var driveContent: some View {
         ZStack(alignment: .bottom) {
             ZStack(alignment: .top) {
@@ -111,16 +112,8 @@ struct DriveScreen: View {
                     .ignoresSafeArea(edges: isGuiding ? .top : .all)
 
                 VStack(spacing: Theme.Spacing.s) {
-                    if isGoogleGuiding {
-                        // Google's turn banner is at the top of its map: Waystage's buttons stay
-                        // clear of it, at the side, away from the car.
-                        Spacer(minLength: 0)
-                        HStack {
-                            Spacer()
-                            sideControls
-                        }
-                        Spacer(minLength: 0)
-                    } else {
+                    // While Google guides, nothing of Waystage's is drawn over its map.
+                    if !isGoogleGuiding {
                         topArea
                         HStack(alignment: .top) {
                             Spacer()
@@ -145,7 +138,9 @@ struct DriveScreen: View {
                 .padding(.horizontal, Theme.Spacing.s)
                 .padding(.bottom, Theme.Spacing.xs)
             }
-            .padding(.bottom, isGuiding ? max(0, dockHeight - Self.dockCornerRadius) : 0)
+            // The map ends exactly where the docked panel starts: nothing of Google's (the car,
+            // its logo, buttons and speed display at the bottom corners) is under the panel.
+            .padding(.bottom, isGuiding ? dockHeight : 0)
 
             if isGuiding {
                 dock
@@ -157,15 +152,14 @@ struct DriveScreen: View {
         .animation(.easeInOut(duration: 0.2), value: cameraMode)
     }
 
-    static let dockCornerRadius: CGFloat = 22
-
     /// The panel while guiding: full width, attached to the bottom edge, in the same light or dark
-    /// theme as the map.
+    /// theme as the map, set apart from Google's map by a shadow along its top edge.
     private var dock: some View {
         VStack(spacing: Theme.Spacing.s) {
             if isGoogleGuiding, let message = model.statusMessage {
                 StatusPill(message: message, onDismiss: model.dismissStatus)
             }
+            guidingButtons
             bottomPanel
         }
         .padding(.horizontal, Theme.Spacing.s)
@@ -173,12 +167,10 @@ struct DriveScreen: View {
         .padding(.bottom, Theme.Spacing.xs)
         .frame(maxWidth: .infinity)
         .background {
-            UnevenRoundedRectangle(
-                topLeadingRadius: Self.dockCornerRadius, topTrailingRadius: Self.dockCornerRadius, style: .continuous
-            )
-            .fill(Theme.card)
-            .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
-            .ignoresSafeArea(edges: .bottom)
+            Rectangle()
+                .fill(Theme.card)
+                .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
+                .ignoresSafeArea(edges: .bottom)
         }
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.height
@@ -247,8 +239,8 @@ struct DriveScreen: View {
         case .driving where model.stage == .preview:
             chrome = UIEdgeInsets(top: 150, left: 24, bottom: 340, right: 64)
         case .driving:
-            // Guiding: the map ends at the docked panel (only its rounded corners overlap).
-            return UIEdgeInsets(top: 220, left: 24, bottom: Self.dockCornerRadius + 12, right: 64)
+            // Guiding: the map ends at the docked panel.
+            return UIEdgeInsets(top: 220, left: 24, bottom: 16, right: 64)
         case .atStop:
             chrome = UIEdgeInsets(top: 70, left: 24, bottom: 320, right: 64)
         case .completed:
@@ -297,23 +289,29 @@ struct DriveScreen: View {
         }
     }
 
+    /// Mute and route overview while guiding: in the docked panel, not over the map (Google's
+    /// policies: no overlays on the navigation screen the driver didn't ask for).
+    private var guidingButtons: some View {
+        HStack(spacing: Theme.Spacing.xs) {
+            MapControlButton(
+                systemImage: model.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                label: model.isMuted ? "Unmute voice" : "Mute voice"
+            ) {
+                model.isMuted.toggle()
+            }
+            .accessibilityIdentifier(AccessibilityID.Drive.mute)
+            MapControlButton(systemImage: "point.topleft.down.to.point.bottomright.curvepath", label: "Show route") {
+                cameraMode = .overview(model.routeToTarget)
+            }
+            .accessibilityIdentifier(AccessibilityID.Drive.overview)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Zoom buttons over the map in the preview and at a stop (the app's own camera).
     @ViewBuilder
     private var sideControls: some View {
-        if isGuiding {
-            VStack(spacing: Theme.Spacing.xs) {
-                MapControlButton(
-                    systemImage: model.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                    label: model.isMuted ? "Unmute voice" : "Mute voice"
-                ) {
-                    model.isMuted.toggle()
-                }
-                .accessibilityIdentifier(AccessibilityID.Drive.mute)
-                MapControlButton(systemImage: "point.topleft.down.to.point.bottomright.curvepath", label: "Show route") {
-                    cameraMode = .overview(model.routeToTarget)
-                }
-                .accessibilityIdentifier(AccessibilityID.Drive.overview)
-            }
-        } else if isPreviewing || model.mode == .atStop {
+        if isPreviewing || model.mode == .atStop {
             VStack(spacing: Theme.Spacing.xs) {
                 MapControlButton(systemImage: "plus", label: "Zoom in") { mapCommand = MapCommand(action: .zoomIn) }
                 MapControlButton(systemImage: "minus", label: "Zoom out") { mapCommand = MapCommand(action: .zoomOut) }
