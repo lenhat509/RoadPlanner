@@ -21,8 +21,10 @@ All notable changes to this project are documented here. The format follows
   allow rebuilding navigation from the Routes API and the Maps SDK, or speaking Google content
   with a speech synthesizer, which the app did before. Its own guidance engine now only runs the
   offline demo and tests, on made-up data.
-- While Google guides, the map fills the screen behind Waystage's bottom panel, and is padded
-  above it, so the panel never covers the car, the route or Google's buttons.
+- While guiding, the bottom panel is docked to the bottom of the screen (full width, in the
+  map's light or dark theme) and the map ends where it starts, so it never covers the car, the
+  route or Google's buttons. In the preview and at stops, routes and the car are framed above
+  the panel's measured height.
 - Day and night: Google's map and turn banner switch to their night look after sunset where the
   car is (Google's own day and night styles), and drive mode's panels follow them, light by day
   and dark at night, whatever the phone's appearance. On CarPlay the car's day and night setting

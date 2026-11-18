@@ -33,13 +33,10 @@ struct NavigationMapState: Equatable {
     var camera: Camera
     /// Night where the car is: Google's map shows its night look (its own lighting mode).
     var isNight = false
-    /// Below this height (screen coordinates) the app's panel covers the map. While guiding, the
-    /// map's padding keeps Google's car, route, buttons and logo above it.
-    var coveredFromY: CGFloat?
 
     static func == (lhs: NavigationMapState, rhs: NavigationMapState) -> Bool {
         lhs.session === rhs.session && lhs.isGuiding == rhs.isGuiding && lhs.camera == rhs.camera
-            && lhs.isNight == rhs.isNight && lhs.coveredFromY == rhs.coveredFromY
+            && lhs.isNight == rhs.isNight
     }
 }
 
@@ -215,14 +212,6 @@ struct TripMapView: UIViewRepresentable {
             // Day or night where the car is, as Google's guide describes (suggested lighting mode).
             let lighting: GMSNavigationLightingMode = state.isNight ? .lowLight : .normal
             if mapView.lightingMode != lighting { mapView.lightingMode = lighting }
-            // While Google guides, its camera and buttons keep clear of the app's bottom panel. Not
-            // guiding, the app frames routes itself (with the chrome), so no padding.
-            var padding = UIEdgeInsets.zero
-            if state.isGuiding, let coveredFromY = state.coveredFromY, mapView.window != nil {
-                let covered = mapView.convert(CGPoint(x: 0, y: coveredFromY), from: nil).y
-                padding.bottom = max(0, min(mapView.bounds.height * 0.6, mapView.bounds.height - covered))
-            }
-            if mapView.padding != padding { mapView.padding = padding }
             let mode: GMSNavigationCameraMode?
             switch (state.isGuiding, state.camera) {
             case (false, _): mode = nil

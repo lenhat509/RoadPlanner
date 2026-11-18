@@ -9,9 +9,9 @@ import UIKit
 ///
 /// In the App Store build, Google's Navigation SDK guides on the map: it draws the route, the car,
 /// the turn-by-turn header, the speed and its re-center button, and speaks the directions. While
-/// it guides, the map is padded above Waystage's bottom panel, so the panel never covers the
-/// car, the route or any of Google's navigation controls (Google's policies don't allow hiding
-/// them).
+/// it guides, Waystage's bottom panel is docked to the bottom of the screen and the map ends
+/// where it starts, so the panel never covers the car, the route or any of Google's navigation
+/// controls (Google's policies don't allow hiding them).
 ///
 /// Every leg opens as a *preview* — starting a trip, resuming one, continuing from a stop: the map
 /// opens on the route from the car to the next stop (north-up, no zooming in from elsewhere),
@@ -25,9 +25,12 @@ struct DriveScreen: View {
     @State private var showsSafetyNotice: Bool
     @State private var confirmsEnd = false
     @State private var cameraMode = CameraMode.follow
-    /// Where the bottom panel starts (screen coordinates): Google's map keeps its car and buttons
-    /// above it.
+    /// Where the floating bottom panel starts, and where the map ends (screen coordinates): routes
+    /// are framed above the panel.
     @State private var panelTop: CGFloat?
+    @State private var mapBottom: CGFloat?
+    /// The docked panel's height while guiding: the map ends at its top.
+    @State private var dockHeight: CGFloat = 0
     @State private var mapCommand: MapCommand?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -94,56 +97,94 @@ struct DriveScreen: View {
     /// Google's Navigation SDK is guiding on the map (App Store build).
     private var isGoogleGuiding: Bool { isGuiding && navigationMap != nil }
 
-    /// The map fills the screen for the whole drive (one map, so it never reloads), with the
-    /// panels over it. While Google guides, its map is told how much of the bottom the panel
-    /// covers (`NavigationMapState.coveredFromY`), so the car, the route and Google's own
-    /// buttons, speed and logo stay above the panel: nothing of Google's navigation is hidden.
+    /// One map for the whole drive (so it never reloads).
+    ///
+    /// * Preview, at a stop, at the end: the panel floats over the map, and the app's camera frames
+    ///   the route above the panel's measured top (`chrome`).
+    /// * While guiding: the panel is docked to the bottom of the screen and the map ends where it
+    ///   starts (under its rounded corners only), so the car, the route and the navigation
+    ///   buttons, which the navigation camera keeps inside the map, are never under it.
     private var driveContent: some View {
-        ZStack(alignment: .top) {
-            map
-                .ignoresSafeArea()
+        ZStack(alignment: .bottom) {
+            ZStack(alignment: .top) {
+                map
+                    .ignoresSafeArea(edges: isGuiding ? .top : .all)
 
-            VStack(spacing: Theme.Spacing.s) {
-                if isGoogleGuiding {
-                    // Google's turn banner is at the top of its map: Waystage's buttons stay clear
-                    // of it, at the side, away from the car.
-                    Spacer(minLength: 0)
-                    HStack {
-                        Spacer()
-                        sideControls
-                    }
-                    Spacer(minLength: 0)
-                } else {
-                    topArea
-                    HStack(alignment: .top) {
-                        Spacer()
-                        sideControls
-                    }
-                    Spacer(minLength: 0)
-                    if isGuiding && cameraMode != .follow && !model.engineDrawsGuidance {
-                        recenterButton
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .transition(.move(edge: .leading).combined(with: .opacity))
-                    }
-                }
                 VStack(spacing: Theme.Spacing.s) {
-                    if isGoogleGuiding, let message = model.statusMessage {
-                        StatusPill(message: message, onDismiss: model.dismissStatus)
+                    if isGoogleGuiding {
+                        // Google's turn banner is at the top of its map: Waystage's buttons stay
+                        // clear of it, at the side, away from the car.
+                        Spacer(minLength: 0)
+                        HStack {
+                            Spacer()
+                            sideControls
+                        }
+                        Spacer(minLength: 0)
+                    } else {
+                        topArea
+                        HStack(alignment: .top) {
+                            Spacer()
+                            sideControls
+                        }
+                        Spacer(minLength: 0)
+                        if isGuiding && cameraMode != .follow && !model.engineDrawsGuidance {
+                            recenterButton
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .transition(.move(edge: .leading).combined(with: .opacity))
+                        }
+                        if !isGuiding {
+                            bottomPanel
+                                .onGeometryChange(for: CGFloat.self) { proxy in
+                                    proxy.frame(in: .global).minY
+                                } action: { top in
+                                    panelTop = top
+                                }
+                        }
                     }
-                    bottomPanel
                 }
-                .onGeometryChange(for: CGFloat.self) { proxy in
-                    proxy.frame(in: .global).minY
-                } action: { top in
-                    panelTop = top
-                }
+                .padding(.horizontal, Theme.Spacing.s)
+                .padding(.bottom, Theme.Spacing.xs)
             }
-            .padding(.horizontal, Theme.Spacing.s)
-            .padding(.bottom, Theme.Spacing.xs)
+            .padding(.bottom, isGuiding ? max(0, dockHeight - Self.dockCornerRadius) : 0)
+
+            if isGuiding {
+                dock
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .animation(.easeInOut(duration: 0.25), value: model.mode)
         .animation(.easeInOut(duration: 0.25), value: model.stage)
         .animation(.easeInOut(duration: 0.2), value: cameraMode)
+    }
+
+    static let dockCornerRadius: CGFloat = 22
+
+    /// The panel while guiding: full width, attached to the bottom edge, in the same light or dark
+    /// theme as the map.
+    private var dock: some View {
+        VStack(spacing: Theme.Spacing.s) {
+            if isGoogleGuiding, let message = model.statusMessage {
+                StatusPill(message: message, onDismiss: model.dismissStatus)
+            }
+            bottomPanel
+        }
+        .padding(.horizontal, Theme.Spacing.s)
+        .padding(.top, Theme.Spacing.s)
+        .padding(.bottom, Theme.Spacing.xs)
+        .frame(maxWidth: .infinity)
+        .background {
+            UnevenRoundedRectangle(
+                topLeadingRadius: Self.dockCornerRadius, topTrailingRadius: Self.dockCornerRadius, style: .continuous
+            )
+            .fill(Theme.card)
+            .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
+            .ignoresSafeArea(edges: .bottom)
+        }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height
+        } action: { height in
+            dockHeight = height
+        }
     }
 
     private var map: some View {
@@ -160,6 +201,11 @@ struct DriveScreen: View {
             navigation: navigationMap,
             onRecenter: { cameraMode = .follow }
         )
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.frame(in: .global).maxY
+        } action: { bottom in
+            mapBottom = bottom
+        }
     }
 
     // MARK: Map
@@ -173,9 +219,7 @@ struct DriveScreen: View {
         case .overview: .overview
         case .free: .free
         }
-        return NavigationMapState(
-            session: session, isGuiding: isGuiding, camera: camera, isNight: model.isNight == true, coveredFromY: panelTop
-        )
+        return NavigationMapState(session: session, isGuiding: isGuiding, camera: camera, isNight: model.isNight == true)
     }
 
     /// The leg being driven (strong) and the rest of the trip (light). Google's map draws the
@@ -198,16 +242,24 @@ struct DriveScreen: View {
     /// The parts of the map covered by the header and the bottom sheet, which framed routes stay
     /// clear of. (Only used for framing, so changing it never moves the map by itself.)
     private var chrome: UIEdgeInsets {
+        var chrome: UIEdgeInsets
         switch model.mode {
         case .driving where model.stage == .preview:
-            return UIEdgeInsets(top: 150, left: 24, bottom: 340, right: 64)
+            chrome = UIEdgeInsets(top: 150, left: 24, bottom: 340, right: 64)
         case .driving:
-            return UIEdgeInsets(top: 220, left: 24, bottom: 210, right: 64)
+            // Guiding: the map ends at the docked panel (only its rounded corners overlap).
+            return UIEdgeInsets(top: 220, left: 24, bottom: Self.dockCornerRadius + 12, right: 64)
         case .atStop:
-            return UIEdgeInsets(top: 70, left: 24, bottom: 320, right: 64)
+            chrome = UIEdgeInsets(top: 70, left: 24, bottom: 320, right: 64)
         case .completed:
-            return UIEdgeInsets(top: 70, left: 24, bottom: 300, right: 24)
+            chrome = UIEdgeInsets(top: 70, left: 24, bottom: 300, right: 24)
         }
+        // The floating panel's real height when it's taller than expected (larger text, a longer
+        // stop description): routes, and the car at their start, stay above it.
+        if let panelTop, let mapBottom, mapBottom > panelTop {
+            chrome.bottom = max(chrome.bottom, mapBottom - panelTop + 16)
+        }
+        return chrome
     }
 
     /// The stops still ahead; while heading to the trip's start, the start too.
