@@ -31,13 +31,15 @@ struct NavigationMapState: Equatable {
     /// Guidance is running: the camera is Google's.
     var isGuiding: Bool
     var camera: Camera
+    /// Night where the car is: Google's map shows its night look (its own lighting mode).
+    var isNight = false
     /// Below this height (screen coordinates) the app's panel covers the map. While guiding, the
     /// map's padding keeps Google's car, route, buttons and logo above it.
     var coveredFromY: CGFloat?
 
     static func == (lhs: NavigationMapState, rhs: NavigationMapState) -> Bool {
         lhs.session === rhs.session && lhs.isGuiding == rhs.isGuiding && lhs.camera == rhs.camera
-            && lhs.coveredFromY == rhs.coveredFromY
+            && lhs.isNight == rhs.isNight && lhs.coveredFromY == rhs.coveredFromY
     }
 }
 
@@ -207,7 +209,12 @@ struct TripMapView: UIViewRepresentable {
                 // Drive mode draws its own stop markers.
                 mapView.settings.showsDestinationMarkers = false
                 mapView.isMyLocationEnabled = true
+                // Google's map has its own day and night looks: the app's night style is off.
+                styledScheme = nil
             }
+            // Day or night where the car is, as Google's guide describes (suggested lighting mode).
+            let lighting: GMSNavigationLightingMode = state.isNight ? .lowLight : .normal
+            if mapView.lightingMode != lighting { mapView.lightingMode = lighting }
             // While Google guides, its camera and buttons keep clear of the app's bottom panel. Not
             // guiding, the app frames routes itself (with the chrome), so no padding.
             var padding = UIEdgeInsets.zero
@@ -500,7 +507,8 @@ struct TripMapView: UIViewRepresentable {
         func applyStyle(_ scheme: ColorScheme, to mapView: GMSMapView) {
             guard styledScheme != scheme else { return }
             styledScheme = scheme
-            mapView.mapStyle = scheme == .dark ? MapStyles.night : nil
+            // With Google's navigation, the map's look is Google's day or night (lighting mode).
+            mapView.mapStyle = scheme == .dark && navigationSession == nil ? MapStyles.night : nil
             pathsSignature = nil // colours are resolved per appearance
             renderedBadges = nil
         }

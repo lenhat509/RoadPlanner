@@ -23,8 +23,11 @@ All notable changes to this project are documented here. The format follows
   offline demo and tests, on made-up data.
 - While Google guides, the map fills the screen behind Waystage's bottom panel, and is padded
   above it, so the panel never covers the car, the route or Google's buttons.
-- Drive mode's panels are light whenever Google's map is shown, to match it: Google draws its
-  navigation map in its daytime style regardless of the phone's dark mode.
+- Day and night: Google's map and turn banner switch to their night look after sunset where the
+  car is (Google's own day and night styles), and drive mode's panels follow them, light by day
+  and dark at night, whatever the phone's appearance. On CarPlay the map follows the car's own
+  day and night setting. Before, Google's map stayed in its daytime look while the panels
+  followed the phone, so they could be dark over a daytime map.
 - Google's navigation terms are shown after the first-launch agreement and before a drive until
   accepted. The Terms of Use (version 2) add a section on directions: use your own judgment;
   tolls and HOV-lane fees are the driver's. Everyone is asked to agree again.

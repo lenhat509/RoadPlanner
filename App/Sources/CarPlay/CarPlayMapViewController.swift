@@ -38,6 +38,11 @@ final class CarPlayMapViewController: UIViewController {
             view.addSubview(map)
             googleMap = map
             if let session { enableNavigation(with: session) }
+            // Day or night as the car shows CarPlay (it switches with the headlights or the time).
+            _ = registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (controller: CarPlayMapViewController, _: UITraitCollection) in
+                controller.applyLighting()
+            }
+            applyLighting()
         } else {
             let map = MKMapView(frame: view.bounds)
             map.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -54,6 +59,10 @@ final class CarPlayMapViewController: UIViewController {
         guard let googleMap else { return }
         _ = googleMap.enableNavigation(with: session)
         configure(googleMap)
+    }
+
+    private func applyLighting() {
+        googleMap?.lightingMode = traitCollection.userInterfaceStyle == .dark ? .lowLight : .normal
     }
 
     private func configure(_ map: GMSMapView) {

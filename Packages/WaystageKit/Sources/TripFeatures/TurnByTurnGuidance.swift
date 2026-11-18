@@ -100,6 +100,9 @@ public enum GuidanceEvent: Equatable, Sendable {
     case instruction(GuidanceInstruction?)
     /// At the destination.
     case arrived
+    /// Day or night where the car is (from the time of day), for engines with day and night looks
+    /// (Google's Navigation SDK): drive mode's own colors follow it.
+    case lighting(night: Bool)
 }
 
 public enum GuidanceError: Error, Equatable, Sendable {

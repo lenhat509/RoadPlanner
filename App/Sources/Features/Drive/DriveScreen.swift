@@ -82,11 +82,11 @@ struct DriveScreen: View {
         } message: {
             Text("Your progress on this trip will be cleared.")
         }
-        // Google's navigation map is always drawn in its daytime style (the app leaves Google's
-        // map and banner as Google draws them), whatever the phone's appearance: drive mode's own
-        // panels, menus and status bar use light colors to match it. Offline, the map follows
-        // the phone, and so does drive mode.
-        .preferredColorScheme(navigation != nil ? .light : nil)
+        // Google's map and banner switch between their day and night looks with the time of day
+        // where the car is (not the phone's appearance): drive mode's own panels, menus and
+        // status bar follow the same switch. Offline, the map follows the phone, and so does
+        // drive mode.
+        .preferredColorScheme(navigation != nil ? (model.isNight == true ? .dark : .light) : nil)
     }
 
     private var isGuiding: Bool { model.mode == .driving && model.stage == .navigating }
@@ -173,7 +173,9 @@ struct DriveScreen: View {
         case .overview: .overview
         case .free: .free
         }
-        return NavigationMapState(session: session, isGuiding: isGuiding, camera: camera, coveredFromY: panelTop)
+        return NavigationMapState(
+            session: session, isGuiding: isGuiding, camera: camera, isNight: model.isNight == true, coveredFromY: panelTop
+        )
     }
 
     /// The leg being driven (strong) and the rest of the trip (light). Google's map draws the

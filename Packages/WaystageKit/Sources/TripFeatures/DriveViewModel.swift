@@ -128,6 +128,9 @@ public final class DriveViewModel: Identifiable {
     public private(set) var isLoadingDirections = false
     /// The navigation engine is ready (Google's terms accepted).
     public private(set) var isGuidanceReady = false
+    /// Night where the car is, as the navigation engine sees it (nil when it has no day and night
+    /// looks, offline: drive mode then follows the phone's appearance).
+    public private(set) var isNight: Bool?
     public private(set) var statusMessage: String?
     public var isMuted: Bool {
         didSet {
@@ -416,6 +419,8 @@ public final class DriveViewModel: Identifiable {
             instruction = next
         case .arrived:
             if isHeadingToStart { await reachStart() } else { await arriveAtTarget() }
+        case let .lighting(night):
+            isNight = night
         }
     }
 

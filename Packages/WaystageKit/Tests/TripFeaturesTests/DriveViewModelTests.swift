@@ -465,6 +465,10 @@ struct DriveViewModelTests {
         await engine.send(.progress(distanceRemaining: 600, timeRemaining: 40))
         #expect(model.canContinueToNextStop)
 
+        #expect(model.isNight == nil, "no day or night until the engine says")
+        await engine.send(.lighting(night: true))
+        #expect(model.isNight == true, "drive mode turns to night colors with Google's map")
+
         await engine.send(.arrived)
         #expect(model.mode == .atStop)
         #expect(!engine.isGuiding)

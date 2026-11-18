@@ -78,7 +78,8 @@ final class GoogleNavigationEngine: NSObject, TurnByTurnGuidance {
     // MARK: TurnByTurnGuidance
 
     func prepare() async throws {
-        if session != nil { return }
+        // A session made earlier (before drive mode opened): drive mode still needs day or night.
+        if session != nil { return deliverLighting() }
         // Drive mode is shown full screen, over which the SDK can't present its dialog: the terms
         // are asked for before it opens (`requestTerms`).
         guard Self.areTermsAccepted else { throw GuidanceError.termsNotAccepted }
@@ -98,6 +99,14 @@ final class GoogleNavigationEngine: NSObject, TurnByTurnGuidance {
         self.session = session
         applyVoice()
         onSessionReady?(session)
+        deliverLighting()
+    }
+
+    /// Google's day or night looks for where the car is (sunrise and sunset), which drive mode
+    /// applies to Google's map (as Google's guide describes) and to its own panels.
+    private func deliverLighting() {
+        guard let navigator else { return }
+        deliver(.lighting(night: navigator.suggestedLightingMode == .lowLight))
     }
 
     func setDestination(_ destination: GuidanceDestination, from origin: GeoCoordinate?) async throws -> GuidanceRoute {
@@ -228,6 +237,11 @@ extension GoogleNavigationEngine: GMSNavigatorListener {
             self.setGuiding(false)
             self.deliver(.arrived)
         }
+    }
+
+    nonisolated func navigator(_ navigator: GMSNavigator, didChangeSuggestedLightingMode lightingMode: GMSNavigationLightingMode) {
+        let night = lightingMode == .lowLight
+        onMain { [weak self] in self?.deliver(.lighting(night: night)) }
     }
 
     nonisolated func navigatorDidChangeRoute(_ navigator: GMSNavigator) {
