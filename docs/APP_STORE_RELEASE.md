@@ -1,50 +1,45 @@
-# App Store release checklist
+# App Store release
+
+How Waystage gets from this repository to the App Store, for reference. Everything builds on
+GitHub's Mac machines, so no Mac is needed.
 
 ## One-time setup
 
-Status as of November 14, 2026. Everything runs on GitHub's Mac machines, so no Mac is needed.
-
-Done:
-
-- [x] Join the Apple Developer Program.
-- [x] Register the bundle ID (no capabilities needed: background location and audio are declared
-      in `Info.plist`) and create the app in App Store Connect. The categories (Navigation, then
-      Travel) are uploaded by fastlane.
-- [x] Publish the website (privacy policy, support, terms) at
-      https://lenhat509.github.io/RoadPlanner/. The **Website** workflow rebuilds it whenever
-      [PRIVACY_POLICY.md](PRIVACY_POLICY.md), [SUPPORT.md](SUPPORT.md),
-      [TERMS_OF_USE.md](TERMS_OF_USE.md) or `site/site.json` change.
-
-To do:
-
-- [ ] Check that the app name in App Store Connect matches `fastlane/metadata/en-US/name.txt`
-      ("Waystage: Road Trip Planner"); otherwise the first upload renames it. The name under the
-      icon is "Waystage" either way.
-- [ ] Create a new Google Maps key, restricted to the bundle ID and the four APIs (including
-      the **Navigation SDK**, which must be enabled in the Google Cloud project), with quotas
-      and a budget alert; save it as the `GOOGLE_MAPS_API_KEY` secret; then delete the old key
-      in Google Cloud (copies of it were downloadable from the former preview builds) and the
-      old `SECRETS_XCCONFIG` secret on GitHub. See [API_KEYS.md](API_KEYS.md).
-- [ ] Add the other GitHub secrets and variables for the Release workflow
-      ([TRY_ON_IPHONE.md](TRY_ON_IPHONE.md#github-secrets-and-variables)).
-- [ ] First TestFlight build: **Actions → Release**, lane `beta`, with **create_certificates**
-      ticked (first run only; it creates the signing certificate and profile).
-- [ ] CarPlay, once: turn on **CarPlay Navigation** for the App ID in the Apple Developer portal,
-      then run **Actions → Release**, lane `beta`, with **refresh_profile** ticked. See
-      [CARPLAY.md](CARPLAY.md). Until then, `beta` stops with a message saying so.
-- [ ] Optional: the repository variable `WAYSTAGE_COMPANY_NAME`, the legal name on your Google
-      Maps Platform account, shown in Google's navigation terms dialog (default "Waystage").
-- [ ] In App Store Connect:
-  - [ ] **App Review Information** on the version page: your name, phone and email. Only Apple
-        sees it, so it isn't kept in this public repository; fastlane uploads the review notes
-        and leaves the contact as you set it.
-  - [ ] **App Privacy**: answer as in the table below.
-  - [ ] **Pricing and Availability**: Free. Prices, fuel grades and units are for the US, so start
-        with the United States.
-- [ ] Decide on the gateway (`Backend/gateway/README.md`), now or after launch: live hotel rates
-      (Expedia Rapid, which needs partner approval) and regional fuel averages (EIA). Without it
-      the app shows clearly marked estimates; nothing in the release steps requires it.
-- [ ] Have a lawyer review the points under [Legal and disclaimers](#legal-and-disclaimers).
+1. **Apple Developer Program** membership.
+2. **App ID** (Certificates, IDs & Profiles → Identifiers) for the bundle ID, with the
+   **CarPlay Navigation** capability turned on once Apple has granted it. Background location and
+   audio need no capability: they're declared in `Info.plist`.
+3. **App in App Store Connect** with that bundle ID. The name must match
+   `fastlane/metadata/en-US/name.txt` ("Waystage: Road Trip Planner"), or the first upload renames
+   it; the name under the icon is "Waystage" either way. fastlane uploads the categories
+   (Navigation, then Travel).
+4. **Website** (privacy policy, support, terms) at https://lenhat509.github.io/RoadPlanner/. The
+   **Website** workflow republishes it whenever [PRIVACY_POLICY.md](PRIVACY_POLICY.md),
+   [SUPPORT.md](SUPPORT.md), [TERMS_OF_USE.md](TERMS_OF_USE.md) or `site/site.json` change.
+5. **Google Cloud project** with billing, the four APIs enabled (Maps SDK for iOS, Navigation SDK,
+   Routes API, Places API (New)), and a key restricted to the bundle ID and those four APIs, with
+   quotas and a budget alert. See [API_KEYS.md](API_KEYS.md).
+6. **GitHub secrets and variables** for the Release workflow
+   ([TRY_ON_IPHONE.md](TRY_ON_IPHONE.md#github-secrets-and-variables)), including the optional
+   `WAYSTAGE_COMPANY_NAME` variable: the legal name on the Google Maps Platform account, shown in
+   Google's navigation terms dialog (default "Waystage").
+7. **Signing**: the first **Actions → Release** run, lane `beta`, with **create_certificates**
+   ticked creates the certificate and profile (stored encrypted in the certificates repository).
+   After turning on a capability for the App ID (CarPlay), run it once with **refresh_profile**
+   ticked for a new profile; `beta` stops with an explanation if the profile lacks CarPlay. See
+   [CARPLAY.md](CARPLAY.md).
+8. **App Store Connect**, besides what fastlane uploads:
+   * **App Review Information** on the version page: your name, phone and email. Only Apple sees
+     it, so it isn't kept in this public repository; fastlane uploads the review notes and leaves
+     the contact as you set it.
+   * **App Privacy**: as in [the next section](#app-privacy-nutrition-label-answers).
+   * **Pricing and Availability**: Free. Prices, fuel grades and units are for the US, so the
+     United States.
+9. **Optional, any time: the gateway** (`Backend/gateway/README.md`): live hotel rates (Expedia
+   Rapid, which needs partner approval) and regional fuel averages (EIA). Without it the app shows
+   clearly marked estimates; nothing in the release steps requires it.
+10. **Legal review** of the points under [Legal and disclaimers](#legal-and-disclaimers) and the
+    open questions in [COMPLIANCE.md](COMPLIANCE.md#open-questions-for-a-lawyer-or-google-maps-platform-sales).
 
 ## App Privacy ("nutrition label") answers
 
@@ -67,21 +62,32 @@ Check the manifest again when the SDK is updated. Waystage adds no accounts, ana
 advertising or tracking SDKs of its own; the privacy policy explains what the Navigation SDK
 sends to Google.
 
+In App Store Connect: the app → **App Privacy** → **Get Started** (or **Edit** next to the data
+types) → "Yes, we collect data from this app" → tick the data types above → **Save**. Then
+**Set Up** each one: its purposes, whether it's linked to the user, whether it's used for
+tracking (as in the table). Finish with **Publish**. The answers cover the whole app, not a
+version, and appear on the store page as soon as they're published.
+
 ## Review notes
 
 `fastlane/metadata/review_information/notes.txt` (uploaded by the `release` lane) explains the
-flow and why background location is used (voice guidance during an active trip). Background modes declared: `location`, `audio`.
-Export compliance: `ITSAppUsesNonExemptEncryption = NO` (HTTPS only).
+flow, Google's navigation terms before the first drive, how to try CarPlay, and why background
+location is used (voice guidance during an active trip, also while shown on CarPlay). Background
+modes declared: `location`, `audio`. Export compliance: `ITSAppUsesNonExemptEncryption = NO`
+(HTTPS only).
 
 ## Each release
 
 1. Update `CHANGELOG.md`, `MARKETING_VERSION` in `project.yml`, and
    `fastlane/metadata/en-US/release_notes.txt`, and push to `main`.
 2. Wait for the **CI** workflow to pass (every test suite, including the UI tests).
-3. **Actions → Release**, lane `beta`. Test the TestFlight build on your iPhone in a real car,
-   with a passenger operating the phone: planning, voice guidance with the screen locked,
-   arrival at a stop, "Continue to next stop", resume after force-quitting, rerouting.
+3. **Actions → Release**, lane `beta`. Test the TestFlight build on your iPhone with a passenger
+   operating the phone: planning, Google's navigation with the screen locked, arrival at a stop,
+   "Continue to next stop", resume after force-quitting, rerouting; and CarPlay (see
+   [CARPLAY.md](CARPLAY.md#testing)), which no automated test covers.
 4. **Actions → Release**, lane `release`. It uploads the listing, review notes and age rating.
+   If the Navigation SDK version changed, check its privacy manifest against
+   [App Privacy](#app-privacy-nutrition-label-answers) first.
 5. **Screenshots**, the first time and when the app looks different: take them on your iPhone with
    the TestFlight build, planning a real trip (real Google routes, places and prices), and upload
    them in App Store Connect → the version → **Previews and Screenshots** (see below).
@@ -125,8 +131,11 @@ version → **Previews and Screenshots**.
   drive start), with purpose strings in `Info.plist`.
 * **1.4 physical harm / safety** — first launch asks people to agree to "Before you start" (plans
   come from Google Maps data and can be wrong, nothing is booked, costs are estimates, you're the
-  driver, made for cars); the first drive shows a safety notice; drive mode needs at most one tap
-  per stop.
+  driver, directions can differ from the road, made for cars), then shows Google's navigation
+  terms; the first drive shows a safety notice; drive mode needs at most one tap per stop.
+* **CarPlay** — a navigation app under the CarPlay App Programming Guide: map-only base view,
+  turn-by-turn with upcoming maneuvers, a pan button, guidance stops at once when CarPlay cancels
+  it, no flow needs the iPhone, nothing asks the driver to pick it up (see [CARPLAY.md](CARPLAY.md)).
 * **Maps attribution** — Google logo and legal notices are shown by the Maps SDK; stop details,
   which show Places data without a map, say "Place information from Google Maps".
 
@@ -134,7 +143,7 @@ version → **Previews and Screenshots**.
 
 What the app does (see `Disclosures` in `TripFeatures`, the single source of all wording):
 
-* **First launch: "Before you start".** Six points, a link to the full Terms of Use, Google Maps'
+* **First launch: "Before you start".** Seven points, a link to the full Terms of Use, Google Maps'
   terms and both privacy policies, and *Agree and continue*. Acceptance is stored with the terms
   version (`Disclosures.termsVersion`); bump it whenever the terms change and everyone is asked
   again.
@@ -153,9 +162,9 @@ Before release, have a lawyer review the following, which the app can't settle o
    whether a custom EULA should replace Apple's.
 2. **Google Maps Platform terms**: end users must be bound by terms consistent with Google's,
    including the [Google Maps/Google Earth Additional Terms of Service](https://maps.google.com/help/terms_maps/)
-   (done in the agreement). Google limits how long Places content may be stored (latitude/longitude
-   up to 30 days in the Service Specific Terms); saved plans and the active trip keep place names
-   and coordinates longer, so decide whether to expire or refresh them.
+   (done in the agreement). Navigation, storage and the Navigation SDK's conditions are handled as
+   described in [COMPLIANCE.md](COMPLIANCE.md); its open questions (commercial use, CarPlay,
+   the company name in Google's dialog, derived plan data) are for the lawyer.
 3. **Hotel prices**: if Expedia Rapid is used under its launch requirements, its rules for showing
    rates (taxes and fees lines) apply. The FTC's rule on unfair or deceptive fees (in force since
    May 2025) covers how short-term lodging prices are displayed in the US; the app labels rates as

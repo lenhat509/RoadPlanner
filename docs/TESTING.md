@@ -8,17 +8,22 @@ in [`test-logs/TEST_LOG.md`](../test-logs/TEST_LOG.md).
 
 | Level | Where | Framework | What it covers | Runs on |
 |---|---|---|---|---|
-| Unit — core | `Packages/WaystageKit/Tests/*` | Swift Testing | geometry, polyline codec, models, route profile, candidate builder, optimizer, feasibility ladder, validator, retimer, lodging windows, guidance engine, trip state machine, persistence, formatters, deep links | Linux, macOS, iOS simulator |
+| Unit — core | `Packages/WaystageKit/Tests/*` | Swift Testing | geometry, polyline codec, models, route profile, candidate builder, optimizer, feasibility ladder, validator, retimer, lodging windows, guidance engine (offline simulation), trip state machine, persistence, formatters, deep links | Linux, macOS, iOS simulator |
 | Unit — API adapters | `TripServicesTests` | Swift Testing + JSON fixtures | request encoding (headers, field masks, bodies), response decoding, error mapping, retries for Routes API, Places API (New), gateway | same |
-| Unit — view models (UI features) | `TripFeaturesTests` | Swift Testing | every screen's logic: planning form, autocomplete, validation, plan comparison, timeline, drive mode (route preview, route line from the car, directions from the car, arrival, next stop, skip, reroute, mute, auto-departure, completion, auto-save, resume), settings | same |
+| Unit — view models (UI features) | `TripFeaturesTests` | Swift Testing | every screen's logic: planning form, autocomplete, validation, plan comparison, timeline, drive mode with the simulated navigation engine (route preview, route line from the car, directions from the car, arrival, next stop, skip, reroute, mute, auto-departure, completion, auto-save, resume) and with a Google-like engine that draws its own guidance (no banner or route drawn by the app, arrival, approach), Google's terms declined, CarPlay ending guidance, retries; what's kept on the phone (Google's 30-day and place-ID rules, names fetched again, plans planned again), settings | same |
 | Property | `PlannerPropertyTests` | Swift Testing | 24 random scenarios: every plan satisfies all safety rules | same |
 | Integration | `IntegrationTests` | Swift Testing | full planning through the **production** Google/gateway adapters against the in-process `SimulatedGoogleBackend` (cross-country, short trip, custom breaks, impossible deadline, degraded services, failures) | same |
 | Unit — app shell | `AppTests` | Swift Testing | configuration, composition root modes, CoreLocation mapping, design tokens, marker icons, component rendering (`ImageRenderer`) | iOS simulator |
 | UI (sandbox) | `AppUITests` | XCUITest | plan flow, validation, plan comparison, drive → arrive → continue → route preview → start, exit and resume, resume after relaunch, end trip, a trip starting far away (note, directions to start, start from here), zoom buttons return to the same view (route position measured in screenshots), settings persistence, App Store screenshots | iOS simulator |
 | Gateway | `Backend/gateway/test` | Vitest | Expedia signature (independent vector), Rapid client, lodging service, EIA client, PADD mapping, cache, HTTP API (auth, validation, errors, rate limit), config | Node 22 |
 
-Current counts: **258** core tests (37 suites, more with parameterized cases), **66** gateway
-tests, **27** app unit tests, **14** UI tests + 3 screenshot tests (light, dark, and the launch intro with the terms agreement).
+Current counts: **269** core tests (38 suites, more with parameterized cases), **66** gateway
+tests, **32** app unit tests, **14** UI tests + 3 screenshot tests (light, dark, and the launch intro with the terms agreement).
+
+Not covered automatically: Google's Navigation SDK itself (it needs a key and real or simulated
+driving) and the CarPlay screens (drawn by iOS, which UI tests can't reach). CI compiles both, and
+the drive logic they use is tested; check them by hand as in [CARPLAY.md](CARPLAY.md#testing)
+and the release steps.
 
 ## Running tests
 

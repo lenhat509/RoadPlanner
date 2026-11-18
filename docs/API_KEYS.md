@@ -18,7 +18,13 @@ Secrets can't be read back once saved, not even by you; to change one, save a ne
 ## 1. Google Maps Platform (required)
 
 1. Create a Google Cloud project and enable billing.
-2. Enable **Maps SDK for iOS**, **Navigation SDK**, **Routes API** and **Places API (New)**.
+2. Enable **Maps SDK for iOS**, **Navigation SDK**, **Routes API** and **Places API (New)** (APIs
+   & Services → Library; not the older "Places API"). With the gcloud CLI:
+
+   ```bash
+   gcloud services enable maps-ios-backend.googleapis.com navigationsdk.googleapis.com routes.googleapis.com places.googleapis.com --project YOUR_PROJECT_ID
+   ```
+
    The Navigation SDK gives turn-by-turn directions on the phone and on CarPlay (Google's terms
    don't allow building them from the Routes API). If it isn't enabled, drive mode shows
    "Directions are unavailable right now" and planning still works.

@@ -42,12 +42,22 @@ CarPlay says Waystage isn't set up yet, without asking the driver to pick up the
 
 ## Testing
 
-* **CarPlay Simulator** (Xcode → Open Developer Tool → Simulator → I/O → External Displays →
-  CarPlay) with a build that has a Google key. Launch argument `-SimulateNavigation` drives each
-  route with the Navigation SDK's location simulator.
+What CI checks: the CarPlay code compiles, and the drive logic it uses is tested (including
+"Ending guidance from CarPlay returns to the leg's preview at once" and the iPhone and CarPlay
+sharing one drive). What it can't check: the CarPlay screens themselves, which iOS draws outside
+the app, where UI tests can't reach. Check them by hand:
+
+* **Xcode's CarPlay simulator** (a Mac, your own or rented by the hour): iPhone Simulator → I/O →
+  External Displays → CarPlay, with a build that has a Google key. Launch argument
+  `-SimulateNavigation` drives each route with the Navigation SDK's location simulator.
+* **Apple's CarPlay Simulator app** (in Additional Tools for Xcode, on a Mac): the Mac acts as the
+  car's screen for a real iPhone over USB, running the TestFlight build.
+* **A portable CarPlay screen** (an aftermarket dash display, powered by a 12 V adapter at a desk):
+  real CarPlay from the iPhone with the TestFlight build, no Mac or car needed.
 * **In a car**, with the TestFlight build and a passenger: start a saved trip from CarPlay with the
   iPhone locked, follow a leg, let the car's own navigation take over (guidance must stop), arrive
-  at a stop and **Continue**, and end the trip.
+  at a stop and **Continue**, and end the trip. Only a car checks voice through its speakers
+  alongside the radio, its own controls (knob, touchpad) and real GPS.
 
 Google's CarPlay support for the Navigation SDK is in **Preview** (pre-GA): it can change, and
 alternate routes can't be chosen on the car's screen. See [COMPLIANCE.md](COMPLIANCE.md).

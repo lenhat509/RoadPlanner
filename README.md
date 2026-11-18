@@ -1,7 +1,7 @@
 # Waystage — Road Trip Planner for iOS
 
 Waystage plans long car trips the way an experienced road-tripper would, then guides the
-driver there with turn-by-turn directions on Google Maps.
+driver there stop by stop with Google's turn-by-turn navigation, on the iPhone and on CarPlay.
 
 **Input:** start, destination, departure time, the car's MPG, tank size and fuel grade (any
 gasoline by default, or a specific grade with its ethanol level: Regular 87 · E10, Midgrade 89 ·
@@ -16,7 +16,9 @@ directions between every stop — for three objectives: **fastest**, **cheapest*
 | Feasibility before optimality | Deadlines and daily limits are satisfied first; preferences are relaxed step by step (and reported) only when needed. |
 | Route choices | Up to three noticeably different, reasonable routes (the provider's alternatives plus routes through highway hubs off them), each fully planned and tagged with its travel time on the map; only the one chosen is saved. |
 | Optimal stops | Resource-constrained label-setting search over real gas stations (live prices), rest areas and hotels (live Expedia rates). |
-| Drive mode | Voice-guided turn-by-turn in a familiar layout (next turn on top, "Then" turn, time left and exit at the bottom, re-center), off-route rerouting, arrival detection, every leg (starting, resuming, continuing from a stop) opens as a preview with a Start button; map moves keep the leg or the car on screen. |
+| Drive mode | Each leg (starting, resuming, continuing from a stop) opens as a preview with a Start button; Google's Navigation SDK then guides it (turn header, lanes, voice, rerouting, arrival) while Waystage keeps the trip: the next stop, time left, "Continue to next stop", skipping a stop. |
+| CarPlay | The same drive on the car's screen: trips list, leg previews, Google's maneuvers and voice, Continue at stops. |
+| Google's rules | Only place IDs are kept long-term (coordinates for 30 days); names are fetched again when a trip is opened. See [docs/COMPLIANCE.md](docs/COMPLIANCE.md). |
 | Auto-saved | Progress persists after every change; trips resume after relaunch or reboot. |
 
 ## Repository layout
@@ -29,7 +31,7 @@ Packages/WaystageKit/    Platform-independent core (builds and tests on macOS, i
   Sources/TripModels      Domain model, geometry, polyline codec
   Sources/TripPlanner     Route profile, candidate stops, optimizer, feasibility ladder, planning service, ports
   Sources/TripServices    Google Routes API v2, Places API (New), Waystage gateway adapters
-  Sources/TripNavigation  Turn-by-turn guidance engine, trip progress state machine
+  Sources/TripNavigation  Trip progress state machine; guidance engine for the offline simulation
   Sources/TripPersistence Auto-saved trips and preferences
   Sources/TripFeatures    Observable view models (all screen logic)
   Sources/TripSandbox     Offline simulated Google backend, GPS, fixtures (tests, previews, UI tests)
@@ -37,7 +39,7 @@ Backend/gateway/        TypeScript service holding Expedia Rapid and EIA credent
 fastlane/               TestFlight / App Store automation and store metadata
 scripts/                Test runner with logging, icon generator, git hooks
 test-logs/              History of every test run
-docs/                   Architecture, algorithm, testing, release, keys, privacy, security
+docs/                   Architecture, algorithm, testing, release, keys, CarPlay, compliance, privacy, security
 ```
 
 ## Quick start (macOS, Xcode 26+)
@@ -74,9 +76,10 @@ submission; screenshots are taken on a real iPhone); on a Mac, `make beta` and `
 
 | Service | Used for | Where |
 |---|---|---|
-| Google Maps SDK for iOS | Map rendering (Apple Maps is used when no Google key is configured) | App |
-| Google Routes API (v2) | Routes, alternatives, tolls, turn-by-turn steps, rerouting | App → Google |
-| Google Places API (New) | Autocomplete, place details, search along route, live fuel prices | App → Google |
+| Google Maps SDK for iOS | Maps, on the iPhone and CarPlay (Apple Maps is used when no Google key is configured) | App |
+| Google Navigation SDK for iOS | Turn-by-turn navigation: routes from the phone, guidance, voice, rerouting, arrival; CarPlay's maneuvers | App → Google |
+| Google Routes API (v2) | Planning: routes, alternatives, tolls, directions through the chosen stops | App → Google |
+| Google Places API (New) | Autocomplete, search along the route, live fuel prices, names of saved trips' places by place ID | App → Google |
 | Expedia Rapid API | Live hotel rates near each night's stop | App → Gateway → Expedia |
 | U.S. EIA Open Data | Regional average fuel price fallback | App → Gateway → EIA |
 | Google Maps / Expedia / Google hotel links | Hand-off for booking and navigation | Deep links |
@@ -88,6 +91,6 @@ submission; screenshots are taken on a real iPhone); on a Mac, `make beta` and `
 * [Planning algorithm](docs/PLANNING_ALGORITHM.md)
 * [Testing strategy](docs/TESTING.md)
 * [API keys & services setup](docs/API_KEYS.md)
-* [App Store release checklist](docs/APP_STORE_RELEASE.md)
+* [App Store release](docs/APP_STORE_RELEASE.md) · [CarPlay](docs/CARPLAY.md) · [Google and Apple rules (compliance)](docs/COMPLIANCE.md)
 * [Security](docs/SECURITY.md) · [Privacy policy](docs/PRIVACY_POLICY.md) · [Terms of Use](docs/TERMS_OF_USE.md) · [Support](docs/SUPPORT.md)
 * [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)

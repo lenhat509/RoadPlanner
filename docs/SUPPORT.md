@@ -12,8 +12,25 @@ exactly what changed. It never removes required breaks.
 and the U.S. EIA and can change; estimates are marked "est.". Always confirm before relying on
 them.
 
+**Where do the directions come from?** Turn-by-turn directions, voice and rerouting come from
+Google's navigation, built into Waystage. Before your first drive Google's terms appear; accept
+them to get directions. Waystage takes you from stop to stop and keeps your trip's progress.
+
 **Voice guidance stops when I lock my phone.** Allow location access ("While Using the App" is
-enough) and keep the trip active. Check that the ringer volume is up.
+enough) and keep the trip active. Check that the volume is up and the speaker button in drive mode
+isn't muted.
+
+**Does Waystage work with CarPlay?** Yes. Connect your iPhone to CarPlay and open Waystage on the
+car's screen: **Trips** lists your trip in progress and saved plans; pick one, then **Start**. At
+each stop, **Continue** goes to the next one. Plan new trips on your iPhone before you drive, and
+accept the terms and the safety notice there once before your first drive.
+
+**A saved trip shows "Gas station" or "Rest stop" instead of names.** Place names are loaded from
+Google when you open a trip (Google doesn't allow keeping them on the phone). Without a
+connection, Waystage shows what each stop is; the names come back once you're online.
+
+**A saved plan says "Saved over 30 days ago".** Google's map data for a plan can only be kept for
+30 days, so older plans are planned again with today's routes and prices: tap the plan.
 
 **I closed the app during a trip.** Open Waystage and tap **Resume** on the home screen. Progress
 is saved automatically. Waystage shows the route from where you are to your next stop; tap

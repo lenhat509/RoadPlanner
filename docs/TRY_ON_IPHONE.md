@@ -25,8 +25,9 @@ them (or share them).
 ### One-time Apple setup
 
 1. Join the **Apple Developer Program**: <https://developer.apple.com/programs/>.
-2. **Certificates, IDs & Profiles → Identifiers → +** → App ID, e.g. `com.waystage.waystage`
-   (no capabilities needed).
+2. **Certificates, IDs & Profiles → Identifiers → +** → App ID, e.g. `com.waystage.waystage`.
+   Turn on **CarPlay Navigation** once Apple has granted it (see [CARPLAY.md](CARPLAY.md)); no
+   other capability is needed.
 3. **App Store Connect → Apps → +** → New App: iOS, name (must be unique, e.g.
    "Waystage: Road Trip Planner"), the bundle ID above, SKU e.g. `waystage-ios`, Full Access.
 4. **App Store Connect → Users and Access → Integrations → App Store Connect API → +**: role
@@ -52,9 +53,11 @@ Everything goes in GitHub, under **Settings → Secrets and variables → Action
 | Secret | `MATCH_GIT_BASIC_AUTHORIZATION` | base64 of `<github-username>:<token from step 5>` |
 | Variable | `WAYSTAGE_BUNDLE_ID` | your bundle ID, e.g. `com.waystage.waystage` |
 | Variable | `WAYSTAGE_TEAM_ID` | your Team ID |
+| Variable (optional) | `WAYSTAGE_COMPANY_NAME` | the legal name on your Google Maps Platform account, shown in Google's navigation terms dialog (default "Waystage") |
 | Secret (optional) | `WAYSTAGE_GATEWAY_URL`, `WAYSTAGE_GATEWAY_TOKEN` | only once the gateway is deployed |
 
-If an older `SECRETS_XCCONFIG` secret is listed, delete it: nothing uses it any more.
+Nothing uses `SECRETS_XCCONFIG` or any `APPETIZE_…` secret or variable any more; delete them if
+they're listed.
 
 Never paste these values into issues, chats or commits.
 
@@ -62,7 +65,8 @@ Never paste these values into issues, chats or commits.
 
 1. **Actions → Release → Run workflow** with lane `beta` and **create_certificates** ticked
    (first run only — it creates your distribution certificate and profile in the certificates
-   repo). Untick it for every later run.
+   repo). Untick it for every later run. After turning on CarPlay Navigation for the App ID, tick
+   **refresh_profile** once instead, for a profile that includes CarPlay.
 2. After the run, App Store Connect processes the build (~10–30 minutes). In **TestFlight →
    Internal Testing**, add yourself as a tester (internal testers need no beta review).
 3. On your iPhone, install **TestFlight** from the App Store, open the invitation email and

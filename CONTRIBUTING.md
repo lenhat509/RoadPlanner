@@ -22,7 +22,7 @@
 
 ## Definition of done
 
-- [ ] Tests for the new behaviour (unit; integration/UI where the flow changes)
-- [ ] `make test` green and logged in `test-logs/`
-- [ ] Lint clean
-- [ ] Docs updated (architecture, algorithm, privacy, if affected)
+- Tests for the new behaviour (unit; integration/UI where the flow changes)
+- `make test` green and logged in `test-logs/`
+- Lint clean
+- Docs updated (architecture, algorithm, privacy, if affected)

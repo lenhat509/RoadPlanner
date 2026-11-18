@@ -4,7 +4,7 @@
 
 | Secret | Lives in | Never in |
 |---|---|---|
-| Google Maps API key | GitHub Actions secret → the build on GitHub's temporary Mac → inside the app (restricted to bundle ID + 3 APIs) | git, workflow artifacts |
+| Google Maps API key | GitHub Actions secret → the build on GitHub's temporary Mac → inside the app (restricted to bundle ID + 4 APIs) | git, workflow artifacts |
 | Gateway app token | GitHub Actions secret → inside the app; gateway `APP_TOKENS` (Secret Manager) | git, workflow artifacts |
 | Expedia API key/secret, EIA key | Gateway environment via Secret Manager | the app, git |
 | App Store Connect key, match password | GitHub Actions secrets | git |
