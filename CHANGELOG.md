@@ -21,8 +21,10 @@ All notable changes to this project are documented here. The format follows
   allow rebuilding navigation from the Routes API and the Maps SDK, or speaking Google content
   with a speech synthesizer, which the app did before. Its own guidance engine now only runs the
   offline demo and tests, on made-up data.
-- While Google guides, the map is padded above Waystage's bottom panel, so the panel never
-  covers the car, the route or Google's buttons.
+- While Google guides, the map fills the screen behind Waystage's bottom panel, and is padded
+  above it, so the panel never covers the car, the route or Google's buttons.
+- Drive mode's panels are light whenever Google's map is shown, to match it: Google draws its
+  navigation map in its daytime style regardless of the phone's dark mode.
 - Google's navigation terms are shown after the first-launch agreement and before a drive until
   accepted. The Terms of Use (version 2) add a section on directions: use your own judgment;
   tolls and HOV-lane fees are the driver's. Everyone is asked to agree again.

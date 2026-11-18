@@ -82,6 +82,11 @@ struct DriveScreen: View {
         } message: {
             Text("Your progress on this trip will be cleared.")
         }
+        // Google's navigation map is always drawn in its daytime style (the app leaves Google's
+        // map and banner as Google draws them), whatever the phone's appearance: drive mode's own
+        // panels, menus and status bar use light colors to match it. Offline, the map follows
+        // the phone, and so does drive mode.
+        .preferredColorScheme(navigation != nil ? .light : nil)
     }
 
     private var isGuiding: Bool { model.mode == .driving && model.stage == .navigating }
