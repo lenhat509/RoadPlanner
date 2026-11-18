@@ -190,6 +190,9 @@ struct TripMapView: UIViewRepresentable {
             if navigationSession !== state.session {
                 navigationSession = state.session
                 _ = mapView.enableNavigation(with: state.session)
+                // The app places the camera until guidance starts: don't let the SDK move it to the
+                // phone's position when navigation is attached.
+                mapView.cameraMode = .free
                 mapView.navigationUIDelegate = self
                 // Google's turn-by-turn header, speed and re-center button; drive mode's own panel
                 // below the map shows the time and distance left (in place of Google's footer).
@@ -268,15 +271,12 @@ struct TripMapView: UIViewRepresentable {
             )
             if planChanged { motion = .flight(.frame) }
             if camera.isFollow { lastFix = now }
-            let fromOverview = MapCameraDirector.flightStartsFromOverview(
-                previous: appliedCamera, next: camera, userMoved: userMovedSinceCamera
-            )
             if camera != appliedCamera { userMovedSinceCamera = false }
             appliedCamera = camera
             if camera == .overview { framedOverview = overview }
             guard let motion else { return }
             if case let .flight(kind) = motion {
-                fly(mapView, to: camera, kind: kind, paths: paths, markers: markers, fromOverview: fromOverview)
+                fly(mapView, to: camera, kind: kind, paths: paths, markers: markers)
                 return
             }
             guard let update = cameraUpdate(for: camera, paths: paths, markers: markers, on: mapView) else { return }
@@ -291,21 +291,16 @@ struct TripMapView: UIViewRepresentable {
 
         // MARK: Flights
 
-        /// Flies from the camera on screen (or, see `MapCameraDirector.flightStartsFromOverview`,
-        /// from the whole-trip overview) to `camera` (see `CameraFlight`), one step per frame.
+        /// Flies from the camera on screen to `camera` (see `CameraFlight`), one step per frame.
         private func fly(
-            _ mapView: GMSMapView, to camera: Camera, kind: CameraFlight.Kind, paths: [[GeoCoordinate]], markers: [MapStopMarker],
-            fromOverview: Bool = false
+            _ mapView: GMSMapView, to camera: Camera, kind: CameraFlight.Kind, paths: [[GeoCoordinate]], markers: [MapStopMarker]
         ) {
             guard let end = flightTarget(for: camera, paths: paths, markers: markers, on: mapView) else { return }
             let current = mapView.camera
-            var start = CameraFlight.Camera(
+            let start = CameraFlight.Camera(
                 center: GeoCoordinate(current.target), scale: Self.scale(zoom: current.zoom),
                 heading: current.bearing, pitch: current.viewingAngle
             )
-            if fromOverview, let overview = flightTarget(for: .overview, paths: paths, markers: markers, on: mapView) {
-                start = overview
-            }
             let plan = CameraFlight(from: start, to: end, kind: kind)
             flight = (plan, CACurrentMediaTime(), plan.duration)
             flightEnds = Date().addingTimeInterval(plan.duration)

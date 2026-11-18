@@ -68,17 +68,6 @@ enum MapCameraDirector {
         }
     }
 
-    /// Whether a flight to `new` starts from the whole-trip overview instead of from the camera the
-    /// map reports: when the overview is what the map was last asked to show (drive mode opening
-    /// on the whole trip, then zooming into the leg) and nobody has moved the map since. Right
-    /// after a map appears, the camera it reports can still be its default one (far from the
-    /// route) even though the overview is being drawn; starting there would sweep across
-    /// unrelated places.
-    static func flightStartsFromOverview(previous: TripMapView.Camera?, next: TripMapView.Camera, userMoved: Bool) -> Bool {
-        guard previous == .overview, !userMoved, case .frame = next else { return false }
-        return true
-    }
-
     /// Whether a map of `size` is laid out enough to frame routes clear of `chrome` (it can first
     /// get a placeholder size while a screen slides in, which would frame them wrongly).
     static func canFrame(in size: CGSize, chrome: UIEdgeInsets) -> Bool {
@@ -97,23 +86,18 @@ enum MapCameraDirector {
         case free
     }
 
-    /// How long drive mode shows the whole trip (once its directions are loaded) before zooming
-    /// into the leg.
-    static let wholeTripHold: TimeInterval = 0.7
-
     /// Drive mode's camera. Every way into drive mode (Start driving, Resume, continuing from a
-    /// stop) goes through here and through the same flights, so they all move alike: the whole
-    /// trip first, then the leg to the next stop (flying from the whole trip and keeping the leg in
-    /// view, see `flightStartsFromOverview`), then, on Start, down to the car (keeping the car in
-    /// view). Change the choreography here, in one place.
+    /// stop) goes through here, so they all move alike: the map opens already on the leg to the
+    /// next stop (placed, not flown to: the first camera of a map is placed), and on Start the
+    /// camera goes down to the car (keeping the car in view). With Google's navigation, the camera
+    /// while guiding is the Navigation SDK's own (following the car, or the whole route).
+    /// Change the choreography here, in one place.
     /// - Parameters:
-    ///   - showsWholeTrip: drive mode has just opened (see `wholeTripHold`).
     ///   - route: the route from the car to the next stop (to face along before the car moves).
     static func driveCamera(
-        showsWholeTrip: Bool, mode: DriveViewModel.Mode, stage: DriveViewModel.Stage, guiding: GuidingView,
+        mode: DriveViewModel.Mode, stage: DriveViewModel.Stage, guiding: GuidingView,
         previewFrame: [GeoCoordinate], car: GeoCoordinate?, course: Double?, route: [GeoCoordinate]
     ) -> TripMapView.Camera {
-        if showsWholeTrip { return .overview }
         switch mode {
         case .completed:
             return .overview

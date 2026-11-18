@@ -330,28 +330,26 @@ struct NumberTile: View {
     }
 }
 
-/// A full-width tile, styled like `NumberTile`, that opens a menu to choose one value (e.g. the
-/// fuel grade): the title above, the choice on one line, and a chevron. It keeps its place in
-/// the layout however long the choice is.
-struct MenuTile<Value: Hashable, Options: View>: View {
+/// A tile showing a choice; tapping it lists the options in a sheet at the bottom of the screen.
+/// A plain button, so it stays put and scrolls with the page like the fields around it (a
+/// `Menu`'s button lifts and follows the finger when a scroll starts on it).
+struct OptionTile<Value: Hashable>: View {
     let title: String
     let systemImage: String
-    /// What the tile shows for the current choice.
-    let valueText: String
     @Binding var selection: Value
+    let options: [Value]
+    let optionTitle: (Value) -> String
     let identifier: String
-    @ViewBuilder let options: () -> Options
+    @State private var isChoosing = false
 
     var body: some View {
-        Menu {
-            Picker(title, selection: $selection) { options() }
-        } label: {
+        Button { isChoosing = true } label: {
             HStack(spacing: Theme.Spacing.xs) {
                 VStack(alignment: .leading, spacing: 4) {
                     Label(title, systemImage: systemImage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(valueText)
+                    Text(optionTitle(selection))
                         .font(.headline)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
@@ -369,8 +367,14 @@ struct MenuTile<Value: Hashable, Options: View>: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
-        .accessibilityValue(valueText)
+        .accessibilityValue(optionTitle(selection))
         .accessibilityIdentifier(identifier)
+        .confirmationDialog(title, isPresented: $isChoosing, titleVisibility: .visible) {
+            ForEach(options, id: \.self) { option in
+                Button(optionTitle(option)) { selection = option }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 }
 

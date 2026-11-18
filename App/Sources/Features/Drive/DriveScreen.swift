@@ -13,8 +13,9 @@ import UIKit
 /// covering the navigation screen without the driver asking).
 ///
 /// Every leg opens as a *preview* — starting a trip, resuming one, continuing from a stop: the map
-/// shows the whole trip, then zooms into the route from the car to the next stop (north-up,
-/// keeping it in view), with a Start button that zooms down to the car (keeping the car in view).
+/// opens on the route from the car to the next stop (north-up, no zooming in from elsewhere),
+/// with a Start button. Start goes down to the car: Google's following camera in the App Store
+/// build, a flight that keeps the car in view offline.
 struct DriveScreen: View {
     /// What the camera does while guiding.
     typealias CameraMode = MapCameraDirector.GuidingView
@@ -23,8 +24,6 @@ struct DriveScreen: View {
     @State private var showsSafetyNotice: Bool
     @State private var confirmsEnd = false
     @State private var cameraMode = CameraMode.follow
-    /// Drive mode opens on the whole trip, then zooms into the next leg.
-    @State private var showsWholeTrip = true
     @State private var mapCommand: MapCommand?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -60,9 +59,6 @@ struct DriveScreen: View {
         .task(id: showsSafetyNotice) {
             guard !showsSafetyNotice else { return }
             await model.start()
-            // A moment on the whole trip (while the screen finishes sliding in), then the leg.
-            try? await Task.sleep(nanoseconds: UInt64(MapCameraDirector.wholeTripHold * 1_000_000_000))
-            showsWholeTrip = false
         }
         // The Navigation SDK doesn't keep the screen on by itself.
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
@@ -162,9 +158,10 @@ struct DriveScreen: View {
 
     // MARK: Map
 
-    /// Google's navigation on the map, once its session exists (App Store build).
+    /// Google's navigation on the map (App Store build). The session is made before drive mode
+    /// opens (`AppEnvironment.beginDrive`), so the map has it from the start.
     private var navigationMap: NavigationMapState? {
-        guard let session = navigation?.session, model.isGuidanceReady else { return nil }
+        guard let session = navigation?.session else { return nil }
         let camera: NavigationMapState.Camera = switch cameraMode {
         case .follow: .following
         case .overview: .overview
@@ -184,7 +181,7 @@ struct DriveScreen: View {
     /// The same for every way into drive mode (see `MapCameraDirector.driveCamera`).
     private var camera: TripMapView.Camera {
         MapCameraDirector.driveCamera(
-            showsWholeTrip: showsWholeTrip, mode: model.mode, stage: model.stage, guiding: cameraMode,
+            mode: model.mode, stage: model.stage, guiding: cameraMode,
             previewFrame: model.previewFrame, car: model.currentLocation, course: model.currentCourse,
             route: model.routeToTarget
         )

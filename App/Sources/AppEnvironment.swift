@@ -71,7 +71,12 @@ final class AppEnvironment {
             await drive.stop()
             self.drive = nil
         }
-        if asksForTerms, let navigation { await navigation.requestTerms() }
+        if let navigation {
+            if asksForTerms { await navigation.requestTerms() }
+            // Ready Google's navigation before drive mode's map exists, so the map has it from the
+            // start: attaching it to a map already on screen can move the camera.
+            try? await navigation.prepare()
+        }
         drive = DriveViewModel(trip: trip, dependencies: dependencies)
     }
 

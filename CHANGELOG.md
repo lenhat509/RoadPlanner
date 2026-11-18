@@ -34,17 +34,21 @@ All notable changes to this project are documented here. The format follows
   for the App ID), and `beta` checks the profile includes CarPlay.
 
 ### Fixed
-- **Start driving** now opens like **Resume**: on the whole trip, then a zoom into the leg. It
-  used to start the zoom from an unrelated place (the map's default camera, e.g. over Europe)
-  when the map hadn't finished its first placement. Leg flights now start from the whole-trip
-  view, and maps place their first camera only once they have their real size.
+- **Start driving** and **Resume** open the same way, without camera jumps: the map opens
+  already on the leg to the next stop (resuming mid-leg, on what's left of it from the car), and
+  **Start** goes down to the car with Google's navigation camera. Before, the camera headed for
+  the whole trip, then turned toward the leg when directions arrived, and on Resume could start
+  at your position, zoom out, then zoom back in (Google's navigation being attached to a map
+  already on screen moved it). Maps also place their first camera only once they have their
+  real size.
+- The fuel grade on the plan form stays in place when you scroll: it's a plain field that opens
+  the list of grades at the bottom of the screen. The drop-down it replaces lifted and followed
+  the finger when a scroll started on it.
 - Route time tags on the plan's map no longer cover stops: each stands above its route as a
   callout pointing at it, at a point clear of that route's stops and of the other routes.
-- The fuel grade on the plan form is a full-width field like Fuel economy and Tank size, instead
-  of a dropdown whose label wrapped over the text below it.
 
 ### Changed
-- Drive mode's camera sequence (whole trip, leg, car) is one shared function
+- Drive mode's camera sequence (leg, then car) is one shared function
   (`MapCameraDirector.driveCamera`) used by every way into drive mode.
 
 ## [1.0.1] — 2026-11-15

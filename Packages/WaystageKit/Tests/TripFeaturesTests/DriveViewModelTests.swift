@@ -371,6 +371,26 @@ struct DriveViewModelTests {
         #expect(await harness.repository.activeSaveCount == before) // clock is frozen → not due yet
     }
 
+    @Test("Resuming mid-leg, the map opens on the rest of the leg from the car, before directions load")
+    func resumeFramesRestOfLeg() async throws {
+        let harness = FeatureHarness()
+        let itinerary = try #require(try await Plans.laToVegas().recommended)
+        var trip = ActiveTrip(itinerary: itinerary)
+        try trip.start(at: testNow)
+        let planned = try PolylineCodec.decode(try #require(trip.legToTarget).encodedPolyline)
+        let midway = PolylineGeometry(coordinates: planned).coordinate(atDistance: GeoMath.length(of: planned) / 2)
+        harness.location.send(LocationSample(coordinate: midway, timestamp: testNow))
+        let model = DriveViewModel(trip: trip, dependencies: harness.dependencies)
+        let opening = model.previewFrame
+        #expect(GeoMath.distance(try #require(opening.first), midway) < 1, "starts at the car")
+        #expect(GeoMath.length(of: opening) < GeoMath.length(of: planned) * 0.6, "only what's left of the leg")
+        await model.start()
+        // Directions from the car cover about the same ground: the view barely changes.
+        let loaded = model.previewFrame
+        #expect(GeoMath.distance(try #require(loaded.first), midway) < 300)
+        #expect(abs(GeoMath.length(of: loaded) - GeoMath.length(of: opening)) < GeoMath.length(of: opening) * 0.25)
+    }
+
     @Test("Resuming a trip mid-leg picks up guidance from the current position")
     func resume() async throws {
         let harness = FeatureHarness()

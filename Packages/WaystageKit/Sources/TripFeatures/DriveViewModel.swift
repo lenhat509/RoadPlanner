@@ -175,7 +175,7 @@ public final class DriveViewModel: Identifiable {
         // Planned geometry right away, so the map opens on the right area.
         refreshRouteAfterTarget()
         updateRouteToTarget()
-        previewFrame = routeToTarget
+        previewFrame = legFrame
     }
 
     /// Whether `location` is far from where `trip` starts.
@@ -457,7 +457,7 @@ public final class DriveViewModel: Identifiable {
         routeGeometry = nil
         legProgress = nil
         updateRouteToTarget()
-        previewFrame = routeToTarget
+        previewFrame = legFrame
         await prepareLeg()
     }
 
@@ -542,7 +542,7 @@ public final class DriveViewModel: Identifiable {
         clearLeg()
         refreshRouteAfterTarget()
         updateRouteToTarget()
-        previewFrame = routeToTarget
+        previewFrame = legFrame
         await persist()
     }
 
@@ -560,7 +560,7 @@ public final class DriveViewModel: Identifiable {
     private func prepareLeg() async {
         refreshRouteAfterTarget()
         updateRouteToTarget()
-        previewFrame = routeToTarget
+        previewFrame = legFrame
         guard isOnLeg, let target = guidedStop, isGuidanceReady else { return }
         await loadDirections(to: target)
     }
@@ -583,7 +583,7 @@ public final class DriveViewModel: Identifiable {
             let planned = isHeadingToStart ? nil : trip.legToTarget?.distanceMeters
             legReferenceDistance = max(planned ?? 0, loaded.distanceMeters)
             updateRouteToTarget()
-            previewFrame = routeToTarget
+            previewFrame = legFrame
             if stage == .navigating { await guidance.startGuidance() }
         } catch GuidanceError.canceled {
             return
@@ -601,7 +601,8 @@ public final class DriveViewModel: Identifiable {
                 if isHeadingToStart {
                     routeToTarget = [currentLocation, trip.itinerary.stops.first?.place.coordinate].compactMap { $0 }
                 } else {
-                    routeToTarget = trip.legToTarget.flatMap { try? PolylineCodec.decode($0.encodedPolyline) } ?? []
+                    let planned = trip.legToTarget.flatMap { try? PolylineCodec.decode($0.encodedPolyline) } ?? []
+                    routeToTarget = Self.remaining(of: planned, from: currentLocation)
                 }
                 return
             }
@@ -619,6 +620,27 @@ public final class DriveViewModel: Identifiable {
         } else {
             routeToTarget = []
         }
+    }
+
+    /// What a preview frames: the route to the next stop and, on a leg, the car (so directions
+    /// from the car, when they load, change the view as little as possible).
+    private var legFrame: [GeoCoordinate] {
+        guard isOnLeg, let car = currentLocation, let first = routeToTarget.first, GeoMath.distance(car, first) > 1 else {
+            return routeToTarget
+        }
+        return [car] + routeToTarget
+    }
+
+    /// The part of a planned leg still ahead of `car` (resuming mid-leg), starting at the car, or
+    /// the whole leg when the car isn't on it.
+    static func remaining(of planned: [GeoCoordinate], from car: GeoCoordinate?) -> [GeoCoordinate] {
+        guard let car, planned.count > 1 else { return planned }
+        let geometry = PolylineGeometry(coordinates: planned)
+        guard let projection = geometry.project(car), projection.offsetMeters < 2_000 else { return planned }
+        var ahead = geometry.slice(from: projection.distanceAlong, to: geometry.totalLength)
+        guard !ahead.isEmpty else { return planned }
+        if GeoMath.distance(car, ahead[0]) > 1 { ahead.insert(car, at: 0) }
+        return ahead
     }
 
     /// The trip beyond the next stop (beyond the one after, at a stop; all of it while heading to

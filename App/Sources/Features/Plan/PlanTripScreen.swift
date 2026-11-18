@@ -207,14 +207,10 @@ struct PlanTripScreen: View {
     /// The grade the car takes, with its ethanol level; fuel stops are stations that sell it.
     private var fuelGradeRow: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            MenuTile(
-                title: "Fuel grade", systemImage: "fuelpump", valueText: model.fuelType.title,
-                selection: $model.fuelType, identifier: AccessibilityID.Plan.fuelGrade
-            ) {
-                ForEach(FuelType.allCases) { grade in
-                    Text(grade.title).tag(grade)
-                }
-            }
+            OptionTile(
+                title: "Fuel grade", systemImage: "fuelpump", selection: $model.fuelType,
+                options: FuelType.allCases, optionTitle: \.title, identifier: AccessibilityID.Plan.fuelGrade
+            )
             Text("\(model.fuelType.ethanolDescription) \(model.fuelType.planningNote)")
                 .font(.footnote)
                 .foregroundStyle(.secondary)

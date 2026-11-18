@@ -338,17 +338,17 @@ final class WaystageUITests: XCTestCase {
         return traces
     }
 
-    func testStartingADriveZoomsIntoTheLegThenToTheCarWithTheRouteAlwaysOnScreen() {
+    func testStartingADriveOpensOnTheLegThenZoomsToTheCarWithTheRouteAlwaysOnScreen() {
         // Screenshot pace: the simulated car waits for the camera before driving off.
         launch(extra: [LaunchArgument.screenshotPace])
         planLosAngelesToVegas()
         openDrive()
         XCTAssertTrue(element(AccessibilityID.Drive.preview).waitForExistence(timeout: 15), "Start driving previews the first leg")
         XCTAssertFalse(element(AccessibilityID.Drive.banner).exists, "no guidance before Start")
-        // The whole trip, then the zoom into the leg: the leg stays in view.
+        // Opens on the leg, which stays in view while directions load.
         let opening = routeTraces(for: 3)
         XCTAssertFalse(opening.isEmpty)
-        XCTAssertTrue(opening.allSatisfy { $0 != nil }, "the route left the screen while zooming into the leg: \(opening)")
+        XCTAssertTrue(opening.allSatisfy { $0 != nil }, "the route left the screen while the leg's preview opened: \(opening)")
 
         app.buttons[AccessibilityID.Drive.startNavigation].tap()
         // Down to the car: the car, where the route starts, stays in view.

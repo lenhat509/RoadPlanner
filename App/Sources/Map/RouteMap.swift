@@ -115,9 +115,6 @@ private struct AppleFlight: Equatable {
     let target: CameraFlight.Camera
     let kind: CameraFlight.Kind
     let duration: TimeInterval
-    /// Where the flight starts when not from the camera on screen (see
-    /// `MapCameraDirector.flightStartsFromOverview`).
-    var start: CameraFlight.Camera?
 
     /// Keyframes per second (between them the camera moves in straight lines, which keeps a
     /// flight's promise: see `CameraFlight`).
@@ -125,7 +122,7 @@ private struct AppleFlight: Equatable {
 
     /// The flight's cameras after `initial` (the camera on screen when it starts).
     func samples(from initial: MapCamera) -> [CameraFlight.Camera] {
-        let start = self.start ?? CameraFlight.Camera(
+        let start = CameraFlight.Camera(
             center: GeoCoordinate(initial.centerCoordinate), scale: initial.distance,
             heading: initial.heading, pitch: initial.pitch
         )
@@ -307,17 +304,14 @@ struct AppleRouteMap: View {
             from: appliedCamera, to: newCamera, sinceLastFix: now.timeIntervalSince(lastFix), isFlyingIn: now < flightEnds, lag: lag
         )
         if newCamera.isFollow { lastFix = now }
-        let fromOverview = MapCameraDirector.flightStartsFromOverview(
-            previous: appliedCamera, next: newCamera, userMoved: userMovedSinceCamera
-        )
         if newCamera != appliedCamera { userMovedSinceCamera = false }
         appliedCamera = newCamera
-        if let motion { apply(newCamera, motion: motion, fromOverview: fromOverview) }
+        if let motion { apply(newCamera, motion: motion) }
     }
 
-    private func apply(_ camera: TripMapView.Camera, motion: MapCameraDirector.Motion, fromOverview: Bool = false) {
+    private func apply(_ camera: TripMapView.Camera, motion: MapCameraDirector.Motion) {
         if case let .flight(kind) = motion {
-            fly(to: camera, kind: kind, fromOverview: fromOverview)
+            fly(to: camera, kind: kind)
             return
         }
         guard let target = target(for: camera) else { return }
@@ -333,9 +327,8 @@ struct AppleRouteMap: View {
         }
     }
 
-    /// Flies from the camera on screen (or, see `MapCameraDirector.flightStartsFromOverview`, from
-    /// the whole-trip overview) to `camera` (see `CameraFlight`), then pins the map there.
-    private func fly(to camera: TripMapView.Camera, kind: CameraFlight.Kind, fromOverview: Bool = false) {
+    /// Flies from the camera on screen to `camera` (see `CameraFlight`), then pins the map there.
+    private func fly(to camera: TripMapView.Camera, kind: CameraFlight.Kind) {
         guard let end = flightTarget(for: camera), let current = tracker.camera else {
             // The map hasn't reported a camera yet: let MapKit animate.
             if let target = target(for: camera) {
@@ -343,10 +336,8 @@ struct AppleRouteMap: View {
             }
             return
         }
-        let start = fromOverview ? flightTarget(for: .overview) : nil
         let newFlight = AppleFlight(
-            target: end, kind: kind, duration: CameraFlight.duration(fromScale: start?.scale ?? current.distance, toScale: end.scale),
-            start: start
+            target: end, kind: kind, duration: CameraFlight.duration(fromScale: current.distance, toScale: end.scale)
         )
         flight = newFlight
         flightEnds = Date().addingTimeInterval(newFlight.duration)
