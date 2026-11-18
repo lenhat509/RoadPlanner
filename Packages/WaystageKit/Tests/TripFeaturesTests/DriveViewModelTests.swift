@@ -499,6 +499,26 @@ struct DriveViewModelTests {
         #expect(model.nextStop?.durationText == formatters.duration(route.duration), "then the engine's live time")
     }
 
+    @Test("Away from the planned leg, the plan's numbers aren't shown: they describe another drive")
+    func awayFromLegNoPlannedEstimate() async throws {
+        let engine = FakeNavigationEngine()
+        engine.failure = .network
+        let harness = FeatureHarness(guidance: engine)
+        let origin = SampleTrips.city("la").coordinate
+        // About 11 km north of the plan's start: the trip starts from here (not far enough to
+        // drive to the start first), with directions from the car.
+        harness.location.send(LocationSample(coordinate: GeoCoordinate(latitude: origin.latitude + 0.1, longitude: origin.longitude), timestamp: testNow))
+        let model = try await makeModel(harness)
+        #expect(!model.isHeadingToStart)
+        #expect(model.nextStop?.durationText == "", "no numbers until directions from the car arrive")
+        await model.start()
+        #expect(model.nextStop?.durationText == "")
+        engine.failure = nil
+        model.loadRetryInterval = 0
+        await model.handle(LocationSample(coordinate: GeoCoordinate(latitude: origin.latitude + 0.1, longitude: origin.longitude), timestamp: testNow))
+        #expect(model.nextStop?.durationText.isEmpty == false, "the engine's numbers, from the car")
+    }
+
     @Test("Directions that couldn't load are retried from a later fix")
     func retry() async throws {
         let engine = FakeNavigationEngine()

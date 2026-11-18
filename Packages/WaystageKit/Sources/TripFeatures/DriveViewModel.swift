@@ -632,20 +632,25 @@ public final class DriveViewModel: Identifiable {
     }
 
     /// The plan's time and distance for what's left of the leg (from where the car is on it),
-    /// shown until the navigation engine's route arrives with live ones. Nil without a planned
-    /// leg (heading to the trip's start).
+    /// shown until the navigation engine's route arrives with live ones. Nil when the plan doesn't
+    /// describe the drive: no planned leg (heading to the trip's start), or the car is away from
+    /// the planned leg (resuming elsewhere, starting a few miles from the plan's start), where
+    /// directions start from the car instead.
     private func plannedProgress() -> LegProgress? {
         guard isOnLeg, !isHeadingToStart, let leg = trip.legToTarget, leg.distanceMeters > 0 else { return nil }
         var remaining = 1.0
         let planned = (try? PolylineCodec.decode(leg.encodedPolyline)) ?? []
         if planned.count > 1, let car = currentLocation {
             let geometry = PolylineGeometry(coordinates: planned)
-            if geometry.totalLength > 0, let projection = geometry.project(car), projection.offsetMeters < 2_000 {
-                remaining = max(0, 1 - projection.distanceAlong / geometry.totalLength)
-            }
+            guard geometry.totalLength > 0, let projection = geometry.project(car),
+                  projection.offsetMeters < Self.onLegTolerance else { return nil }
+            remaining = max(0, 1 - projection.distanceAlong / geometry.totalLength)
         }
         return LegProgress(distanceRemaining: leg.distanceMeters * remaining, timeRemaining: leg.duration * remaining)
     }
+
+    /// Within this distance of the planned leg, the car counts as on it (GPS, a parking lot).
+    static let onLegTolerance: Double = 2_000
 
     /// What a preview frames: the route to the next stop and, on a leg, the car (so directions
     /// from the car, when they load, change the view as little as possible).
@@ -661,7 +666,7 @@ public final class DriveViewModel: Identifiable {
     static func remaining(of planned: [GeoCoordinate], from car: GeoCoordinate?) -> [GeoCoordinate] {
         guard let car, planned.count > 1 else { return planned }
         let geometry = PolylineGeometry(coordinates: planned)
-        guard let projection = geometry.project(car), projection.offsetMeters < 2_000 else { return planned }
+        guard let projection = geometry.project(car), projection.offsetMeters < onLegTolerance else { return planned }
         var ahead = geometry.slice(from: projection.distanceAlong, to: geometry.totalLength)
         guard !ahead.isEmpty else { return planned }
         if GeoMath.distance(car, ahead[0]) > 1 { ahead.insert(car, at: 0) }

@@ -51,7 +51,9 @@ All notable changes to this project are documented here. The format follows
   real size.
 - A leg's preview shows its time and distance right away (the plan's, for what's left of the
   leg), replaced by Google's live ones when its route arrives, instead of an empty "()" while
-  it loads. With no planned leg (driving to a far-away trip start), it says "Finding the route…".
+  it loads. When the plan doesn't describe the drive (driving to a far-away trip start, or the
+  car away from the planned leg), it says "Finding the route…" until Google's route from the car
+  arrives.
 - The fuel grade on the plan form stays in place when you scroll: it's a plain field that opens
   the list of grades at the bottom of the screen. The drop-down it replaces lifted and followed
   the finger when a scroll started on it.
