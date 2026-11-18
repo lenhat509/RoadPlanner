@@ -166,18 +166,37 @@ struct PreviewSheet<MenuContent: View>: View {
                         Text(headline)
                             .font(.subheadline.weight(.semibold))
                     }
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(info?.durationText ?? "")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(Theme.accent)
-                        Text(info.map { "(\($0.remainingText))" } ?? "")
-                            .font(.headline)
+                    if let info, !info.durationText.isEmpty {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(info.durationText)
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundStyle(Theme.accent)
+                                .contentTransition(.numericText())
+                            if !info.remainingText.isEmpty {
+                                Text("(\(info.remainingText))")
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                                    .contentTransition(.numericText())
+                            }
+                        }
+                        .monospacedDigit()
+                        .animation(.default, value: info.durationText)
+                    } else {
+                        // No planned leg to estimate from (heading to the trip's start): the route
+                        // is on its way.
+                        HStack(spacing: Theme.Spacing.xs) {
+                            ProgressView()
+                            Text("Finding the route…")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(minHeight: 34)
+                    }
+                    if let eta = info?.etaText, eta != "—" {
+                        Text("Arrive \(eta)")
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                    .monospacedDigit()
-                    Text("Arrive \(info?.etaText ?? "—")")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
                 DriveMenuButton(content: menu)

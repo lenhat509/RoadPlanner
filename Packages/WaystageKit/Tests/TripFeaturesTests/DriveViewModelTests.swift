@@ -480,6 +480,25 @@ struct DriveViewModelTests {
         #expect(!engine.isGuiding)
     }
 
+    @Test("The preview shows the plan's time and distance until the navigation engine's route arrives")
+    func plannedEstimatesFirst() async throws {
+        let engine = FakeNavigationEngine()
+        engine.failure = .network
+        let model = try await makeModel(FeatureHarness(guidance: engine))
+        let leg = try #require(model.trip.legToTarget)
+        let formatters = TripFormatters(locale: Locale(identifier: "en_US_POSIX"))
+        #expect(model.nextStop?.durationText == formatters.duration(leg.duration), "shown as soon as drive mode opens")
+        #expect(model.nextStop?.remainingText == formatters.distance(leg.distanceMeters))
+        await model.start()
+        #expect(model.route == nil)
+        #expect(model.nextStop?.durationText == formatters.duration(leg.duration), "still the plan's while directions can't load")
+        engine.failure = nil
+        model.loadRetryInterval = 0
+        await model.handle(LocationSample(coordinate: SampleTrips.city("la").coordinate, timestamp: testNow))
+        let route = try #require(model.route)
+        #expect(model.nextStop?.durationText == formatters.duration(route.duration), "then the engine's live time")
+    }
+
     @Test("Directions that couldn't load are retried from a later fix")
     func retry() async throws {
         let engine = FakeNavigationEngine()

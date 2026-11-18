@@ -49,6 +49,9 @@ All notable changes to this project are documented here. The format follows
   at your position, zoom out, then zoom back in (Google's navigation being attached to a map
   already on screen moved it). Maps also place their first camera only once they have their
   real size.
+- A leg's preview shows its time and distance right away (the plan's, for what's left of the
+  leg), replaced by Google's live ones when its route arrives, instead of an empty "()" while
+  it loads. With no planned leg (driving to a far-away trip start), it says "Finding the route…".
 - The fuel grade on the plan form stays in place when you scroll: it's a plain field that opens
   the list of grades at the bottom of the screen. The drop-down it replaces lifted and followed
   the finger when a scroll started on it.

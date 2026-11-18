@@ -175,10 +175,12 @@ public final class DriveViewModel: Identifiable {
         self.isHeadingToStart = farFromStart
         self.stage = .preview
         self.currentLocation = car
-        // Planned geometry right away, so the map opens on the right area.
+        // Planned geometry right away, so the map opens on the right area, and the plan's time
+        // and distance until the navigation engine's route arrives.
         refreshRouteAfterTarget()
         updateRouteToTarget()
         previewFrame = legFrame
+        legProgress = plannedProgress()
     }
 
     /// Whether `location` is far from where `trip` starts.
@@ -561,11 +563,13 @@ public final class DriveViewModel: Identifiable {
         lastLoadFailure = nil
     }
 
-    /// Shows the next leg (planned geometry first) and, on a leg, has the engine load its route.
+    /// Shows the next leg (planned geometry, time and distance first) and, on a leg, has the
+    /// engine load its route.
     private func prepareLeg() async {
         refreshRouteAfterTarget()
         updateRouteToTarget()
         previewFrame = legFrame
+        if route == nil { legProgress = plannedProgress() }
         guard isOnLeg, let target = guidedStop, isGuidanceReady else { return }
         await loadDirections(to: target)
     }
@@ -625,6 +629,22 @@ public final class DriveViewModel: Identifiable {
         } else {
             routeToTarget = []
         }
+    }
+
+    /// The plan's time and distance for what's left of the leg (from where the car is on it),
+    /// shown until the navigation engine's route arrives with live ones. Nil without a planned
+    /// leg (heading to the trip's start).
+    private func plannedProgress() -> LegProgress? {
+        guard isOnLeg, !isHeadingToStart, let leg = trip.legToTarget, leg.distanceMeters > 0 else { return nil }
+        var remaining = 1.0
+        let planned = (try? PolylineCodec.decode(leg.encodedPolyline)) ?? []
+        if planned.count > 1, let car = currentLocation {
+            let geometry = PolylineGeometry(coordinates: planned)
+            if geometry.totalLength > 0, let projection = geometry.project(car), projection.offsetMeters < 2_000 {
+                remaining = max(0, 1 - projection.distanceAlong / geometry.totalLength)
+            }
+        }
+        return LegProgress(distanceRemaining: leg.distanceMeters * remaining, timeRemaining: leg.duration * remaining)
     }
 
     /// What a preview frames: the route to the next stop and, on a leg, the car (so directions
