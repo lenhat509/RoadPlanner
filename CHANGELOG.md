@@ -42,9 +42,6 @@ All notable changes to this project are documented here. The format follows
   at your position, zoom out, then zoom back in (Google's navigation being attached to a map
   already on screen moved it). Maps also place their first camera only once they have their
   real size.
-- Google's turn-by-turn banner matches the map and the rest of drive mode: white with dark text
-  and teal arrows when the phone is in light mode, dark in dark mode. It used to be dark over a
-  daytime map. Google's map switches between its day and night looks with the phone too.
 - The fuel grade on the plan form stays in place when you scroll: it's a plain field that opens
   the list of grades at the bottom of the screen. The drop-down it replaces lifted and followed
   the finger when a scroll started on it.

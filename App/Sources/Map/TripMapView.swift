@@ -207,8 +207,6 @@ struct TripMapView: UIViewRepresentable {
                 // Drive mode draws its own stop markers.
                 mapView.settings.showsDestinationMarkers = false
                 mapView.isMyLocationEnabled = true
-                // Re-style for navigation (map lighting and Google's banner colors), below.
-                styledScheme = nil
             }
             // While Google guides, its camera and buttons keep clear of the app's bottom panel. Not
             // guiding, the app frames routes itself (with the chrome), so no padding.
@@ -502,16 +500,7 @@ struct TripMapView: UIViewRepresentable {
         func applyStyle(_ scheme: ColorScheme, to mapView: GMSMapView) {
             guard styledScheme != scheme else { return }
             styledScheme = scheme
-            if navigationSession != nil {
-                // Google's navigation map has its own day and night looks (lighting mode), and its
-                // turn banner has its own colors: both follow the phone's appearance, like the
-                // rest of drive mode, so the banner never looks like night over a daytime map.
-                mapView.mapStyle = nil
-                mapView.lightingMode = scheme == .dark ? .lowLight : .normal
-                NavigationBannerStyle.apply(scheme, to: mapView.settings)
-            } else {
-                mapView.mapStyle = scheme == .dark ? MapStyles.night : nil
-            }
+            mapView.mapStyle = scheme == .dark ? MapStyles.night : nil
             pathsSignature = nil // colours are resolved per appearance
             renderedBadges = nil
         }
