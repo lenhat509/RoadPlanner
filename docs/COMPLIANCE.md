@@ -123,8 +123,9 @@ From the Navigation SDK policies:
 - **UI changes must not inhibit safe use:** no distracting animations during active navigation,
   no overlays without explicit driver action, nothing covering the car's position, "upcoming
   turns, lane guidance, compass orientation, and all standard UI elements". During guidance
-  Waystage shows Google's navigation header, recenter button and speed display, and its own
-  panel sits *below* the map, not over it.
+  Waystage shows Google's navigation header, recenter button and speed display. Its own panel
+  sits at the bottom of the screen, and the map's padding keeps the car, the route, Google's
+  buttons, speed display and logo above it, so nothing of Google's navigation is covered.
 - **In-product terms:** "You can't modify the Navigation SDK in-product terms."
 
 ### 7. Safety Requirements (real-time driving)

@@ -9,8 +9,9 @@ import UIKit
 ///
 /// In the App Store build, Google's Navigation SDK guides on the map: it draws the route, the car,
 /// the turn-by-turn header, the speed and its re-center button, and speaks the directions. While
-/// it guides, Waystage's panel sits below the map, not over it (Google's policies don't allow
-/// covering the navigation screen without the driver asking).
+/// it guides, the map is padded above Waystage's bottom panel, so the panel never covers the
+/// car, the route or any of Google's navigation controls (Google's policies don't allow hiding
+/// them).
 ///
 /// Every leg opens as a *preview* — starting a trip, resuming one, continuing from a stop: the map
 /// opens on the route from the car to the next stop (north-up, no zooming in from elsewhere),
@@ -24,6 +25,9 @@ struct DriveScreen: View {
     @State private var showsSafetyNotice: Bool
     @State private var confirmsEnd = false
     @State private var cameraMode = CameraMode.follow
+    /// Where the bottom panel starts (screen coordinates): Google's map keeps its car and buttons
+    /// above it.
+    @State private var panelTop: CGFloat?
     @State private var mapCommand: MapCommand?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -85,56 +89,53 @@ struct DriveScreen: View {
     /// Google's Navigation SDK is guiding on the map (App Store build).
     private var isGoogleGuiding: Bool { isGuiding && navigationMap != nil }
 
-    /// One map for the whole drive (so it never reloads); the panels move around it. While Google
-    /// guides, its map (with its header, speed and re-center button) sits above Waystage's panel;
-    /// otherwise the panels float over the map.
+    /// The map fills the screen for the whole drive (one map, so it never reloads), with the
+    /// panels over it. While Google guides, its map is told how much of the bottom the panel
+    /// covers (`NavigationMapState.coveredFromY`), so the car, the route and Google's own
+    /// buttons, speed and logo stay above the panel: nothing of Google's navigation is hidden.
     private var driveContent: some View {
-        VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                map
-                    .ignoresSafeArea(edges: isGoogleGuiding ? .top : .all)
+        ZStack(alignment: .top) {
+            map
+                .ignoresSafeArea()
 
-                VStack(spacing: Theme.Spacing.s) {
-                    if isGoogleGuiding {
-                        // Clear of Google's header and buttons, away from the car.
-                        Spacer(minLength: 0)
-                        HStack {
-                            Spacer()
-                            sideControls
-                        }
-                        Spacer(minLength: 0)
-                    } else {
-                        topArea
-                        HStack(alignment: .top) {
-                            Spacer()
-                            sideControls
-                        }
-                        Spacer(minLength: 0)
-                        if isGuiding && cameraMode != .follow && !model.engineDrawsGuidance {
-                            recenterButton
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .transition(.move(edge: .leading).combined(with: .opacity))
-                        }
-                        bottomPanel
+            VStack(spacing: Theme.Spacing.s) {
+                if isGoogleGuiding {
+                    // Google's turn banner is at the top of its map: Waystage's buttons stay clear
+                    // of it, at the side, away from the car.
+                    Spacer(minLength: 0)
+                    HStack {
+                        Spacer()
+                        sideControls
+                    }
+                    Spacer(minLength: 0)
+                } else {
+                    topArea
+                    HStack(alignment: .top) {
+                        Spacer()
+                        sideControls
+                    }
+                    Spacer(minLength: 0)
+                    if isGuiding && cameraMode != .follow && !model.engineDrawsGuidance {
+                        recenterButton
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .transition(.move(edge: .leading).combined(with: .opacity))
                     }
                 }
-                .padding(.horizontal, Theme.Spacing.s)
-                .padding(.bottom, Theme.Spacing.xs)
-            }
-            if isGoogleGuiding {
                 VStack(spacing: Theme.Spacing.s) {
-                    if let message = model.statusMessage {
+                    if isGoogleGuiding, let message = model.statusMessage {
                         StatusPill(message: message, onDismiss: model.dismissStatus)
                     }
                     bottomPanel
                 }
-                .padding(.horizontal, Theme.Spacing.s)
-                .padding(.top, Theme.Spacing.s)
-                .padding(.bottom, Theme.Spacing.xs)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.frame(in: .global).minY
+                } action: { top in
+                    panelTop = top
+                }
             }
+            .padding(.horizontal, Theme.Spacing.s)
+            .padding(.bottom, Theme.Spacing.xs)
         }
-        .background(Theme.background.ignoresSafeArea())
         .animation(.easeInOut(duration: 0.25), value: model.mode)
         .animation(.easeInOut(duration: 0.25), value: model.stage)
         .animation(.easeInOut(duration: 0.2), value: cameraMode)
@@ -167,7 +168,7 @@ struct DriveScreen: View {
         case .overview: .overview
         case .free: .free
         }
-        return NavigationMapState(session: session, isGuiding: isGuiding, camera: camera)
+        return NavigationMapState(session: session, isGuiding: isGuiding, camera: camera, coveredFromY: panelTop)
     }
 
     /// The leg being driven (strong) and the rest of the trip (light). Google's map draws the

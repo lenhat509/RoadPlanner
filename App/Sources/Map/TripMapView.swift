@@ -31,9 +31,13 @@ struct NavigationMapState: Equatable {
     /// Guidance is running: the camera is Google's.
     var isGuiding: Bool
     var camera: Camera
+    /// Below this height (screen coordinates) the app's panel covers the map. While guiding, the
+    /// map's padding keeps Google's car, route, buttons and logo above it.
+    var coveredFromY: CGFloat?
 
     static func == (lhs: NavigationMapState, rhs: NavigationMapState) -> Bool {
         lhs.session === rhs.session && lhs.isGuiding == rhs.isGuiding && lhs.camera == rhs.camera
+            && lhs.coveredFromY == rhs.coveredFromY
     }
 }
 
@@ -194,8 +198,8 @@ struct TripMapView: UIViewRepresentable {
                 // phone's position when navigation is attached.
                 mapView.cameraMode = .free
                 mapView.navigationUIDelegate = self
-                // Google's turn-by-turn header, speed and re-center button; drive mode's own panel
-                // below the map shows the time and distance left (in place of Google's footer).
+                // Google's turn-by-turn header, speed and re-center button; drive mode's own bottom
+                // panel shows the time and distance left (in place of Google's footer).
                 mapView.settings.isNavigationHeaderEnabled = true
                 mapView.settings.isNavigationFooterEnabled = false
                 mapView.settings.isRecenterButtonEnabled = true
@@ -206,6 +210,14 @@ struct TripMapView: UIViewRepresentable {
                 // Re-style for navigation (map lighting and Google's banner colors), below.
                 styledScheme = nil
             }
+            // While Google guides, its camera and buttons keep clear of the app's bottom panel. Not
+            // guiding, the app frames routes itself (with the chrome), so no padding.
+            var padding = UIEdgeInsets.zero
+            if state.isGuiding, let coveredFromY = state.coveredFromY, mapView.window != nil {
+                let covered = mapView.convert(CGPoint(x: 0, y: coveredFromY), from: nil).y
+                padding.bottom = max(0, min(mapView.bounds.height * 0.6, mapView.bounds.height - covered))
+            }
+            if mapView.padding != padding { mapView.padding = padding }
             let mode: GMSNavigationCameraMode?
             switch (state.isGuiding, state.camera) {
             case (false, _): mode = nil
