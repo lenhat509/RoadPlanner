@@ -67,6 +67,16 @@ final class CarPlayController: NSObject {
         refresh()
     }
 
+    /// Day or night as the car shows CarPlay (Apple: the scene's content style). The map and the
+    /// panels at the bottom take the same mode: Google's day look with light trip estimates by
+    /// day, its night look with dark ones at night. CarPlay draws its other panels (previews,
+    /// alerts, buttons) in the same mode itself.
+    func setContentStyle(_ style: UIUserInterfaceStyle) {
+        let night = style == .dark
+        mapController.setNight(night)
+        mapTemplate.tripEstimateStyle = night ? .dark : .light
+    }
+
     func disconnect() {
         isConnected = false
         navigationSession?.cancelTrip()

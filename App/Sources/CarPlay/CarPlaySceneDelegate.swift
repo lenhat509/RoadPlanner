@@ -14,6 +14,12 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         let controller = CarPlayController(interfaceController: interfaceController, window: window, environment: .shared)
         self.controller = controller
         controller.connect()
+        controller.setContentStyle(templateApplicationScene.contentStyle)
+    }
+
+    /// The car switched CarPlay between day and night (headlights, time of day).
+    func contentStyleDidChange(_ contentStyle: UIUserInterfaceStyle) {
+        controller?.setContentStyle(contentStyle)
     }
 
     func templateApplicationScene(
