@@ -264,7 +264,9 @@ final class WaystageUITests: XCTestCase {
         let premium = app.buttons["Premium 91+ · E10"].firstMatch
         XCTAssertTrue(premium.waitForExistence(timeout: 3), "grades are listed with their ethanol level")
         premium.tap()
-        XCTAssertTrue("\(grade.label) \(grade.value ?? "")".contains("Premium 91+"))
+        // The field updates once the list has closed.
+        let chosen = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS %@", "Premium 91+"), object: grade)
+        XCTAssertEqual(XCTWaiter().wait(for: [chosen], timeout: 5), .completed, "the field shows the chosen grade: \(grade.value ?? "")")
         app.buttons[AccessibilityID.Plan.submit].tap()
         XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 30))
         XCTAssertTrue(elementWithLabel(containing: "of Premium 91+ · E10").waitForExistence(timeout: 10),
