@@ -41,9 +41,29 @@ restrictions and quotas are what make a found key useless or cheap. Never publis
 with your real key anywhere (no workflow here does: Release sends the build straight to
 TestFlight).
 
-Typical cost per planned cross-country trip: one Routes request with alternatives, ~25–45 Places
-Text Search (Enterprise SKU because of `fuelOptions`) requests and one Routes request for final
-directions. Lodging is only searched where a night is likely, to keep costs down.
+Cost per planned trip: one Routes request with alternatives, one Routes request for final
+directions, and Places Text Search ("search along route") requests. For each route, the road is
+split into ~2-hour sections: each section gets a gas-station search and a rest-area search, and a
+hotel search only where a night is likely. Up to three routes are planned, plus a toll-free
+version of a route with tolls. Road that the routes share is searched once and its results used
+for each of them (`SharedSearches`), so a toll-free version on the same road as its route adds
+almost nothing. Offline, on made-up routes that share no road, San Francisco to New York sends
+177 searches (65 gas stations, 65 rest areas, 47 hotels); real routes share road (the first and
+last hours, toll-free versions), so expect fewer, depending on the trip.
+
+Each kind of search asks only for the fields it uses. Google bills a search at the tier of its
+most expensive field, and each tier has its own free allowance each month (November 2026):
+
+| Search | Fields beyond name, address, location, types, time zone, open/closed | Tier | Free each month | Then, per 1,000 |
+|---|---|---|---|---|
+| Gas stations | fuel prices (`fuelOptions`), detours (`routingSummaries`) | Text Search Enterprise + Atmosphere | 1,000 | $40 |
+| Hotels | price level, rating | Text Search Enterprise | 1,000 | $35 |
+| Rest areas | none | Text Search Pro | 5,000 | $32 |
+
+Rest-area and hotel detours are estimated from their distance off the route (Google's detours
+are in the most expensive tier); the final directions re-time the plan with real driving times.
+Earlier builds asked every search for every field, so all of them were billed at $40 and
+shared one allowance of 1,000 a month.
 
 While driving: one Navigation SDK request ("Navigation Request" SKU, 1,000 free a month, then
 $25 per 1,000) each time a leg is loaded — each stop driven to, plus resuming, skipping or ending

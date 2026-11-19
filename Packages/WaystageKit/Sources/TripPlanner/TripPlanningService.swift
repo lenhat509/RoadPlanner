@@ -152,11 +152,27 @@ public final class TripPlanningService: TripPlanning, Sendable {
         progress(.findingRoute)
         let corridors = try await candidateCorridors(for: request)
 
-        // Stops along every route (each corridor's route and any toll-free version), in parallel.
+        // Stops along every route (each corridor's route and any toll-free version). Stretches of
+        // road the routes share are searched once (`SharedSearches`): every search is billed.
         let prepared = corridors.flatMap(\.routes).map { prepare($0, request: request) }
-        let counter = ProgressCounter(total: prepared.reduce(0) { $0 + $1.requestCount }, offset: 0, report: progress)
-        let analyses = await concurrentMap(prepared, limit: configuration.maxConcurrentRoutes) { [self] route in
-            await analyze(route, request: request, counter: counter)
+        let shared = SharedSearches(routes: prepared.map { $0.searches.map(\.0) })
+        let otherRequests = prepared.reduce(0) { $0 + $1.requestCount - $1.searches.count }
+        let counter = ProgressCounter(total: shared.unique.count + otherRequests, offset: 0, report: progress)
+        let placesProvider = places
+        let searchResults: [Result<[FoundPlace], Error>] = await concurrentMap(
+            shared.unique, limit: configuration.maxConcurrentRequests * configuration.maxConcurrentRoutes
+        ) { search in
+            defer { counter.increment() }
+            do {
+                return .success(try await placesProvider.searchAlongRoute(search))
+            } catch {
+                return .failure(error)
+            }
+        }
+        let analyses = await concurrentMap(Array(prepared.indices), limit: configuration.maxConcurrentRoutes) { [self] index in
+            await analyze(
+                prepared[index], placeResults: shared.results(forRoute: index, from: searchResults), request: request, counter: counter
+            )
         }
         try Task.checkCancellation()
 
@@ -386,21 +402,20 @@ public final class TripPlanningService: TripPlanning, Sendable {
         return PreparedRoute(route: route, profile: profile, chunks: chunks, windows: windows, searches: searches, requestCount: requestCount)
     }
 
-    private func analyze(_ prepared: PreparedRoute, request: TripRequest, counter: ProgressCounter) async -> RouteAnalysis {
+    /// - Parameter rawResults: the places found for each of the route's searches (in order).
+    private func analyze(
+        _ prepared: PreparedRoute, placeResults rawResults: [Result<[FoundPlace], Error>], request: TripRequest, counter: ProgressCounter
+    ) async -> RouteAnalysis {
         let route = prepared.route, profile = prepared.profile, chunks = prepared.chunks, windows = prepared.windows
-        let searches = prepared.searches
-        let placesProvider = places
-        let placeResults: [Result<[FoundPlace], Error>] = await concurrentMap(searches, limit: configuration.maxConcurrentRequests) { search, range in
-            defer { counter.increment() }
-            do {
-                let found = try await placesProvider.searchAlongRoute(search)
-                return .success(found.map { place in
+        // Where along this route each search looked (results may come from another route's search
+        // of the same stretch).
+        let placeResults: [Result<[FoundPlace], Error>] = zip(rawResults, prepared.searches).map { result, search in
+            result.map { found in
+                found.map { place in
                     var place = place
-                    place.searchRange = range
+                    place.searchRange = search.1
                     return place
-                })
-            } catch {
-                return .failure(error)
+                }
             }
         }
 

@@ -38,6 +38,14 @@ All notable changes to this project are documented here. The format follows
   opened; turn instructions and station prices aren't saved (a saved plan shows the fuel price
   estimate). Directions loaded during a drive are no longer saved with the trip.
 - Privacy policy: what Google's Navigation SDK collects (location, device ID, diagnostics).
+- **Planning costs less in Google fees.** Road that several routes share (a toll-free version of
+  a route, the first and last hours) is searched once, and its results used for each route,
+  instead of once per route. Each search asks Google only for what it uses, which sets its price:
+  rest areas at Text Search Pro ($32 per 1,000 after 5,000 free a month), hotels at Enterprise
+  ($35 after 1,000 free), gas stations at Enterprise + Atmosphere ($40 after 1,000 free, for
+  fuel prices). Before, every search was billed at $40 and they shared one allowance of 1,000 a
+  month. Rest-area and hotel detours are now estimated from their distance off the route; the
+  final directions still re-time the plan.
 - Release: **refresh_profile** makes a new provisioning profile (once, after turning on CarPlay
   for the App ID), and `beta` checks the profile includes CarPlay.
 

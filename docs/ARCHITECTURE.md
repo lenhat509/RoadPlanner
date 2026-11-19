@@ -55,7 +55,10 @@ graph TD
    15 km of another; a toll-free near-copy stays with its corridor for cost-conscious plans.
 3. For each route of each corridor (in parallel) it builds a `RouteProfile` (geometry + time along the route from step durations),
    splits it into ~2-hour sections and runs **Places "search along route"** for gas stations and
-   rest areas, and for hotels only where a night is likely (`LodgingWindowEstimator`). Live fuel
+   rest areas, and for hotels only where a night is likely (`LodgingWindowEstimator`). A section
+   that another route's sections already cover (same road, same kind of place) reuses their
+   results instead of being searched again (`SharedSearches`), and each kind of search asks only
+   for the fields it uses, which sets its price tier (`GooglePlacesClient.searchFieldMask`). Live fuel
    prices come from Places `fuelOptions`; hotel rates from the gateway (Expedia); regional fuel
    averages from the gateway (EIA).
 4. `CandidateBuilder` projects places onto the route, computes detours, attaches prices (flagging

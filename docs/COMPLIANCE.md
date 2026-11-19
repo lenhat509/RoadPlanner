@@ -157,12 +157,16 @@ Navigation SDK draw Google's logo on every map; lists of places shown without a 
 |---|---|---|
 | Navigation Request (one per destination set; guidance and reroutes free) | 1,000 | $25.00, falling with volume |
 | Routes: Compute Routes Pro | 5,000 | $10.00 |
-| Places API Text Search Enterprise | 1,000 | $35.00 |
+| Places API Text Search Enterprise + Atmosphere (gas stations: fuel prices, detours) | 1,000 | $40.00 |
+| Places API Text Search Enterprise (hotels: price level, rating) | 1,000 | $35.00 |
+| Places API Text Search Pro (rest areas) | 5,000 | $32.00 |
 | Places API Place Details Pro (display names) | 5,000 | $17.00 |
 | Places API Place Details Essentials (IDs only) | unlimited | free |
 
 Waystage sets one destination per leg (the next stop), so a trip costs one Navigation Request per
-stop driven to, plus one when a leg is reloaded (resuming, skipping a stop).
+stop driven to, plus one when a leg is reloaded (resuming, skipping a stop). Planning costs one
+Text Search per kind of place per ~2-hour section of road, each at the tier of the fields it asks
+for, with road shared by several routes searched once (see [API_KEYS.md](API_KEYS.md)).
 
 ## Apple CarPlay: what applies
 

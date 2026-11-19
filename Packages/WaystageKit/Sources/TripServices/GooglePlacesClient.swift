@@ -9,19 +9,34 @@ import TripPlanner
 public struct GooglePlacesClient: PlaceSearchProvider, PlaceAutocompleteProvider {
     public static let baseURL = URL(string: "https://places.googleapis.com/v1/")!
 
-    public static let searchFieldMask = [
+    /// What every along-route search asks for (Text Search Pro fields).
+    static let basicSearchFields = [
         "places.id",
         "places.displayName",
         "places.formattedAddress",
         "places.location",
         "places.types",
-        "places.priceLevel",
-        "places.rating",
         "places.utcOffsetMinutes",
         "places.businessStatus",
-        "places.fuelOptions",
-        "routingSummaries",
-    ].joined(separator: ",")
+    ]
+
+    /// Each kind of search asks only for what it needs, since Google bills a search at the tier of
+    /// the most expensive field asked for, and each tier has its own free monthly allowance
+    /// (pricing, November 2026):
+    /// * Rest areas: basic fields, Text Search Pro ($32 per 1,000 after 5,000 free). The detour
+    ///   is estimated from the distance off the route (`CandidateBuilder`).
+    /// * Hotels: plus price level and rating, Text Search Enterprise ($35 after 1,000 free).
+    /// * Gas stations: plus fuel prices and detours (routing summaries), Text Search Enterprise +
+    ///   Atmosphere ($40 after 1,000 free): prices are the point of the search, and detours are in
+    ///   the same tier.
+    public static func searchFieldMask(for category: PlaceCategory) -> String {
+        let extra: [String] = switch category {
+        case .rest: []
+        case .lodging: ["places.priceLevel", "places.rating"]
+        case .fuel: ["places.fuelOptions", "routingSummaries"]
+        }
+        return (basicSearchFields + extra).joined(separator: ",")
+    }
 
     public static let detailsFieldMask = "id,displayName,formattedAddress,location,utcOffsetMinutes"
 
@@ -71,7 +86,7 @@ public struct GooglePlacesClient: PlaceSearchProvider, PlaceAutocompleteProvider
         return HTTPRequest(
             method: .post,
             url: Self.baseURL.appendingPathComponent("places:searchText"),
-            headers: configuration.headers(fieldMask: Self.searchFieldMask),
+            headers: configuration.headers(fieldMask: Self.searchFieldMask(for: search.category)),
             body: try JSON.encoder.encode(body)
         )
     }

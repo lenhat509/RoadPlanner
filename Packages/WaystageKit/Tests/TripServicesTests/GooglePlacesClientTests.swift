@@ -25,8 +25,13 @@ struct GooglePlacesClientTests {
     func searchRequest(category: PlaceCategory, query: String, type: String?) throws {
         let request = try GooglePlacesClient(configuration: configuration, transport: StubHTTPTransport()).makeSearchRequest(search(category))
         #expect(request.url.absoluteString == "https://places.googleapis.com/v1/places:searchText")
-        #expect(request.headers["X-Goog-FieldMask"]?.contains("places.fuelOptions") == true)
-        #expect(request.headers["X-Goog-FieldMask"]?.contains("routingSummaries") == true)
+        let mask = try #require(request.headers["X-Goog-FieldMask"])
+        #expect(mask.contains("places.location") && mask.contains("places.displayName"))
+        // Billed at the tier of the most expensive field: each search asks only for what it uses.
+        #expect(mask.contains("places.fuelOptions") == (category == .fuel), "fuel prices (Enterprise + Atmosphere) only for gas stations")
+        #expect(mask.contains("routingSummaries") == (category == .fuel), "detours (Enterprise + Atmosphere) only where that tier is paid anyway")
+        #expect(mask.contains("places.priceLevel") == (category == .lodging), "price level (Enterprise) only for hotels")
+        #expect(mask.contains("places.rating") == (category == .lodging))
         let body = try #require(request.body).jsonObject()
         #expect(body["textQuery"] as? String == query)
         #expect(body["includedType"] as? String == type)

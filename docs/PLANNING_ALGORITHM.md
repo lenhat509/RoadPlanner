@@ -43,7 +43,9 @@ Comfort penalties (small) prefer real rest areas over roadside pull-offs, and re
 
 `CandidateBuilder` turns Places results into candidates with position along the route
 (projection onto the polyline using a spatial grid index), time along the route, detour time and
-distance (from Places routing summaries, else an estimate), and prices:
+distance (gas stations: from Places routing summaries; rest areas and hotels: estimated from the
+distance off the route, since Google bills routing summaries at its most expensive tier), and
+prices:
 
 * fuel, **only at stations that sell the car's grade** (`FuelOffer`): a station that lists its
   grades (Places `fuelOptions`) sells exactly those, at its listed price; one that lists none is
@@ -131,7 +133,8 @@ option.
 
 ## Known limitations
 
-* Detours are estimated per candidate (Places routing summaries); finalization corrects times.
+* Detours are estimated per candidate (Places routing summaries for gas stations, distance off
+  the route for rest areas and hotels); finalization corrects times.
 * Fuel purchases are "fill up" or "just enough to arrive"; partial top-ups to reach a cheaper
   station are not modelled (small cost impact).
 * Traffic is taken from the Routes API at planning time; the drive mode updates ETAs live.
