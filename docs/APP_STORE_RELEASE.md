@@ -1,7 +1,10 @@
 # App Store release
 
 How Waystage gets from this repository to the App Store, for reference. Everything builds on
-GitHub's Mac machines, so no Mac is needed.
+GitHub's Mac machines, so no Mac is needed. They use Xcode 27 (GitHub's `xcode-27` machines):
+from April 2027 Apple only accepts uploads built with the iOS 27 SDK or later (App Store Connect
+warns with ITMS-90725 about builds made with an older one). When GitHub ships a newer Xcode on
+another machine, change `runs-on` in `ci.yml`, `release.yml` and `screenshots.yml` together.
 
 ## One-time setup
 

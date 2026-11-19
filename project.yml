@@ -29,7 +29,7 @@ packages:
     url: https://github.com/googlemaps/ios-maps-sdk
     from: 11.3.0
   # Turn-by-turn navigation (Google's terms don't allow rebuilding it from the Routes API and
-  # the Maps SDK). Needs Xcode 26 and the Maps SDK version it was built with.
+  # the Maps SDK). Needs Xcode 26 or later and the Maps SDK version it was built with.
   GoogleNavigation:
     url: https://github.com/googlemaps/ios-navigation-sdk
     exactVersion: 11.3.0

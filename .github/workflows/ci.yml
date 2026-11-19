@@ -47,7 +47,9 @@ jobs:
 
   ios:
     name: iOS (unit, integration, UI tests on simulator)
-    runs-on: macos-15
+    # Xcode 27 (iOS 27 SDK): from April 2027 the App Store only takes apps built with it
+    # (ITMS-90725). GitHub ships one Xcode major version per macOS image; Xcode 27 is on this one.
+    runs-on: xcode-27
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4

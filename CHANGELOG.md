@@ -38,6 +38,9 @@ All notable changes to this project are documented here. The format follows
   opened; turn instructions and station prices aren't saved (a saved plan shows the fuel price
   estimate). Directions loaded during a drive are no longer saved with the trip.
 - Privacy policy: what Google's Navigation SDK collects (location, device ID, diagnostics).
+- Builds, tests and App Store uploads use **Xcode 27** (iOS 27 SDK): from April 2027 the App Store
+  only accepts apps built with it. Build 10 of 1.1.0 was built with Xcode 26.2 (iOS 26.2 SDK),
+  which App Store Connect flagged (ITMS-90725).
 - **Planning costs less in Google fees.** Road that several routes share (a toll-free version of
   a route, the first and last hours) is searched once, and its results used for each route,
   instead of once per route. Each search asks Google only for what it uses, which sets its price:

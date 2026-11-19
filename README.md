@@ -42,12 +42,15 @@ test-logs/              History of every test run
 docs/                   Architecture, algorithm, testing, release, keys, CarPlay, compliance, privacy, security
 ```
 
-## Quick start (macOS, Xcode 26+)
+## Quick start (macOS, Xcode 27)
 
 ```bash
 make bootstrap        # tools, git hooks, Config/Secrets.xcconfig, Xcode project
 open Waystage.xcodeproj
 ```
+
+Xcode 26 still builds and runs it, but from April 2027 the App Store only accepts apps built with
+Xcode 27 or later (iOS 27 SDK); releases are built on GitHub with Xcode 27.
 
 Without an API key the app runs in **demo mode** on offline data, so it builds and runs out
 of the box. For real trips, see [docs/API_KEYS.md](docs/API_KEYS.md): keys are saved as GitHub

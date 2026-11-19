@@ -22,7 +22,8 @@ concurrency:
 jobs:
   screenshots:
     name: Capture screenshots
-    runs-on: macos-15
+    # Same Xcode as the App Store builds (Release).
+    runs-on: xcode-27
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
