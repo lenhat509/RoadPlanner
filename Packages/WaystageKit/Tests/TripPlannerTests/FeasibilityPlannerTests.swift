@@ -32,7 +32,7 @@ struct FeasibilityPlannerTests {
         #expect(result.level == .extendedDay)
         #expect(result.schedule.arrival <= deadline)
         #expect(result.warnings.map(\.code).contains(.extendedDrivingDay))
-        #expect(Fixture.drivingSegments(result.schedule).allSatisfy { $0 <= 3 * 3_600 + 1 })
+        #expect(Fixture.respectsBreaks(result.schedule, interval: 3 * 3_600))
     }
 
     @Test("Drops an impossible deadline but still returns a safe plan")
@@ -42,7 +42,7 @@ struct FeasibilityPlannerTests {
         #expect(!result.deadlineMet)
         #expect(result.level == .standard)
         #expect(result.warnings.map(\.code).contains(.deadlineMissed))
-        #expect(Fixture.drivingSegments(result.schedule).allSatisfy { $0 <= 3 * 3_600 + 1 })
+        #expect(Fixture.respectsBreaks(result.schedule, interval: 3 * 3_600))
     }
 
     @Test("Falls back to lodging search areas when no lodging is known")
@@ -73,7 +73,7 @@ struct FeasibilityPlannerTests {
         #expect(result.level == .lastResort)
         #expect(result.warnings.map(\.code).contains(.lodgingAreaOnly))
         #expect(result.schedule.stops.contains { $0.candidate.isLodgingSearchArea })
-        #expect(Fixture.drivingSegments(result.schedule).allSatisfy { $0 <= 3 * 3_600 + 1 })
+        #expect(Fixture.respectsBreaks(result.schedule, interval: 3 * 3_600))
     }
 
     @Test("Relaxation levels are cumulative and never touch the rest-break limit")

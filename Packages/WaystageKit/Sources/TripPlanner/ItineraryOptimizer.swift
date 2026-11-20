@@ -148,6 +148,9 @@ public struct OptimizerSettings: Hashable, Sendable {
     /// Penalty for an emergency fuel stop at a pull-off.
     public var emergencyFuelPenaltyMinutes = 60.0
     public var emergencyFuelPenaltyDollars = 50.0
+    /// A break Waystage adds comes at least this long after the previous stop (or half the break
+    /// interval, if shorter). Fuel and overnight stops may come sooner when they're needed.
+    public var minimumBreakSpacing: TimeInterval = 45 * 60
     /// Smallest fuel purchase worth a stop.
     public var minimumPurchaseGallons = 1.0
     /// A fill-up must buy at least this fraction of the tank (avoids pointless top-offs).
@@ -399,19 +402,24 @@ private struct Search {
         let legReserve = isOrigin ? originReserve : reserve
         let destinationIndex = nodes.count - 1
         let maxContinuous = policy.maxContinuousDriving
+        let stretch = DrivingPolicy.stretchToOwnStop
 
         // A required stop can't be passed: segments end at the next one at the latest.
         for target in (label.node + 1)...nextRequired[label.node] {
             let to = nodes[target]
             let baseTime = to.time - from.time
-            if baseTime > maxContinuous || label.drivenToday + baseTime > policy.maxDailyDriving { break }
+            if baseTime > maxContinuous + stretch || label.drivenToday + baseTime > policy.maxDailyDriving { break }
+            // The traveler's own stops (and the destination) are breaks: driving may stretch a
+            // little to reach one instead of stopping just before it.
+            let isOwnStop = to.requirement != nil || target == destinationIndex
+            let continuousLimit = isOwnStop ? maxContinuous + stretch : maxContinuous
             let baseDistance = to.distance - from.distance
             if label.fuel - problem.vehicle.gallons(forMeters: baseDistance) < legReserve { break }
 
             let exitTime = isOrigin ? 0 : from.halfDetourTime
             let exitDistance = isOrigin ? 0 : from.halfDetourDistance
             let driveTime = baseTime + exitTime + to.halfDetourTime
-            guard driveTime <= maxContinuous, label.drivenToday + driveTime <= policy.maxDailyDriving else { continue }
+            guard driveTime <= continuousLimit, label.drivenToday + driveTime <= policy.maxDailyDriving else { continue }
 
             let fuelOnArrival = label.fuel
                 - problem.vehicle.gallons(forMeters: baseDistance + exitDistance + to.halfDetourDistance)
@@ -445,16 +453,18 @@ private struct Search {
                 if bestFinal == nil || next.score < bestFinal!.score { bestFinal = next }
                 continue
             }
-            addActions(at: to, base: next)
+            addActions(at: to, base: next, after: driveTime)
         }
     }
 
-    private mutating func addActions(at node: Node, base: Label) {
+    private mutating func addActions(at node: Node, base: Label, after driveTime: Double) {
         if let requirement = node.requirement {
             addRequiredAction(requirement, at: node, base: base)
             return
         }
-        if node.capabilities.contains(.rest) {
+        // No break minutes after the previous stop: breaks Waystage adds are spread out.
+        let breakSpacing = min(settings.minimumBreakSpacing, policy.maxContinuousDriving / 2)
+        if node.capabilities.contains(.rest) && driveTime >= breakSpacing {
             var rest = base
             rest.action = .rest
             rest.departure = base.arrival + policy.restStopDuration

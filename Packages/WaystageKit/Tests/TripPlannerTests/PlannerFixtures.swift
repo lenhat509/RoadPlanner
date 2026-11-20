@@ -98,6 +98,19 @@ enum Fixture {
         return segments
     }
 
+    /// Whether every stretch of non-stop driving is within the break interval. The drive to the
+    /// traveler's own stop or to the destination may run `DrivingPolicy.stretchToOwnStop` longer
+    /// (that stop is the break).
+    static func respectsBreaks(_ schedule: OptimizedSchedule, interval: TimeInterval, departure: Date = departure) -> Bool {
+        var last = departure
+        for stop in schedule.stops {
+            let limit = interval + (stop.candidate.requirement != nil ? DrivingPolicy.stretchToOwnStop : 0) + 1
+            if stop.arrival.timeIntervalSince(last) > limit { return false }
+            last = stop.departure
+        }
+        return schedule.arrival.timeIntervalSince(last) <= interval + DrivingPolicy.stretchToOwnStop + 1
+    }
+
     /// Local clock (seconds since local midnight) of a date at the fixture offset.
     static func localSecondsOfDay(_ date: Date) -> TimeInterval {
         let local = date.timeIntervalSince1970 + Double(utcOffset)

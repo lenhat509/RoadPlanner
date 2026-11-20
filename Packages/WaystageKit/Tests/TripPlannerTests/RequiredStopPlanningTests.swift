@@ -29,7 +29,7 @@ struct RequiredStopPlanningTests {
         #expect(stop.action == .visit(stay: 2 * 3_600))
         #expect(stop.departure.timeIntervalSince(stop.arrival) == 2 * 3_600)
         #expect(schedule.arrival.timeIntervalSince(Fixture.departure) >= 8 * 3_600, "6 h of driving plus the 2 h visit")
-        #expect(Fixture.drivingSegments(schedule).allSatisfy { $0 <= DrivingPolicy.standard.maxContinuousDriving + 1 })
+        #expect(Fixture.respectsBreaks(schedule, interval: DrivingPolicy.standard.maxContinuousDriving))
     }
 
     @Test("A visit is kept even when skipping it would be faster")

@@ -112,7 +112,9 @@ struct PlanningIntegrationTests {
         #expect(ScheduleValidator().violations(in: itinerary).isEmpty)
         for index in 1..<itinerary.stops.count {
             guard let departure = itinerary.stops[index - 1].departure, let arrival = itinerary.stops[index].arrival else { continue }
-            #expect(arrival.timeIntervalSince(departure) <= 2 * 3_600 + 120)
+            // The last drive, to the destination, may run a little longer instead of a break just before it.
+            let stretch = itinerary.stops[index].kind == .destination ? DrivingPolicy.stretchToOwnStop : 0
+            #expect(arrival.timeIntervalSince(departure) <= 2 * 3_600 + 120 + stretch)
         }
     }
 

@@ -71,6 +71,13 @@ struct PlannerPropertyTests {
         #expect(itinerary.stops.last?.kind == .destination)
         let distances = itinerary.stops.map(\.distanceFromStartMeters)
         #expect(distances == distances.sorted())
+        // Breaks Waystage adds are never crowded: each comes well after the previous stop.
+        let spacing = min(OptimizerSettings(policy: scenario.request.policy).minimumBreakSpacing,
+                          scenario.request.policy.maxContinuousDriving / 2)
+        for index in 1..<itinerary.stops.count where itinerary.stops[index].kind == .rest && !itinerary.stops[index].isRequiredStop {
+            guard let departure = itinerary.stops[index - 1].departure, let arrival = itinerary.stops[index].arrival else { continue }
+            #expect(arrival.timeIntervalSince(departure) >= spacing - 1, "seed \(seed): a break \(arrival.timeIntervalSince(departure) / 60) min after the previous stop")
+        }
         // A met deadline is really met; a missed one is explained.
         if let deadline = scenario.request.arriveBy, let arrival = itinerary.arrival, arrival > deadline {
             #expect(itinerary.warnings.contains { $0.code == .deadlineMissed })

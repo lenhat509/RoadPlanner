@@ -51,7 +51,8 @@ public struct ScheduleValidator: Sendable {
             let drive = arrival.timeIntervalSince(previousDeparture)
             if drive < -1 {
                 violations.append(.timeGoesBackwards(stopIndex: index))
-            } else if drive > policy.maxContinuousDriving + timeTolerance {
+            } else if drive > policy.maxContinuousDriving + timeTolerance
+                + (stop.isRequiredStop || stop.kind == .destination ? DrivingPolicy.stretchToOwnStop : 0) {
                 violations.append(.continuousDrivingTooLong(legIndex: index - 1, duration: drive))
             }
             dailyDriving[stops[index - 1].kind == .lodging ? stops[index - 1].dayIndex + 1 : stops[index - 1].dayIndex, default: 0] += max(0, drive)

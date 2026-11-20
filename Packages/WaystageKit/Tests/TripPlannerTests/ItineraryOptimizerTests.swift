@@ -19,8 +19,7 @@ struct ItineraryOptimizerTests {
             hours: 8, candidates: Fixture.restAreas(everyMinutes: 20, hours: 8) + Fixture.gasStations(everyMinutes: 60, hours: 8)
         )
         let schedule = try #require(Fixture.optimize(problem).value)
-        let segments = Fixture.drivingSegments(schedule)
-        #expect(segments.allSatisfy { $0 <= 3 * 3_600 + 1 })
+        #expect(Fixture.respectsBreaks(schedule, interval: 3 * 3_600))
         #expect(schedule.stops.count >= 2)
         #expect(schedule.stops.allSatisfy { $0.departure.timeIntervalSince($0.arrival) >= 15 * 60 - 1 })
     }
@@ -33,7 +32,7 @@ struct ItineraryOptimizerTests {
             hours: 7, candidates: Fixture.restAreas(everyMinutes: 20, hours: 7) + Fixture.gasStations(everyMinutes: 60, hours: 7)
         )
         let schedule = try #require(Fixture.optimize(problem, policy: policy).value)
-        #expect(Fixture.drivingSegments(schedule).allSatisfy { $0 <= 2 * 3_600 + 1 })
+        #expect(Fixture.respectsBreaks(schedule, interval: 2 * 3_600))
         #expect(schedule.stops.count >= 3)
     }
 

@@ -25,6 +25,11 @@ public struct LocalTime: Codable, Hashable, Sendable, Comparable, CustomStringCo
 /// preferences that the feasibility ladder may loosen (and report) when a deadline or a
 /// sparse road network would otherwise make the trip impossible.
 public struct DrivingPolicy: Codable, Hashable, Sendable {
+    /// To reach a stop the traveler chose (a visit, a kept stop, the destination), driving may run
+    /// this much past the break interval instead of adding a break just before it: their own stop
+    /// is the break.
+    public static let stretchToOwnStop: TimeInterval = 30 * 60
+
     /// Longest stretch of non-stop driving before a break. Defaults to 3 h, so the driver
     /// rests every 2–3 hours.
     public var maxContinuousDriving: TimeInterval

@@ -66,6 +66,13 @@ public struct CandidateBuilder: Sendable {
             ) else { continue }
             candidates.append(candidate)
         }
+        // The same place on two passes of the route: distinct candidates.
+        var seen: [String: Int] = [:]
+        for index in candidates.indices {
+            let count = seen[candidates[index].id, default: 0] + 1
+            seen[candidates[index].id] = count
+            if count > 1 { candidates[index].id += "#\(count)" }
+        }
         candidates = thin(candidates)
         candidates += pullOffs(profile: profile, existing: candidates)
         candidates += lodgingSearchAreas(profile: profile)
@@ -74,24 +81,37 @@ public struct CandidateBuilder: Sendable {
 
     // MARK: - Steps
 
+    /// One entry per place and pass of the route: a place found again by a search of the same
+    /// stretch is merged, but a route that passes it twice (out to a stop and back) gets it on each
+    /// pass, each placed only near the stretch where it was found.
     func mergeDuplicates(_ places: [FoundPlace]) -> [FoundPlace] {
-        var byID: [String: FoundPlace] = [:]
-        var order: [String] = []
+        var merged: [FoundPlace] = []
         for place in places {
-            if var existing = byID[place.place.id] {
+            if let index = merged.indices.first(where: {
+                merged[$0].place.id == place.place.id && Self.samePass(merged[$0].searchRange, place.searchRange)
+            }) {
+                var existing = merged[index]
                 existing.categories.formUnion(place.categories)
                 existing.fuelPrices.merge(place.fuelPrices) { current, _ in current }
                 existing.nightlyRate = existing.nightlyRate ?? place.nightlyRate
                 existing.priceLevel = existing.priceLevel ?? place.priceLevel
                 existing.detourDuration = existing.detourDuration ?? place.detourDuration
                 existing.detourDistance = existing.detourDistance ?? place.detourDistance
-                byID[place.place.id] = existing
+                if let a = existing.searchRange, let b = place.searchRange {
+                    existing.searchRange = min(a.lowerBound, b.lowerBound)...max(a.upperBound, b.upperBound)
+                }
+                merged[index] = existing
             } else {
-                byID[place.place.id] = place
-                order.append(place.place.id)
+                merged.append(place)
             }
         }
-        return order.compactMap { byID[$0] }
+        return merged
+    }
+
+    /// Whether two searches of a place looked at the same stretch of the route (within 50 km).
+    static func samePass(_ a: ClosedRange<Double>?, _ b: ClosedRange<Double>?) -> Bool {
+        guard let a, let b else { return true }
+        return b.lowerBound <= a.upperBound + 50_000 && a.lowerBound <= b.upperBound + 50_000
     }
 
     func attach(_ offers: [LodgingOffer], to places: [FoundPlace]) -> [FoundPlace] {

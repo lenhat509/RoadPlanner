@@ -338,7 +338,9 @@ public final class TripPlanningService: TripPlanning, Sendable {
         let valueOfTime = max(0, request.policy.valueOfTimePerHour)
         var result: [String: [HotelChoice]] = [:]
         for stop in itinerary.stops where stop.kind == .lodging {
-            guard let planned = analysis.candidates.first(where: { $0.place.id == stop.place.id }) else { continue }
+            let id = Self.candidateID(of: stop)
+            guard let planned = analysis.candidates.first(where: { $0.id == id })
+                ?? analysis.candidates.first(where: { $0.place.id == stop.place.id }) else { continue }
             let nearby = analysis.candidates.filter {
                 $0.capabilities.contains(.lodging) && !$0.isSynthetic && $0.place.id != planned.place.id
                     && abs($0.timeAlong - planned.timeAlong) <= configuration.hotelChoiceWindow
@@ -767,7 +769,7 @@ public final class TripPlanningService: TripPlanning, Sendable {
     // MARK: - Final directions
 
     private func finalize(_ draft: Itinerary, goal: OptimizationGoal, request: TripRequest, analysis: RouteAnalysis) async -> Itinerary {
-        guard let legs = await directions(for: draft) else {
+        guard let firstLegs = await directions(for: draft) else {
             var estimated = draft
             estimated.warnings.append(PlanWarning(
                 code: .estimatedDirections,
@@ -775,17 +777,97 @@ public final class TripPlanningService: TripPlanning, Sendable {
             ))
             return estimated
         }
-        let retimed = ScheduleRetimer().retime(draft, legs: legs)
+        // A stop whose real driving doesn't match where the plan put it on the route (a place
+        // placed on the wrong pass, a bad position) would make the plan zigzag: plan once more
+        // without those places.
+        var analysis = analysis
+        var draft = draft
+        var legs = firstLegs
+        let misplaced = Self.misplacedStops(in: draft, legs: legs)
+        if !misplaced.isEmpty {
+            analysis.candidates.removeAll { misplaced.contains($0.id) }
+            analysis.fallbackCandidates?.removeAll { misplaced.contains($0.id) }
+            if let (redrafted, _) = bestDraft(for: goal, request: request, analyses: [analysis]),
+               let relegs = await directions(for: redrafted) {
+                draft = redrafted
+                legs = relegs
+            }
+        }
+        let retimed = Self.droppingCrowdedBreaks(ScheduleRetimer().retime(draft, legs: legs))
         let validator = ScheduleValidator()
         if validator.violations(in: retimed).isEmpty { return retimed }
 
         // Real directions took longer than estimated (detours, traffic). Re-plan once with a margin.
         guard let (corrected, _) = bestDraft(for: goal, request: request, analyses: [analysis], safetyMargin: 0.9),
               let correctedLegs = await directions(for: corrected) else { return retimed }
-        let correctedRetimed = ScheduleRetimer().retime(corrected, legs: correctedLegs)
+        let correctedRetimed = Self.droppingCrowdedBreaks(ScheduleRetimer().retime(corrected, legs: correctedLegs))
         let before = validator.violations(in: retimed).count
         let after = validator.violations(in: correctedRetimed).count
         return after <= before ? correctedRetimed : retimed
+    }
+
+    /// The candidate a planned stop came from (stop IDs are "<n>-<candidate ID>").
+    static func candidateID(of stop: ItineraryStop) -> String {
+        guard let dash = stop.id.firstIndex(of: "-") else { return stop.id }
+        return String(stop.id[stop.id.index(after: dash)...])
+    }
+
+    /// Stops the real directions show aren't where the plan put them: both the drive there and the
+    /// drive on differ from the plan's distances by more than 25 km and a third.
+    static func misplacedStops(in draft: Itinerary, legs: [RouteLeg]) -> Set<String> {
+        let stops = draft.stops
+        guard legs.count == stops.count - 1, stops.count > 2 else { return [] }
+        func deviates(_ legIndex: Int) -> Bool {
+            let planned = stops[legIndex + 1].distanceFromStartMeters - stops[legIndex].distanceFromStartMeters
+            return abs(legs[legIndex].distanceMeters - planned) > max(25_000, planned / 3)
+        }
+        var result = Set<String>()
+        for index in 1..<(stops.count - 1) where !stops[index].isRequiredStop && deviates(index - 1) && deviates(index) {
+            result.insert(candidateID(of: stops[index]))
+        }
+        return result
+    }
+
+    /// Drops breaks Waystage added that real driving times show are crowded: less than 30 min after
+    /// the previous stop or before the next one, when the drive without them stays within the break
+    /// interval (stretched to reach the traveler's own stop). Their two legs become one.
+    static func droppingCrowdedBreaks(_ itinerary: Itinerary, minimumDrive: TimeInterval = 30 * 60) -> Itinerary {
+        guard itinerary.legs.count == itinerary.stops.count - 1, itinerary.stops.count > 2 else { return itinerary }
+        var stops = itinerary.stops
+        var legs = itinerary.legs
+        let policy = itinerary.appliedPolicy
+        var index = 1
+        var changed = false
+        while index < stops.count - 1 {
+            let stop = stops[index], next = stops[index + 1]
+            let crowded = legs[index - 1].duration < minimumDrive || legs[index].duration < minimumDrive
+            let limit = policy.maxContinuousDriving
+                + (next.isRequiredStop || next.kind == .destination ? DrivingPolicy.stretchToOwnStop : 0)
+            if stop.kind == .rest, !stop.isRequiredStop, crowded, legs[index - 1].duration + legs[index].duration <= limit {
+                legs[index - 1] = Self.joined(legs[index - 1], legs[index])
+                legs.remove(at: index)
+                stops.remove(at: index)
+                changed = true
+                continue
+            }
+            index += 1
+        }
+        guard changed else { return itinerary }
+        var result = itinerary
+        result.stops = stops
+        return ScheduleRetimer().retime(result, legs: legs)
+    }
+
+    static func joined(_ first: RouteLeg, _ second: RouteLeg) -> RouteLeg {
+        let points = ((try? PolylineCodec.decode(first.encodedPolyline)) ?? []) + ((try? PolylineCodec.decode(second.encodedPolyline)) ?? [])
+        let tolls = [first.tollCostUSD, second.tollCostUSD].compactMap { $0 }
+        return RouteLeg(
+            distanceMeters: first.distanceMeters + second.distanceMeters,
+            duration: first.duration + second.duration,
+            encodedPolyline: PolylineCodec.encode(points),
+            steps: first.steps + second.steps,
+            tollCostUSD: tolls.isEmpty ? nil : tolls.reduce(0, +)
+        )
     }
 
     /// Directions for every leg, batching waypoints to respect the API limit.
