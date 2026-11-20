@@ -226,12 +226,25 @@ final class WaystageUITests: XCTestCase {
         XCTAssertTrue(stepper.waitForExistence(timeout: 5))
         let decrement = stepper.buttons["Decrement"].exists ? stepper.buttons["Decrement"] : stepper.buttons.element(boundBy: 0)
         decrement.tap() // 3 h → 2 h 45 min
-        XCTAssertTrue(elementWithLabel(containing: "2 h 45 min").waitForExistence(timeout: 2))
+        XCTAssertTrue(waitUntil(stepper, shows: "2 h 45 min"), "after the tap: \(stepper.label)")
         app.terminate()
 
         launch(reset: false)
         app.buttons[AccessibilityID.Home.settings].tap()
-        XCTAssertTrue(elementWithLabel(containing: "2 h 45 min").waitForExistence(timeout: 5))
+        let reopened = app.steppers[AccessibilityID.Settings.restInterval]
+        XCTAssertTrue(reopened.waitForExistence(timeout: 10))
+        XCTAssertTrue(waitUntil(reopened, shows: "2 h 45 min"), "kept after relaunching: \(reopened.label)")
+    }
+
+    /// Waits until `element`'s label or value contains `text`. Reads only that element: searching
+    /// the whole screen (the map included) for a label once timed out on CI.
+    private func waitUntil(_ element: XCUIElement, shows text: String, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if element.exists, "\(element.label) \(element.value ?? "")".contains(text) { return true }
+            Thread.sleep(forTimeInterval: 0.25)
+        } while Date() < deadline
+        return false
     }
 
     /// Matches static texts or controls whose accessibility label contains `text`.
