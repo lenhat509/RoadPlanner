@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Version 1.1.1: 1.1.0 is approved, so App Store Connect only takes builds with a higher version.
+
+### Changed
+- **Planning costs less in Google fees.** Road that several routes share (a toll-free version of
+  a route, the first and last hours) is searched once, and its results used for each route,
+  instead of once per route. Each search asks Google only for what it uses, which sets its price:
+  rest areas at Text Search Pro ($32 per 1,000 after 5,000 free a month), hotels at Enterprise
+  ($35 after 1,000 free), gas stations at Enterprise + Atmosphere ($40 after 1,000 free, for
+  fuel prices). Before, every search was billed at $40 and they shared one allowance of 1,000 a
+  month. Rest-area and hotel detours are now estimated from their distance off the route; the
+  final directions still re-time the plan.
+- Builds, tests and App Store uploads use **Xcode 27** (iOS 27 SDK): from April 2027 the App Store
+  only accepts apps built with it. 1.1.0 (build 10) was built with Xcode 26.2 (iOS 26.2 SDK),
+  which App Store Connect flagged (ITMS-90725).
+- Google's Maps SDK is pinned to the Navigation SDK's version (11.3.0): Google's 11.4.0 Maps SDK
+  doesn't build with the 11.3.0 Navigation SDK. CI also builds the app for iPhones as Release
+  does.
+
+## [1.1.0] — 2026-11-18
+
 ### Added
 - **CarPlay** (navigation app): Google's map on the car's screen, a list of the trip in progress
   and saved plans, each leg previewed with **Start** (**Continue** at a stop), Google's maneuvers,
@@ -38,17 +58,6 @@ All notable changes to this project are documented here. The format follows
   opened; turn instructions and station prices aren't saved (a saved plan shows the fuel price
   estimate). Directions loaded during a drive are no longer saved with the trip.
 - Privacy policy: what Google's Navigation SDK collects (location, device ID, diagnostics).
-- Builds, tests and App Store uploads use **Xcode 27** (iOS 27 SDK): from April 2027 the App Store
-  only accepts apps built with it. Build 10 of 1.1.0 was built with Xcode 26.2 (iOS 26.2 SDK),
-  which App Store Connect flagged (ITMS-90725).
-- **Planning costs less in Google fees.** Road that several routes share (a toll-free version of
-  a route, the first and last hours) is searched once, and its results used for each route,
-  instead of once per route. Each search asks Google only for what it uses, which sets its price:
-  rest areas at Text Search Pro ($32 per 1,000 after 5,000 free a month), hotels at Enterprise
-  ($35 after 1,000 free), gas stations at Enterprise + Atmosphere ($40 after 1,000 free, for
-  fuel prices). Before, every search was billed at $40 and they shared one allowance of 1,000 a
-  month. Rest-area and hotel detours are now estimated from their distance off the route; the
-  final directions still re-time the plan.
 - Release: **refresh_profile** makes a new provisioning profile (once, after turning on CarPlay
   for the App ID), and `beta` checks the profile includes CarPlay.
 

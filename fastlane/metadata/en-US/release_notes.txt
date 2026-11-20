@@ -1,1 +1,1 @@
-Turn-by-turn directions now come from Google's navigation, with its voice, lane guidance and rerouting. Waystage also works on CarPlay: start a saved trip from the car's screen and follow each leg stop by stop.
+Improvements to trip planning behind the scenes, and Waystage is now built with Apple's tools for iOS 27.
