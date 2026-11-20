@@ -33,7 +33,8 @@ public struct ScheduleValidator: Sendable {
         let initialFuel = vehicle.tankCapacityGallons * vehicle.initialFuelFraction
         let firstLegReserve = min(reserve, initialFuel * 0.25)
         let fuelGapAccepted = itinerary.warnings.contains { $0.code == .fuelGap }
-        var dailyDriving: [Int: TimeInterval] = [:]
+        // Planned again during a drive: today's driving so far counts toward the first day.
+        var dailyDriving: [Int: TimeInterval] = [0: itinerary.request.startState?.drivenToday ?? 0]
 
         for index in stops.indices {
             let stop = stops[index]

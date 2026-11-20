@@ -16,17 +16,22 @@ public struct StopPresentation: Hashable, Sendable, Identifiable {
     public var isEstimate: Bool
     /// A generic "take the next safe exit" break.
     public var isPullOff: Bool
+    /// A stop the traveler asked for: a place to visit, or a stop kept from an earlier plan.
+    public var isRequired: Bool
 
     /// - Parameter tankCapacityGallons: when given, fuel stops show the tank level on arrival.
     public init(stop: ItineraryStop, formatters: TripFormatters, tankCapacityGallons: Double? = nil) {
         id = stop.id
         kind = stop.kind
         isPullOff = stop.isRoadsidePullOff
+        isRequired = stop.isRequiredStop
         symbolName = StopPresentation.symbolName(for: stop)
         title = stop.place.name
         let offset = stop.place.utcOffsetSeconds
         let kindTitle = stop.isRoadsidePullOff ? "Rest break" : stop.kind.displayName
-        subtitle = [kindTitle, stop.place.address].compactMap { $0 }.joined(separator: " · ")
+        // A kept break, fuel stop or hotel says so; a visit is the traveler's own stop anyway.
+        let kept = stop.isRequiredStop && stop.kind != .visit ? "Kept" : nil
+        subtitle = [kindTitle, kept, stop.place.address].compactMap { $0 }.joined(separator: " · ")
 
         switch stop.kind {
         case .origin:
@@ -41,6 +46,10 @@ public struct StopPresentation: Hashable, Sendable, Identifiable {
             let arrival = stop.arrival.map { "Arrive \(formatters.clockTime($0, utcOffsetSeconds: offset))" }
             let dwell = stop.dwellDuration.map { "\(formatters.duration($0)) stop" }
             timeText = [arrival, dwell].compactMap { $0 }.joined(separator: " · ")
+        case .visit:
+            let arrival = stop.arrival.map { "Arrive \(formatters.clockTime($0, utcOffsetSeconds: offset))" }
+            let stay = stop.dwellDuration.map { "\(formatters.duration($0)) there" }
+            timeText = [arrival, stay].compactMap { $0 }.joined(separator: " · ")
         }
 
         var isEstimate = false
@@ -81,6 +90,7 @@ public struct StopPresentation: Hashable, Sendable, Identifiable {
         case .rest: "cup.and.saucer.fill"
         case .fuel: "fuelpump.fill"
         case .lodging: "bed.double.fill"
+        case .visit: "mappin.circle.fill"
         case .destination: "flag.checkered"
         }
     }

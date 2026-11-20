@@ -92,6 +92,7 @@ public enum GoogleContentRetention {
         case .fuel: "Gas station"
         case .rest: "Rest stop"
         case .lodging: "Hotel"
+        case .visit: "Stop on the way"
         case nil: "Saved place"
         }
     }

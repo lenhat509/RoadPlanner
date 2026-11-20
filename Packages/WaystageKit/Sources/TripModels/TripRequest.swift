@@ -32,6 +32,9 @@ public enum TripRequestError: String, Error, Codable, CaseIterable, Sendable {
     case invalidRestInterval
     case invalidDailyDriving
     case invalidFuelReserve
+    case tooManyStops
+    case invalidStop
+    case invalidStay
 
     public var message: String {
         switch self {
@@ -45,7 +48,66 @@ public enum TripRequestError: String, Error, Codable, CaseIterable, Sendable {
         case .invalidRestInterval: "Rest interval must be between 30 minutes and 5 hours."
         case .invalidDailyDriving: "Daily driving must be at least as long as the rest interval."
         case .invalidFuelReserve: "Minimum fuel level must be between 5% and 50% of the tank."
+        case .tooManyStops: "Add at most \(RequiredStop.maximumCount) stops on the way."
+        case .invalidStop: "Choose a place for each stop on the way."
+        case .invalidStay: "A stop on the way can last 5 minutes to 12 hours."
         }
+    }
+}
+
+/// A stop the plan has to include, in route order: a place the traveler wants to visit, or a stop
+/// kept from an earlier plan (a break, a fuel stop, tonight's hotel).
+public struct RequiredStop: Codable, Hashable, Sendable, Identifiable {
+    public enum Purpose: String, Codable, Sendable {
+        /// A place to visit, for `stay`.
+        case visit
+        /// A kept break, fuel stop or hotel.
+        case rest, fuel, lodging
+    }
+
+    public static let maximumCount = 10
+    /// How long a visit can last.
+    public static let allowedStay: ClosedRange<TimeInterval> = 5 * 60...12 * 3_600
+
+    public var id: String
+    public var place: Place
+    public var purpose: Purpose
+    /// How long to stay (visits); kept breaks and fuel stops use the driving policy's stop length.
+    public var stay: TimeInterval?
+    /// A kept hotel's rate and booking details, as known when it was chosen.
+    public var lodging: LodgingStay?
+    /// A kept fuel stop's price, as known when it was chosen (not stored for Google prices).
+    public var fuelPricePerGallon: Double?
+
+    public init(
+        id: String = UUID().uuidString,
+        place: Place,
+        purpose: Purpose,
+        stay: TimeInterval? = nil,
+        lodging: LodgingStay? = nil,
+        fuelPricePerGallon: Double? = nil
+    ) {
+        self.id = id
+        self.place = place
+        self.purpose = purpose
+        self.stay = stay
+        self.lodging = lodging
+        self.fuelPricePerGallon = fuelPricePerGallon
+    }
+
+    /// A place to visit.
+    public static func visit(_ place: Place, stay: TimeInterval) -> RequiredStop {
+        RequiredStop(place: place, purpose: .visit, stay: stay)
+    }
+}
+
+/// Where a trip starts when it is planned again during a drive.
+public struct StartState: Codable, Hashable, Sendable {
+    /// Driving already done today, which counts toward the daily limit.
+    public var drivenToday: TimeInterval
+
+    public init(drivenToday: TimeInterval) {
+        self.drivenToday = drivenToday
     }
 }
 
@@ -61,6 +123,16 @@ public struct TripRequest: Codable, Hashable, Sendable {
     public var goal: OptimizationGoal
     /// Number of adult travellers (used for lodging availability).
     public var travelers: Int
+    /// Stops the plan must include, in route order (nil: none). Optional so trips saved before
+    /// 1.2.0 still decode.
+    public var stops: [RequiredStop]?
+    /// Places the traveler removed from an earlier plan (Google place IDs).
+    public var avoidedPlaceIDs: [String]?
+    /// Driving already done today, when the rest of a trip is planned again during a drive.
+    public var startState: StartState?
+
+    /// The stops the plan must include, in route order.
+    public var requiredStops: [RequiredStop] { stops ?? [] }
 
     public init(
         origin: Place,
@@ -70,7 +142,10 @@ public struct TripRequest: Codable, Hashable, Sendable {
         vehicle: Vehicle,
         policy: DrivingPolicy = .standard,
         goal: OptimizationGoal = .balanced,
-        travelers: Int = 2
+        travelers: Int = 2,
+        stops: [RequiredStop]? = nil,
+        avoidedPlaceIDs: [String]? = nil,
+        startState: StartState? = nil
     ) {
         self.origin = origin
         self.destination = destination
@@ -80,6 +155,9 @@ public struct TripRequest: Codable, Hashable, Sendable {
         self.policy = policy
         self.goal = goal
         self.travelers = travelers
+        self.stops = stops.flatMap { $0.isEmpty ? nil : $0 }
+        self.avoidedPlaceIDs = avoidedPlaceIDs.flatMap { $0.isEmpty ? nil : $0 }
+        self.startState = startState
     }
 
     /// Validates the request. An empty result means the request can be planned.
@@ -97,6 +175,12 @@ public struct TripRequest: Codable, Hashable, Sendable {
         }
         if policy.maxDailyDriving < policy.maxContinuousDriving { errors.append(.invalidDailyDriving) }
         if !DrivingPolicy.allowedFuelReserve.contains(policy.fuelReserveFraction) { errors.append(.invalidFuelReserve) }
+        let stops = requiredStops
+        if stops.count > RequiredStop.maximumCount { errors.append(.tooManyStops) }
+        if stops.contains(where: { !$0.place.coordinate.isValid }) { errors.append(.invalidStop) }
+        if stops.contains(where: { $0.purpose == .visit && !RequiredStop.allowedStay.contains($0.stay ?? 0) }) {
+            errors.append(.invalidStay)
+        }
         return errors
     }
 }

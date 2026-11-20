@@ -70,6 +70,7 @@ enum Theme {
         case .rest: return Color(red: 0.0, green: 0.62, blue: 0.45) // bluish green
         case .fuel: return Color(red: 0.90, green: 0.62, blue: 0.0) // orange
         case .lodging: return Color(red: 0.80, green: 0.47, blue: 0.65) // reddish purple
+        case .visit: return Color(red: 0.0, green: 0.45, blue: 0.70) // blue
         case .destination: return Color(red: 0.84, green: 0.37, blue: 0.0) // vermillion
         }
     }
@@ -82,6 +83,7 @@ enum Theme {
         case .rest: return "Rest stop"
         case .fuel: return "Fuel stop"
         case .lodging: return "Overnight stay"
+        case .visit: return "Stop on the way"
         case .destination: return "Destination"
         }
     }

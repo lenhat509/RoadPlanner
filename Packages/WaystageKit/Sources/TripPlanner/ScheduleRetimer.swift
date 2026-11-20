@@ -46,7 +46,8 @@ public struct ScheduleRetimer: Sendable {
                 lodgingCost += stop.lodging?.nightlyRate ?? 0
             case .destination:
                 stop.departure = nil
-            case .rest, .origin:
+            case .rest, .visit, .origin:
+                // A visit keeps the stay the traveler asked for.
                 stop.departure = arrival.addingTimeInterval(plannedDwell)
             }
             stops[index] = stop

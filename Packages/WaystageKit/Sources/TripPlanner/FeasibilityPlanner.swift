@@ -63,10 +63,29 @@ public struct FeasibilityPlanner: Sendable {
                 }
             }
         }
-        // Unreachable for valid inputs; plan straight through with a warning rather than crash.
+        // Unreachable for valid inputs; plan straight through (keeping the required stops) with a
+        // warning rather than crash.
+        var clock = problem.departure.timeIntervalSince1970, timeAlong = 0.0
+        let required = problem.candidates.filter { $0.requirement != nil }.sorted { $0.distanceAlong < $1.distanceAlong }
+        let stops: [ScheduledStop] = required.map { candidate in
+            clock += max(0, candidate.timeAlong - timeAlong)
+            timeAlong = max(timeAlong, candidate.timeAlong)
+            var stay = baseSettings.policy.restStopDuration
+            var action = StopAction.rest
+            if case let .visit(visit) = candidate.requirement {
+                stay = visit
+                action = .visit(stay: visit)
+            }
+            let arrival = clock
+            clock += stay
+            return ScheduledStop(
+                candidate: candidate, action: action, arrival: Date(timeIntervalSince1970: arrival),
+                departure: Date(timeIntervalSince1970: clock), fuelOnArrival: 0, fuelOnDeparture: 0, dayIndex: 0
+            )
+        }
         let fallback = OptimizedSchedule(
-            stops: [],
-            arrival: problem.departure.addingTimeInterval(problem.routeDuration),
+            stops: stops,
+            arrival: Date(timeIntervalSince1970: clock + max(0, problem.routeDuration - timeAlong)),
             fuelOnArrival: 0, finalDayIndex: 0, fuelCost: 0, lodgingCost: 0,
             tollCost: problem.tollCostUSD, drivingDuration: problem.routeDuration,
             fuelGallonsUsed: 0, referenceFuelPrice: 0, score: .infinity

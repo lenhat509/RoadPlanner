@@ -6,6 +6,8 @@ public enum StopAction: Hashable, Sendable {
     case rest
     case refuel(gallons: Double, pricePerGallon: Double)
     case overnight(nightlyRate: Double)
+    /// A place the traveler asked to visit.
+    case visit(stay: TimeInterval)
 }
 
 /// A stop chosen by the optimizer, with its schedule.
@@ -66,6 +68,8 @@ public struct OptimizationProblem: Sendable {
     /// Price per gallon used to value fuel already in the tank (or left over). Defaults to the
     /// median station price along the route, then to the national default.
     public var referenceFuelPrice: Double?
+    /// Driving already done today (a trip planned again during a drive).
+    public var initialDrivenToday: TimeInterval
 
     public init(
         routeDistance: Double,
@@ -78,7 +82,8 @@ public struct OptimizationProblem: Sendable {
         originUTCOffset: Int,
         destinationUTCOffset: Int,
         goal: OptimizationGoal,
-        referenceFuelPrice: Double? = nil
+        referenceFuelPrice: Double? = nil,
+        initialDrivenToday: TimeInterval = 0
     ) {
         self.routeDistance = routeDistance
         self.routeDuration = routeDuration
@@ -91,6 +96,7 @@ public struct OptimizationProblem: Sendable {
         self.destinationUTCOffset = destinationUTCOffset
         self.goal = goal
         self.referenceFuelPrice = referenceFuelPrice
+        self.initialDrivenToday = initialDrivenToday
     }
 
     public init(profile: RouteProfile, candidates: [StopCandidate], request: TripRequest, goal: OptimizationGoal) {
@@ -105,7 +111,8 @@ public struct OptimizationProblem: Sendable {
             originUTCOffset: request.origin.utcOffsetSeconds,
             destinationUTCOffset: request.destination.utcOffsetSeconds,
             goal: goal,
-            referenceFuelPrice: OptimizationProblem.medianFuelPrice(of: candidates)
+            referenceFuelPrice: OptimizationProblem.medianFuelPrice(of: candidates),
+            initialDrivenToday: request.startState?.drivenToday ?? 0
         )
     }
 
@@ -186,6 +193,11 @@ extension OptimizationGoal {
 /// * daily driving ≤ `policy.maxDailyDriving`,
 /// * arrival at a stop no later than the day's cutoff (unless night driving is allowed),
 /// * arrival at the destination by `arriveBy` (when enforced).
+///
+/// Required stops (a place to visit, a kept stop) can't be skipped: no driving segment passes one,
+/// and only its own action is planned there. Fuel, driving-day and overnight state carry across
+/// them like any stop, so the schedule around them stays optimal (e.g. whether to spend the night
+/// before or after a visit).
 public struct ItineraryOptimizer: Sendable {
     public var settings: OptimizerSettings
 
@@ -215,10 +227,11 @@ private struct Search {
         var restPenalty: Double
         var fuelPenalty: Double
         var lodgingPenalty: Double
+        var requirement: StopRequirement? = nil
     }
 
     enum Action {
-        case start, rest, refuel(gallons: Double, price: Double), overnight(rate: Double), arrive
+        case start, rest, refuel(gallons: Double, price: Double), overnight(rate: Double), visit(stay: Double), arrive
     }
 
     struct Label {
@@ -250,6 +263,10 @@ private struct Search {
     let deadline: Double?
     let initialFuel: Double
     let referenceFuelPrice: Double
+    /// For each node, the next required node after it (or the destination): no segment goes past it.
+    let nextRequired: [Int]
+    /// For each node, the visit stays still to come after it (for the optimistic arrival bound).
+    let staysAfter: [Double]
 
     var labels: [Label] = []
     var fronts: [[Int]]
@@ -270,8 +287,22 @@ private struct Search {
         self.deadline = settings.enforceDeadline ? problem.arriveBy?.timeIntervalSince1970 : nil
         self.initialFuel = initialFuel
         self.referenceFuelPrice = problem.referenceFuelPrice ?? settings.pricing.fuelPrice(for: problem.vehicle.fuelType)
-        self.nodes = Search.makeNodes(problem: problem, settings: settings, valueOfTime: valueOfTime)
+        let nodes = Search.makeNodes(problem: problem, settings: settings, valueOfTime: valueOfTime)
+        self.nodes = nodes
         self.fronts = Array(repeating: [], count: nodes.count)
+        var nextRequired = Array(repeating: nodes.count - 1, count: nodes.count)
+        var staysAfter = Array(repeating: 0.0, count: nodes.count)
+        var upcoming = nodes.count - 1, stays = 0.0
+        for index in nodes.indices.reversed() {
+            nextRequired[index] = upcoming
+            staysAfter[index] = stays
+            if let requirement = nodes[index].requirement {
+                upcoming = index
+                if case let .visit(stay) = requirement { stays += stay }
+            }
+        }
+        self.nextRequired = nextRequired
+        self.staysAfter = staysAfter
     }
 
     static func makeNodes(problem: OptimizationProblem, settings: OptimizerSettings, valueOfTime: Double) -> [Node] {
@@ -289,6 +320,19 @@ private struct Search {
         for index in ordered {
             let candidate = problem.candidates[index]
             guard candidate.distanceAlong > 0, candidate.distanceAlong < problem.routeDistance else { continue }
+            if let requirement = candidate.requirement {
+                // Kept whatever its capabilities: only its own action is planned there.
+                nodes.append(Node(
+                    candidateIndex: index, distance: candidate.distanceAlong, time: candidate.timeAlong,
+                    halfDetourTime: candidate.detourDuration / 2, halfDetourDistance: candidate.detourDistance / 2,
+                    capabilities: candidate.capabilities,
+                    fuelPrice: candidate.fuelPricePerGallon ?? defaultFuelPrice,
+                    nightlyRate: candidate.nightlyRate ?? settings.pricing.unknownNightlyRate,
+                    utcOffset: Double(candidate.place.utcOffsetSeconds),
+                    restPenalty: 0, fuelPenalty: 0, lodgingPenalty: 0, requirement: requirement
+                ))
+                continue
+            }
             var capabilities = candidate.capabilities
             var fuelPenalty = 0.0
             if candidate.isLodgingSearchArea && !settings.allowLodgingSearchAreas { capabilities.remove(.lodging) }
@@ -327,7 +371,9 @@ private struct Search {
         let origin = Label(
             node: 0, parent: -1, action: .start, arrival: start, departure: start,
             cost: 0, penalty: 0, score: 0, fuelOnArrival: initialFuel, fuel: initialFuel,
-            drivenToday: 0, drivingTotal: 0,
+            // Planned again during a drive: today's driving so far counts (leaving at least an hour
+            // to reach tonight's stop).
+            drivenToday: min(max(0, problem.initialDrivenToday), max(0, policy.maxDailyDriving - 3_600)), drivingTotal: 0,
             cutoffLocal: cutoff(forDayStartingAtLocal: start + nodes[0].utcOffset),
             dayIndex: 0
         )
@@ -354,7 +400,8 @@ private struct Search {
         let destinationIndex = nodes.count - 1
         let maxContinuous = policy.maxContinuousDriving
 
-        for target in (label.node + 1)..<nodes.count {
+        // A required stop can't be passed: segments end at the next one at the latest.
+        for target in (label.node + 1)...nextRequired[label.node] {
             let to = nodes[target]
             let baseTime = to.time - from.time
             if baseTime > maxContinuous || label.drivenToday + baseTime > policy.maxDailyDriving { break }
@@ -374,7 +421,7 @@ private struct Search {
             if !settings.allowNightDriving && arrival + to.utcOffset > label.cutoffLocal { continue }
 
             let isDestination = target == destinationIndex
-            if let deadline, lowerBoundArrival(arrivingAt: to, at: arrival, isDestination: isDestination) > deadline {
+            if let deadline, lowerBoundArrival(arrivingAt: target, at: arrival) > deadline {
                 prunedByDeadline = true
                 continue
             }
@@ -403,6 +450,10 @@ private struct Search {
     }
 
     private mutating func addActions(at node: Node, base: Label) {
+        if let requirement = node.requirement {
+            addRequiredAction(requirement, at: node, base: base)
+            return
+        }
         if node.capabilities.contains(.rest) {
             var rest = base
             rest.action = .rest
@@ -423,6 +474,40 @@ private struct Search {
             }
         }
         if node.capabilities.contains(.lodging) && isReasonableCheckIn(base.arrival + node.utcOffset) {
+            insert(overnight(base, at: node))
+        }
+    }
+
+    /// A required stop: only its own action (a kept hotel needs no usual check-in time).
+    private mutating func addRequiredAction(_ requirement: StopRequirement, at node: Node, base: Label) {
+        switch requirement {
+        case let .visit(stay):
+            var visit = base
+            visit.action = .visit(stay: stay)
+            visit.departure = base.arrival + stay
+            insert(visit)
+        case .rest:
+            var rest = base
+            rest.action = .rest
+            rest.departure = base.arrival + policy.restStopDuration
+            insert(rest)
+        case .refuel:
+            let fillUp = tank - base.fuelOnArrival
+            if fillUp >= settings.minimumPurchaseGallons {
+                insert(refuel(base, at: node, gallons: fillUp))
+                let remaining = problem.routeDistance - node.distance + node.halfDetourDistance
+                let toDestination = problem.vehicle.gallons(forMeters: remaining) + reserve + 0.25 - base.fuelOnArrival
+                if toDestination >= settings.minimumPurchaseGallons && toDestination < fillUp - 0.5 {
+                    insert(refuel(base, at: node, gallons: toDestination))
+                }
+            } else {
+                // The tank is nearly full: the kept stop stays as a break.
+                var rest = base
+                rest.action = .rest
+                rest.departure = base.arrival + policy.fuelStopDuration
+                insert(rest)
+            }
+        case .overnight:
             insert(overnight(base, at: node))
         }
     }
@@ -473,13 +558,15 @@ private struct Search {
         cost + penalty + (time - start) / Units.secondsPerHour * valueOfTime
     }
 
-    /// Optimistic arrival time at the destination after reaching `node` at `arrival`.
-    private func lowerBoundArrival(arrivingAt node: Node, at arrival: Double, isDestination: Bool) -> Double {
-        if isDestination { return arrival }
+    /// Optimistic arrival time at the destination after reaching node `index` at `arrival`.
+    private func lowerBoundArrival(arrivingAt index: Int, at arrival: Double) -> Double {
+        if index == nodes.count - 1 { return arrival }
+        let node = nodes[index]
         let remaining = problem.routeDuration - node.time + node.halfDetourTime
         let breaksNeeded = max(0, (remaining / policy.maxContinuousDriving).rounded(.up) - 1)
         let minimumDwell = min(policy.restStopDuration, policy.fuelStopDuration)
-        return arrival + minimumDwell + remaining + breaksNeeded * minimumDwell
+        let stayHere: Double = if case let .visit(stay) = node.requirement { stay } else { minimumDwell }
+        return arrival + stayHere + remaining + breaksNeeded * minimumDwell + staysAfter[index]
     }
 
     private mutating func insert(_ candidate: Label) {
@@ -558,6 +645,8 @@ private struct Search {
             case let .overnight(rate):
                 action = .overnight(nightlyRate: rate)
                 lodgingCost += rate
+            case let .visit(stay):
+                action = .visit(stay: stay)
             default:
                 action = .rest
             }

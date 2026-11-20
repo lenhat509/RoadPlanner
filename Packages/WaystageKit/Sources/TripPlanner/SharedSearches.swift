@@ -9,8 +9,11 @@ import TripModels
 /// their results instead of being searched again. Which searches run depends only on geometry, so
 /// it's decided before any request is sent.
 struct SharedSearches: Sendable {
-    /// The searches to send.
+    /// The searches whose results are used: first the `known` ones (already made), then the ones
+    /// to send.
     let unique: [AlongRouteSearch]
+    /// How many of `unique` were already made (they come first).
+    let knownCount: Int
     /// For each route, for each of its searches (in order): the unique searches whose results it
     /// uses (its own, or those covering its section).
     let sources: [[[Int]]]
@@ -19,11 +22,19 @@ struct SharedSearches: Sendable {
     ///   - tolerance: how far apart two sections' lines may be and still count as the same road.
     ///   - coverage: the share of a section's points that must lie on searched road for it to
     ///     reuse their results.
-    init(routes: [[AlongRouteSearch]], tolerance: Double = 300, coverage: Double = 0.95) {
+    ///   - known: searches already made (whose results the caller has), reused like the others.
+    init(routes: [[AlongRouteSearch]], known: [AlongRouteSearch] = [], tolerance: Double = 300, coverage: Double = 0.95) {
         var unique: [AlongRouteSearch] = []
         var geometries: [PolylineGeometry] = []
         var boxes: [Box] = []
         var sources: [[[Int]]] = []
+        for search in known {
+            let points = (try? PolylineCodec.decode(search.encodedPolyline)) ?? []
+            unique.append(search)
+            geometries.append(PolylineGeometry(coordinates: points))
+            boxes.append(Box(points, margin: tolerance))
+        }
+        knownCount = known.count
         for searches in routes {
             var routeSources: [[Int]] = []
             for search in searches {

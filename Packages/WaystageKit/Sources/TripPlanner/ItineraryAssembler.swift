@@ -36,11 +36,14 @@ public struct ItineraryAssembler: Sendable {
                 distanceFromStartMeters: candidate.distanceAlong,
                 fuelOnArrivalGallons: scheduled.fuelOnArrival,
                 isRoadsidePullOff: candidate.isRoadsidePullOff,
-                dayIndex: scheduled.dayIndex
+                dayIndex: scheduled.dayIndex,
+                isRequired: candidate.requirement != nil
             )
             switch scheduled.action {
             case .rest:
                 stop.kind = .rest
+            case .visit:
+                stop.kind = .visit
             case let .refuel(gallons, price):
                 stop.kind = .fuel
                 stop.fuelPurchase = FuelPurchase(

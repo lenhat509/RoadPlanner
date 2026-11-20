@@ -9,6 +9,44 @@ public enum PlanningPhase: Equatable, Sendable {
     case finalizing
 }
 
+/// Another hotel near one of a plan's overnight stops, for swapping it.
+public struct HotelChoice: Hashable, Sendable, Identifiable {
+    public var place: Place
+    public var nightlyRate: Double?
+    public var isRateEstimated: Bool
+    public var provider: String?
+    public var bookingURL: URL?
+    public var rating: Double?
+    /// Extra driving to reach it from the route and back.
+    public var detourDuration: TimeInterval
+    /// Driving time compared with the planned hotel: negative is earlier on the route.
+    public var timeFromPlanned: TimeInterval
+
+    public var id: String { place.id }
+
+    public init(
+        place: Place, nightlyRate: Double?, isRateEstimated: Bool, provider: String?, bookingURL: URL?, rating: Double?,
+        detourDuration: TimeInterval, timeFromPlanned: TimeInterval
+    ) {
+        self.place = place
+        self.nightlyRate = nightlyRate
+        self.isRateEstimated = isRateEstimated
+        self.provider = provider
+        self.bookingURL = bookingURL
+        self.rating = rating
+        self.detourDuration = detourDuration
+        self.timeFromPlanned = timeFromPlanned
+    }
+
+    /// The hotel as a stop the next plan must include.
+    public var requiredStop: RequiredStop {
+        RequiredStop(
+            place: place, purpose: .lodging,
+            lodging: nightlyRate.map { LodgingStay(nightlyRate: $0, isRateEstimated: isRateEstimated, provider: provider, bookingURL: bookingURL) }
+        )
+    }
+}
+
 /// One way to drive the trip, planned for every optimization goal.
 public struct RoutePlan: Sendable, Identifiable {
     public var id: String
@@ -19,16 +57,20 @@ public struct RoutePlan: Sendable, Identifiable {
     /// Where to label the route on a map: clear of its stops and of the other routes.
     public var labelCoordinate: GeoCoordinate
     public var itineraries: [OptimizationGoal: Itinerary]
+    /// Other hotels near each planned overnight stop (by the planned hotel's place ID). Kept in
+    /// memory with the plan just made, never saved; empty for a reopened saved plan.
+    public var hotelChoices: [String: [HotelChoice]]
 
     public init(
         id: String, name: String?, summary: String, labelCoordinate: GeoCoordinate,
-        itineraries: [OptimizationGoal: Itinerary]
+        itineraries: [OptimizationGoal: Itinerary], hotelChoices: [String: [HotelChoice]] = [:]
     ) {
         self.id = id
         self.name = name
         self.summary = summary
         self.labelCoordinate = labelCoordinate
         self.itineraries = itineraries
+        self.hotelChoices = hotelChoices
     }
 
     /// Plans in display order (fastest, cheapest, balanced).
@@ -105,6 +147,14 @@ public struct TripPlanningConfiguration: Sendable {
     public var maxIntermediatesPerRequest = 25
     public var candidateBuilder = CandidateBuilder()
     public var pricing = PricingDefaults.standard
+    /// How long searches are remembered in this app session, so planning again (an edited plan,
+    /// the rest of a trip) reuses them for road already searched. In memory only; 0 turns it off.
+    public var searchMemoryLifetime: TimeInterval = 30 * 60
+    public var searchMemoryCapacity = 400
+    /// Other hotels offered for each overnight stop.
+    public var hotelChoicesPerStop = 5
+    /// How far along the route (driving time either way) another hotel may be.
+    public var hotelChoiceWindow: TimeInterval = 3_600
 
     public init() {}
 }
@@ -116,6 +166,7 @@ public final class TripPlanningService: TripPlanning, Sendable {
     private let lodging: (any LodgingRateProvider)?
     private let fuelPrices: (any RegionalFuelPriceProvider)?
     private let configuration: TripPlanningConfiguration
+    private let memory: SearchMemory
 
     public init(
         routing: any RoutingProvider,
@@ -129,6 +180,7 @@ public final class TripPlanningService: TripPlanning, Sendable {
         self.lodging = lodging
         self.fuelPrices = fuelPrices
         self.configuration = configuration
+        self.memory = SearchMemory(lifetime: configuration.searchMemoryLifetime, capacity: configuration.searchMemoryCapacity)
     }
 
     /// Everything known about one candidate route.
@@ -153,14 +205,17 @@ public final class TripPlanningService: TripPlanning, Sendable {
         let corridors = try await candidateCorridors(for: request)
 
         // Stops along every route (each corridor's route and any toll-free version). Stretches of
-        // road the routes share are searched once (`SharedSearches`): every search is billed.
+        // road the routes share are searched once (`SharedSearches`), as is road already searched
+        // in this session (`SearchMemory`): every search is billed.
         let prepared = corridors.flatMap(\.routes).map { prepare($0, request: request) }
-        let shared = SharedSearches(routes: prepared.map { $0.searches.map(\.0) })
+        let known = await memory.recent(now: Date())
+        let shared = SharedSearches(routes: prepared.map { $0.searches.map(\.0) }, known: known.map(\.search))
+        let toSend = Array(shared.unique.dropFirst(shared.knownCount))
         let otherRequests = prepared.reduce(0) { $0 + $1.requestCount - $1.searches.count }
-        let counter = ProgressCounter(total: shared.unique.count + otherRequests, offset: 0, report: progress)
+        let counter = ProgressCounter(total: toSend.count + otherRequests, offset: 0, report: progress)
         let placesProvider = places
-        let searchResults: [Result<[FoundPlace], Error>] = await concurrentMap(
-            shared.unique, limit: configuration.maxConcurrentRequests * configuration.maxConcurrentRoutes
+        let sent: [Result<[FoundPlace], Error>] = await concurrentMap(
+            toSend, limit: configuration.maxConcurrentRequests * configuration.maxConcurrentRoutes
         ) { search in
             defer { counter.increment() }
             do {
@@ -169,6 +224,11 @@ public final class TripPlanningService: TripPlanning, Sendable {
                 return .failure(error)
             }
         }
+        let madeAt = Date()
+        await memory.remember(zip(toSend, sent).compactMap { search, result in
+            (try? result.get()).map { SearchMemory.Entry(search: search, places: $0, madeAt: madeAt) }
+        })
+        let searchResults: [Result<[FoundPlace], Error>] = known.map { .success($0.places) } + sent
         let analyses = await concurrentMap(Array(prepared.indices), limit: configuration.maxConcurrentRoutes) { [self] index in
             await analyze(
                 prepared[index], placeResults: shared.results(forRoute: index, from: searchResults), request: request, counter: counter
@@ -195,16 +255,17 @@ public final class TripPlanningService: TripPlanning, Sendable {
             places: configuration.alternatives.names(for: shapes), summaries: corridors.map(\.primary.summary)
         )
         // Labels stay clear of each route's stops, whichever plan style is shown.
-        let stops = planned.map { itineraries in itineraries.values.flatMap { $0.stops.map(\.place.coordinate) } }
+        let stops = planned.map { plan in plan.itineraries.values.flatMap { $0.stops.map(\.place.coordinate) } }
         let labels = configuration.alternatives.labelPoints(for: shapes, avoiding: stops)
-        let routes = planned.enumerated().compactMap { index, itineraries -> RoutePlan? in
-            guard !itineraries.isEmpty else { return nil }
+        let routes = planned.enumerated().compactMap { index, plan -> RoutePlan? in
+            guard !plan.itineraries.isEmpty else { return nil }
             return RoutePlan(
                 id: "route-\(index + 1)",
                 name: names[index],
                 summary: corridors[index].primary.summary,
                 labelCoordinate: labels.indices.contains(index) ? labels[index] : (shapes[index].first ?? request.origin.coordinate),
-                itineraries: itineraries
+                itineraries: plan.itineraries,
+                hotelChoices: plan.hotelChoices
             )
         }
         guard !routes.isEmpty else { throw PlanningError.noRoute }
@@ -239,8 +300,11 @@ public final class TripPlanningService: TripPlanning, Sendable {
         }
     }
 
-    /// Every goal's plan along one corridor (its route, or its toll-free version where cheaper).
-    private func plans(along analyses: [RouteAnalysis], request: TripRequest) async -> [OptimizationGoal: Itinerary] {
+    /// Every goal's plan along one corridor (its route, or its toll-free version where cheaper), and
+    /// other hotels near each plan's overnight stops.
+    private func plans(
+        along analyses: [RouteAnalysis], request: TripRequest
+    ) async -> (itineraries: [OptimizationGoal: Itinerary], hotelChoices: [String: [HotelChoice]]) {
         var drafts: [OptimizationGoal: (Itinerary, RouteAnalysis)] = [:]
         for goal in OptimizationGoal.allCases {
             drafts[goal] = bestDraft(for: goal, request: request, analyses: analyses)
@@ -261,7 +325,37 @@ public final class TripPlanningService: TripPlanning, Sendable {
             cache[signature] = itinerary
             finalized[goal] = itinerary
         }
-        return Self.consistentOptions(finalized, valueOfTimePerHour: request.policy.valueOfTimePerHour)
+        var choices: [String: [HotelChoice]] = [:]
+        for goal in OptimizationGoal.allCases {
+            guard let (_, analysis) = drafts[goal], let itinerary = finalized[goal] else { continue }
+            choices.merge(hotelChoices(for: itinerary, in: analysis, request: request)) { current, _ in current }
+        }
+        return (Self.consistentOptions(finalized, valueOfTimePerHour: request.policy.valueOfTimePerHour), choices)
+    }
+
+    /// Other known hotels within `hotelChoiceWindow` of each planned overnight stop, best value first.
+    private func hotelChoices(for itinerary: Itinerary, in analysis: RouteAnalysis, request: TripRequest) -> [String: [HotelChoice]] {
+        let valueOfTime = max(0, request.policy.valueOfTimePerHour)
+        var result: [String: [HotelChoice]] = [:]
+        for stop in itinerary.stops where stop.kind == .lodging {
+            guard let planned = analysis.candidates.first(where: { $0.place.id == stop.place.id }) else { continue }
+            let nearby = analysis.candidates.filter {
+                $0.capabilities.contains(.lodging) && !$0.isSynthetic && $0.place.id != planned.place.id
+                    && abs($0.timeAlong - planned.timeAlong) <= configuration.hotelChoiceWindow
+            }
+            let value = { (candidate: StopCandidate) in
+                (candidate.nightlyRate ?? self.configuration.pricing.unknownNightlyRate)
+                    + candidate.detourDuration / Units.secondsPerHour * valueOfTime
+            }
+            result[stop.place.id] = nearby.sorted { value($0) < value($1) }.prefix(configuration.hotelChoicesPerStop).map {
+                HotelChoice(
+                    place: $0.place, nightlyRate: $0.nightlyRate, isRateEstimated: $0.isLodgingRateEstimated,
+                    provider: $0.lodgingProvider, bookingURL: $0.bookingURL, rating: $0.rating,
+                    detourDuration: $0.detourDuration, timeFromPlanned: $0.timeAlong - planned.timeAlong
+                )
+            }
+        }
+        return result
     }
 
     /// How good a plan is for `goal`: a met deadline first, then fewer relaxed preferences, then
@@ -331,6 +425,7 @@ public final class TripPlanningService: TripPlanning, Sendable {
     /// routes through highway hubs off those, narrowed to a few different, reasonable corridors.
     private func candidateCorridors(for request: TripRequest) async throws -> [RouteAlternatives.Corridor] {
         let origin = request.origin.coordinate, destination = request.destination.coordinate
+        if !request.requiredStops.isEmpty { return try await corridorThroughStops(for: request) }
         var routes: [ComputedRoute]
         do {
             routes = try await routing.computeRoutes(RouteQuery(
@@ -363,6 +458,114 @@ public final class TripPlanningService: TripPlanning, Sendable {
         return corridors.isEmpty ? [RouteAlternatives.Corridor(primary: routes[0])] : corridors
     }
 
+    /// With stops on the way: one route through them (Google offers no alternative routes through
+    /// stops), plus a toll-free version where the route has tolls.
+    private func corridorThroughStops(for request: TripRequest) async throws -> [RouteAlternatives.Corridor] {
+        let query = RouteQuery(
+            origin: request.origin.coordinate, destination: request.destination.coordinate,
+            intermediates: request.requiredStops.map(\.place.coordinate), departure: request.departure
+        )
+        let primary: ComputedRoute
+        do {
+            guard let route = try await routing.computeRoutes(query).first else { throw PlanningError.noRoute }
+            primary = route
+        } catch let error as PlanningError {
+            throw error
+        } catch {
+            throw PlanningError.routingFailed(String(describing: error))
+        }
+        var corridor = RouteAlternatives.Corridor(primary: primary)
+        if (primary.tollCostUSD ?? 0) > 0 {
+            var tollFreeQuery = query
+            tollFreeQuery.avoidTolls = true
+            if let tollFree = try? await routing.computeRoutes(tollFreeQuery).first, (tollFree.tollCostUSD ?? 0) == 0 {
+                corridor.variants = [tollFree]
+            }
+        }
+        return [corridor]
+    }
+
+    /// Where each required stop is on a route through them: at the end of its leg (or, if the
+    /// provider returned no legs, where it projects onto the route). In route order.
+    static func requiredPositions(
+        of stops: [RequiredStop], on route: ComputedRoute, profile: RouteProfile
+    ) -> [(stop: RequiredStop, distance: Double, time: TimeInterval)] {
+        guard !stops.isEmpty else { return [] }
+        let total = profile.totalDistance
+        var distances: [Double]
+        let legTotal = route.legs.reduce(0) { $0 + $1.distanceMeters }
+        if route.legs.count == stops.count + 1, legTotal > 0 {
+            var sum = 0.0
+            distances = route.legs.dropLast().map { leg in
+                sum += leg.distanceMeters
+                return sum / legTotal * total
+            }
+        } else {
+            distances = stops.map { profile.geometry.project($0.place.coordinate)?.distanceAlong ?? 0 }
+        }
+        var previous = 0.0
+        return zip(stops, distances).map { stop, distance in
+            let clamped = min(max(distance, previous, 1), max(1, total - 1))
+            previous = clamped
+            return (stop, clamped, profile.time(atDistance: clamped))
+        }
+    }
+
+    /// The candidates without the places the traveler removed, and with each required stop at its
+    /// place on the route. A required stop found by a search keeps that search's live details.
+    static func applyingRequirements(
+        to candidates: [StopCandidate], request: TripRequest,
+        positions: [(stop: RequiredStop, distance: Double, time: TimeInterval)],
+        regionalFuelPrice: (GeoCoordinate) -> Double?, pricing: PricingDefaults
+    ) -> [StopCandidate] {
+        let avoided = Set(request.avoidedPlaceIDs ?? [])
+        let required = Set(positions.map(\.stop.place.id))
+        var result = candidates.filter { !avoided.contains($0.place.id) && !required.contains($0.place.id) }
+        for (stop, distance, time) in positions {
+            let found = candidates.first { $0.place.id == stop.place.id }
+            var candidate = StopCandidate(
+                id: stop.place.id, place: found?.place ?? stop.place, capabilities: [],
+                distanceAlong: distance, timeAlong: time
+            )
+            switch stop.purpose {
+            case .visit:
+                candidate.requirement = .visit(stay: stop.stay ?? 3_600)
+            case .rest:
+                candidate.capabilities = [.rest]
+                candidate.requirement = .rest
+            case .fuel:
+                candidate.capabilities = [.fuel, .rest]
+                candidate.requirement = .refuel
+                if let found, let price = found.fuelPricePerGallon {
+                    candidate.fuelPricePerGallon = price
+                    candidate.isFuelPriceEstimated = found.isFuelPriceEstimated
+                    candidate.isFuelGradeConfirmed = found.isFuelGradeConfirmed
+                } else {
+                    candidate.fuelPricePerGallon = stop.fuelPricePerGallon
+                        ?? regionalFuelPrice(stop.place.coordinate) ?? pricing.fuelPrice(for: request.vehicle.fuelType)
+                    candidate.isFuelPriceEstimated = stop.fuelPricePerGallon == nil
+                }
+            case .lodging:
+                candidate.capabilities = [.lodging]
+                candidate.requirement = .overnight
+                if let found, found.nightlyRate != nil {
+                    candidate.nightlyRate = found.nightlyRate
+                    candidate.isLodgingRateEstimated = found.isLodgingRateEstimated
+                    candidate.lodgingProvider = found.lodgingProvider
+                    candidate.bookingURL = found.bookingURL
+                    candidate.rating = found.rating
+                } else {
+                    candidate.nightlyRate = stop.lodging?.nightlyRate ?? pricing.unknownNightlyRate
+                    candidate.isLodgingRateEstimated = stop.lodging?.isRateEstimated ?? true
+                    candidate.lodgingProvider = stop.lodging?.provider
+                    candidate.bookingURL = stop.lodging?.bookingURL
+                }
+            }
+            result.append(candidate)
+        }
+        return result
+    }
+
     // MARK: - Candidate discovery
 
     /// A route with the searches its stops need.
@@ -374,16 +577,21 @@ public final class TripPlanningService: TripPlanning, Sendable {
         var searches: [(AlongRouteSearch, ClosedRange<Double>)]
         /// Requests the analysis will make (for progress).
         var requestCount: Int
+        /// Where the required stops are on this route.
+        var required: [(stop: RequiredStop, distance: Double, time: TimeInterval)]
     }
 
     private func prepare(_ route: ComputedRoute, request: TripRequest) -> PreparedRoute {
         let profile = route.profile()
         let chunks = profile.chunks(maxDuration: configuration.searchChunkDuration)
+        let required = Self.requiredPositions(of: request.requiredStops, on: route, profile: profile)
         let windows = LodgingWindowEstimator().windows(
             routeDuration: profile.totalDuration,
             departure: request.departure,
             utcOffset: request.origin.utcOffsetSeconds,
-            policy: request.policy
+            policy: request.policy,
+            stays: required.compactMap { $0.stop.purpose == .visit ? ($0.time, $0.stop.stay ?? 3_600) : nil },
+            drivenToday: request.startState?.drivenToday ?? 0
         )
         var searches: [(AlongRouteSearch, ClosedRange<Double>)] = []
         for chunk in chunks where chunk.coordinates.count >= 2 {
@@ -399,7 +607,10 @@ public final class TripPlanningService: TripPlanning, Sendable {
             }
         }
         let requestCount = searches.count + (lodging == nil ? 0 : windows.count) + (fuelPrices == nil ? 0 : chunks.count)
-        return PreparedRoute(route: route, profile: profile, chunks: chunks, windows: windows, searches: searches, requestCount: requestCount)
+        return PreparedRoute(
+            route: route, profile: profile, chunks: chunks, windows: windows, searches: searches, requestCount: requestCount,
+            required: required
+        )
     }
 
     /// - Parameter rawResults: the places found for each of the route's searches (in order).
@@ -462,15 +673,17 @@ public final class TripPlanningService: TripPlanning, Sendable {
             ))
         }
         let found = placeResults.flatMap { (try? $0.get()) ?? [] }
+        let regionalPrice = { (coordinate: GeoCoordinate) in
+            regionalPrices.min { GeoMath.distance($0.0, coordinate) < GeoMath.distance($1.0, coordinate) }?.1
+        }
         func candidates(for grade: FuelType) -> [StopCandidate] {
-            configuration.candidateBuilder.build(
-                profile: profile,
-                places: found,
-                lodgingOffers: offers,
-                fuelType: grade,
-                regionalFuelPrice: { coordinate in
-                    regionalPrices.min { GeoMath.distance($0.0, coordinate) < GeoMath.distance($1.0, coordinate) }?.1
-                }
+            var forGrade = request
+            forGrade.vehicle.fuelType = grade
+            return Self.applyingRequirements(
+                to: configuration.candidateBuilder.build(
+                    profile: profile, places: found, lodgingOffers: offers, fuelType: grade, regionalFuelPrice: regionalPrice
+                ),
+                request: forGrade, positions: prepared.required, regionalFuelPrice: regionalPrice, pricing: configuration.pricing
             )
         }
         let grade = request.vehicle.fuelType

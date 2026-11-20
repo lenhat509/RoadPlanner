@@ -9,6 +9,8 @@ public enum StopKind: String, Codable, CaseIterable, Sendable {
     case fuel
     /// Overnight stay.
     case lodging
+    /// A place the traveler asked to visit on the way (1.2.0).
+    case visit
     case destination
 
     public var displayName: String {
@@ -17,6 +19,7 @@ public enum StopKind: String, Codable, CaseIterable, Sendable {
         case .rest: "Rest stop"
         case .fuel: "Fuel stop"
         case .lodging: "Overnight stay"
+        case .visit: "Stop on the way"
         case .destination: "Destination"
         }
     }
@@ -84,6 +87,12 @@ public struct ItineraryStop: Codable, Hashable, Sendable, Identifiable {
     public var isRoadsidePullOff: Bool
     /// Zero-based travel day.
     public var dayIndex: Int
+    /// `true` for a stop the traveler asked for (a visit or a kept stop); nil for others and in
+    /// plans made before 1.2.0.
+    public var isRequired: Bool?
+
+    /// A stop the traveler asked for: a place to visit, or a stop kept from an earlier plan.
+    public var isRequiredStop: Bool { isRequired == true }
 
     public init(
         id: String = UUID().uuidString,
@@ -96,7 +105,8 @@ public struct ItineraryStop: Codable, Hashable, Sendable, Identifiable {
         fuelPurchase: FuelPurchase? = nil,
         lodging: LodgingStay? = nil,
         isRoadsidePullOff: Bool = false,
-        dayIndex: Int
+        dayIndex: Int,
+        isRequired: Bool = false
     ) {
         self.id = id
         self.kind = kind
@@ -109,6 +119,7 @@ public struct ItineraryStop: Codable, Hashable, Sendable, Identifiable {
         self.lodging = lodging
         self.isRoadsidePullOff = isRoadsidePullOff
         self.dayIndex = dayIndex
+        self.isRequired = isRequired ? true : nil
     }
 
     /// Time spent at the stop.

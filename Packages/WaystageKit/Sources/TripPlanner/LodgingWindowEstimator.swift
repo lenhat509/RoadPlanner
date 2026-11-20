@@ -23,25 +23,38 @@ public struct LodgingWindowEstimator: Sendable {
         self.lookAhead = lookAhead
     }
 
+    /// - Parameters:
+    ///   - stays: visits on the way (time along the route, and how long), which push later days back.
+    ///   - drivenToday: driving already done today (a trip planned again during a drive).
     public func windows(
         routeDuration: TimeInterval,
         departure: Date,
         utcOffset: Int,
-        policy: DrivingPolicy
+        policy: DrivingPolicy,
+        stays: [(at: TimeInterval, duration: TimeInterval)] = [],
+        drivenToday initialDriving: TimeInterval = 0
     ) -> [LodgingWindow] {
         var windows: [LodgingWindow] = []
         var along: TimeInterval = 0
         var clock = departure.timeIntervalSince1970 + Double(utcOffset) // local seconds
-        var drivenToday: TimeInterval = 0
+        var drivenToday: TimeInterval = min(max(0, initialDriving), max(0, policy.maxDailyDriving - 3_600))
         var cutoff = dayCutoff(startingAt: clock, policy: policy)
         var day = 0
+        var pendingStays = stays.sorted { $0.at < $1.at }
 
         while along < routeDuration && day < 60 {
+            // Reached a visit: the clock moves on by its stay.
+            if let stay = pendingStays.first, stay.at - along <= 60 {
+                clock += stay.duration
+                pendingStays.removeFirst()
+                continue
+            }
             let available = min(
                 policy.maxContinuousDriving,
                 routeDuration - along,
                 policy.maxDailyDriving - drivenToday,
-                cutoff - clock
+                cutoff - clock,
+                pendingStays.first.map { $0.at - along } ?? .infinity
             )
             if available > 60 {
                 along += available

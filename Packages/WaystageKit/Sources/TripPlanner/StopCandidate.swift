@@ -11,6 +11,14 @@ public struct StopCapabilities: OptionSet, Codable, Hashable, Sendable {
     public static let lodging = StopCapabilities(rawValue: 1 << 2)
 }
 
+/// What the driver does at a stop the plan must include.
+public enum StopRequirement: Hashable, Sendable {
+    /// A place to visit, for `stay`.
+    case visit(stay: TimeInterval)
+    /// A kept break, fuel stop or hotel.
+    case rest, refuel, overnight
+}
+
 /// A place along the route the optimizer may choose as a stop.
 public struct StopCandidate: Hashable, Sendable, Identifiable {
     public var id: String
@@ -38,6 +46,8 @@ public struct StopCandidate: Hashable, Sendable, Identifiable {
     public var isRoadsidePullOff: Bool
     /// A placeholder overnight area used only when no real lodging is known (last-resort plans).
     public var isLodgingSearchArea: Bool
+    /// A stop the plan must include (nil: the optimizer may choose it or not).
+    public var requirement: StopRequirement?
 
     public init(
         id: String,
@@ -56,7 +66,8 @@ public struct StopCandidate: Hashable, Sendable, Identifiable {
         bookingURL: URL? = nil,
         rating: Double? = nil,
         isRoadsidePullOff: Bool = false,
-        isLodgingSearchArea: Bool = false
+        isLodgingSearchArea: Bool = false,
+        requirement: StopRequirement? = nil
     ) {
         self.id = id
         self.place = place
@@ -75,6 +86,7 @@ public struct StopCandidate: Hashable, Sendable, Identifiable {
         self.rating = rating
         self.isRoadsidePullOff = isRoadsidePullOff
         self.isLodgingSearchArea = isLodgingSearchArea
+        self.requirement = requirement
     }
 
     /// `true` for real places (not generated pull-offs or lodging search areas).

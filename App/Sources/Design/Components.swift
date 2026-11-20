@@ -181,7 +181,8 @@ struct StopLegend: View {
         let order: [Entry] = [
             Entry(kind: .origin, isPullOff: false), Entry(kind: .rest, isPullOff: false),
             Entry(kind: .rest, isPullOff: true), Entry(kind: .fuel, isPullOff: false),
-            Entry(kind: .lodging, isPullOff: false), Entry(kind: .destination, isPullOff: false),
+            Entry(kind: .lodging, isPullOff: false), Entry(kind: .visit, isPullOff: false),
+            Entry(kind: .destination, isPullOff: false),
         ]
         let present = Set(stops.map { Entry(kind: $0.kind, isPullOff: $0.isRoadsidePullOff) })
         return order.filter(present.contains)
