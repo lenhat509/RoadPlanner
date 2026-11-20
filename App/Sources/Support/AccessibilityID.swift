@@ -27,6 +27,10 @@ enum AccessibilityID {
         static let submit = "plan.submit"
         static let progress = "plan.progress"
         static let cancel = "plan.cancel"
+        static let addStop = "plan.addStop"
+        static func stop(_ index: Int) -> String { "plan.stop.\(index)" }
+        static func stopStay(_ index: Int) -> String { "plan.stopStay.\(index)" }
+        static func stopMenu(_ index: Int) -> String { "plan.stopMenu.\(index)" }
         static func suggestion(_ text: String) -> String { "plan.suggestion.\(text)" }
     }
 
@@ -45,6 +49,11 @@ enum AccessibilityID {
         /// The routes found, best first.
         static func route(_ index: Int) -> String { "results.route.\(index)" }
         static func day(_ index: Int) -> String { "results.day.\(index)" }
+        static let keepStop = "results.keepStop"
+        static let removeStop = "results.removeStop"
+        static func hotelChoice(_ index: Int) -> String { "results.hotelChoice.\(index)" }
+        static let planAgain = "results.planAgain"
+        static let discardChanges = "results.discardChanges"
     }
 
     enum Drive {
@@ -53,6 +62,8 @@ enum AccessibilityID {
         static let continueToNext = "drive.continue"
         static let arrivalCard = "drive.arrivalCard"
         static let menu = "drive.menu"
+        static let planRestAgain = "drive.planRestAgain"
+        static let replanSuggestion = "drive.replanSuggestion"
         static let arrived = "drive.arrived"
         static let skip = "drive.skip"
         static let mute = "drive.mute"

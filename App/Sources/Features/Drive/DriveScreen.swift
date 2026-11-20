@@ -1,6 +1,7 @@
 import SwiftUI
 import TripFeatures
 import TripModels
+import TripPlanner
 import UIKit
 
 /// Turn-by-turn drive mode, laid out like the navigation apps drivers already know: the next turn
@@ -39,12 +40,26 @@ struct DriveScreen: View {
     private let navigation: GoogleNavigationEngine?
     /// Leaves drive mode (the environment stops the drive).
     let onFinish: () -> Void
+    /// Drives a new plan for the rest of the trip instead (the environment replaces the drive).
+    let onReplaceTrip: (ActiveTrip) -> Void
+    /// The rest of the trip planned again, while the driver looks at it.
+    @State private var restOfTrip: RestOfTrip?
+    @State private var isPlanningRest = false
 
-    init(model: DriveViewModel, dependencies: AppDependencies, navigation: GoogleNavigationEngine?, onFinish: @escaping () -> Void) {
+    struct RestOfTrip: Identifiable {
+        let id = UUID()
+        let result: PlanResult
+    }
+
+    init(
+        model: DriveViewModel, dependencies: AppDependencies, navigation: GoogleNavigationEngine?,
+        onReplaceTrip: @escaping (ActiveTrip) -> Void, onFinish: @escaping () -> Void
+    ) {
         self.model = model
         _showsSafetyNotice = State(initialValue: !dependencies.preferences.load().hasAcceptedSafetyNotice)
         self.dependencies = dependencies
         self.navigation = navigation
+        self.onReplaceTrip = onReplaceTrip
         self.onFinish = onFinish
     }
 
@@ -84,6 +99,27 @@ struct DriveScreen: View {
             Button("Keep driving", role: .cancel) {}
         } message: {
             Text("Your progress on this trip will be cleared.")
+        }
+        // Only ever opened by the driver, while stopped (or before Start).
+        .sheet(item: $restOfTrip) { plan in
+            NavigationStack {
+                PlanResultScreen(result: plan.result, dependencies: dependencies, startButtonTitle: "Use this plan") { trip in
+                    restOfTrip = nil
+                    onReplaceTrip(trip)
+                }
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { restOfTrip = nil }
+                    }
+                }
+            }
+        }
+        .overlay {
+            if isPlanningRest {
+                ProgressView("Planning the rest of the trip…")
+                    .padding(Theme.Spacing.l)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
         }
         // Google's map and banner switch between their day and night looks with the time of day
         // where the car is (not the phone's appearance): drive mode's own panels, menus and
@@ -133,12 +169,18 @@ struct DriveScreen: View {
                                 .transition(.move(edge: .leading).combined(with: .opacity))
                         }
                         if !isGuiding {
-                            bottomPanel
-                                .onGeometryChange(for: CGFloat.self) { proxy in
-                                    proxy.frame(in: .global).minY
-                                } action: { top in
-                                    panelTop = top
+                            VStack(spacing: Theme.Spacing.xs) {
+                                if let suggestion = shownReplanSuggestion {
+                                    replanCard(suggestion)
+                                        .transition(.move(edge: .bottom).combined(with: .opacity))
                                 }
+                                bottomPanel
+                            }
+                            .onGeometryChange(for: CGFloat.self) { proxy in
+                                proxy.frame(in: .global).minY
+                            } action: { top in
+                                panelTop = top
+                            }
                         }
                     }
                 }
@@ -388,6 +430,42 @@ struct DriveScreen: View {
         }
     }
 
+    // MARK: Planning the rest again
+
+    /// Stopped at a stop, or before Start: never while guiding.
+    private var isStoppedForPlanning: Bool { model.mode == .atStop || isPreviewing }
+
+    private var shownReplanSuggestion: DriveViewModel.ReplanSuggestion? {
+        isStoppedForPlanning ? model.replanSuggestion : nil
+    }
+
+    private func replanCard(_ suggestion: DriveViewModel.ReplanSuggestion) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Label(suggestion.text, systemImage: "clock.badge.exclamationmark")
+                .font(.subheadline.weight(.medium))
+                .fixedSize(horizontal: false, vertical: true)
+            Button(action: planRestAgain) {
+                Label("Plan the rest again", systemImage: "arrow.triangle.2.circlepath")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.secondary)
+            .disabled(isPlanningRest)
+        }
+        .padding(Theme.Spacing.s)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(AccessibilityID.Drive.replanSuggestion)
+    }
+
+    private func planRestAgain() {
+        guard !isPlanningRest else { return }
+        isPlanningRest = true
+        Task {
+            defer { isPlanningRest = false }
+            if let result = await model.planRestAgain() { restOfTrip = RestOfTrip(result: result) }
+        }
+    }
+
     @ViewBuilder
     private var menuContent: some View {
         if model.isHeadingToStart {
@@ -415,6 +493,12 @@ struct DriveScreen: View {
                 }
                 .accessibilityIdentifier(AccessibilityID.Drive.skip)
             }
+        }
+        if model.canPlanRestAgain && isStoppedForPlanning {
+            Button(action: planRestAgain) {
+                Label("Plan the rest again", systemImage: "arrow.triangle.2.circlepath")
+            }
+            .accessibilityIdentifier(AccessibilityID.Drive.planRestAgain)
         }
         if let url = model.googleMapsURL {
             Button {

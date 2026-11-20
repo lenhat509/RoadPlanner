@@ -55,7 +55,10 @@ struct RootView: View {
         }
         // The drive in progress, started here or on CarPlay.
         .fullScreenCover(item: driveBinding) { drive in
-            DriveScreen(model: drive, dependencies: environment.dependencies, navigation: environment.navigation) {
+            DriveScreen(
+                model: drive, dependencies: environment.dependencies, navigation: environment.navigation,
+                onReplaceTrip: { trip in Task { await environment.beginDrive(trip) } }
+            ) {
                 Task { await environment.endDrive() }
                 path.removeAll()
             }

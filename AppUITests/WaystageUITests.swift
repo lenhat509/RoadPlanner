@@ -222,6 +222,53 @@ final class WaystageUITests: XCTestCase {
         XCTAssertFalse(app.buttons[AccessibilityID.Home.resume].exists)
     }
 
+    // MARK: Stops on the way and editing a plan
+
+    func testAStopOnTheWayIsPlannedWithItsStay() {
+        launch()
+        app.buttons[AccessibilityID.Home.planTrip].tap()
+        choosePlace(field: AccessibilityID.Plan.origin, typing: "San Fr", pick: "San Francisco")
+        choosePlace(field: AccessibilityID.Plan.destination, typing: "Vegas", pick: "Las Vegas")
+        let addStop = app.buttons[AccessibilityID.Plan.addStop]
+        XCTAssertTrue(addStop.waitForExistence(timeout: 5))
+        addStop.tap()
+        choosePlace(field: AccessibilityID.Plan.stop(0), typing: "Los", pick: "Los Angeles")
+        let submit = app.buttons[AccessibilityID.Plan.submit]
+        XCTAssertTrue(submit.waitForExistence(timeout: 5))
+        XCTAssertTrue(submit.isEnabled, "a stop with a place doesn't block planning")
+        submit.tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.start].waitForExistence(timeout: 30))
+        XCTAssertFalse(app.buttons[AccessibilityID.Results.route(1)].exists, "one route through the stop")
+        let timeline = element(AccessibilityID.Results.timeline)
+        XCTAssertTrue(timeline.waitForExistence(timeout: 5))
+        let visit = timeline.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "1 h there")).firstMatch
+        XCTAssertTrue(visit.waitForExistence(timeout: 5), "Los Angeles is in the plan with its 1 h stay")
+    }
+
+    func testRemovingAStopAndPlanningAgain() {
+        launch()
+        planLosAngelesToVegas()
+        let timeline = element(AccessibilityID.Results.timeline)
+        XCTAssertTrue(timeline.waitForExistence(timeout: 5))
+        // A real rest area (generated roadside breaks can't be removed).
+        let rest = timeline.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@ AND NOT (label CONTAINS %@)", "min stop", "No facility")
+        ).firstMatch
+        XCTAssertTrue(rest.waitForExistence(timeout: 5), "a break in the plan; on screen: \(app.visibleIdentifiers())")
+        let name = rest.label.components(separatedBy: ",").first ?? rest.label
+        rest.tap()
+        let remove = app.buttons[AccessibilityID.Results.removeStop]
+        XCTAssertTrue(remove.waitForExistence(timeout: 5))
+        remove.tap()
+        app.buttons["Done"].firstMatch.tap()
+        let planAgain = app.buttons[AccessibilityID.Results.planAgain]
+        XCTAssertTrue(planAgain.waitForExistence(timeout: 5), "changes are planned on request")
+        planAgain.tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.start].waitForExistence(timeout: 30), "the new plan is shown")
+        let removed = timeline.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name + ",")).firstMatch
+        XCTAssertFalse(removed.exists, "\(name) isn't in the new plan")
+    }
+
     func testSettingsArePersisted() {
         launch()
         app.buttons[AccessibilityID.Home.settings].tap()

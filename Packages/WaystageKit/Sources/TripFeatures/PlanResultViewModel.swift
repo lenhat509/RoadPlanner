@@ -196,6 +196,14 @@ public final class PlanResultViewModel {
         if choice != nil { removedStopIDs.remove(stopID) }
     }
 
+    /// Drops the changes not planned yet.
+    public func discardChanges() { resetEdits() }
+
+    public func dismissPlanAgainError() { planAgainError = nil }
+
+    /// Stops that will be in the next plan whatever the planner chooses (kept, visits, chosen hotels).
+    public var keptOrChosenStopIDs: Set<String> { keptStopIDs.union(chosenHotels.keys) }
+
     private func resetEdits() {
         keptStopIDs = Set(selected?.stops.filter(\.isRequiredStop).map(\.id) ?? [])
         removedStopIDs = []

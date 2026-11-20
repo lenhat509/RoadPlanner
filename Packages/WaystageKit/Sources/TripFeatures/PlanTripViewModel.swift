@@ -151,6 +151,11 @@ public final class PlanTripViewModel {
         stops.swapAt(index, target)
     }
 
+    /// "1 h 30 min" for a stay.
+    public func stayText(_ minutes: Double) -> String {
+        dependencies.formatters.duration(minutes * 60)
+    }
+
     public func setStay(_ minutes: Double, for id: String) {
         guard let index = stops.firstIndex(where: { $0.id == id }) else { return }
         stops[index].stayMinutes = min(max(minutes, Self.stayRange.lowerBound), Self.stayRange.upperBound)

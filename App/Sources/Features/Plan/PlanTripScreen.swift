@@ -21,6 +21,10 @@ struct PlanTripScreen: View {
             VStack(spacing: Theme.Spacing.l) {
                 routeCard
                 VStack(spacing: Theme.Spacing.xs) {
+                    SectionLabel(title: "Stops on the way")
+                    stopsCard
+                }
+                VStack(spacing: Theme.Spacing.xs) {
                     SectionLabel(title: "When")
                     whenCard
                 }
@@ -131,45 +135,137 @@ struct PlanTripScreen: View {
         .frame(minHeight: 50)
     }
 
-    /// Suggestions for whichever field is being typed into, inside the route card.
+    /// Suggestions for whichever of start and destination is being typed into, inside the route card.
     @ViewBuilder
     private var suggestions: some View {
         let field: PlanTripViewModel.Field? = !model.origin.suggestions.isEmpty
             ? .origin
             : (!model.destination.suggestions.isEmpty ? .destination : nil)
         if let field {
-            VStack(spacing: 0) {
-                ForEach(model.input(for: field).suggestions) { suggestion in
-                    Divider().padding(.leading, 34)
-                    Button {
-                        focusedField = field == .origin && model.destination.place == nil ? .destination : nil
-                        Task { await model.select(suggestion, for: field) }
-                    } label: {
-                        HStack(spacing: Theme.Spacing.s) {
-                            Image(systemName: "mappin.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(Theme.color(for: field == .origin ? .origin : .destination).opacity(0.85))
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(suggestion.primaryText)
-                                    .foregroundStyle(.primary)
-                                if !suggestion.secondaryText.isEmpty {
-                                    Text(suggestion.secondaryText)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.vertical, 10)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier(AccessibilityID.Plan.suggestion(suggestion.primaryText))
-                }
-            }
-            .padding(.top, Theme.Spacing.xxs)
-            .transition(.opacity)
+            suggestionList(for: field)
         }
+    }
+
+    private func suggestionList(for field: PlanTripViewModel.Field) -> some View {
+        let kind: StopKind = switch field {
+        case .origin: .origin
+        case .destination: .destination
+        case .stop: .visit
+        }
+        return VStack(spacing: 0) {
+            ForEach(model.input(for: field).suggestions) { suggestion in
+                Divider().padding(.leading, 34)
+                Button {
+                    focusedField = field == .origin && model.destination.place == nil ? .destination : nil
+                    Task { await model.select(suggestion, for: field) }
+                } label: {
+                    HStack(spacing: Theme.Spacing.s) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Theme.color(for: kind).opacity(0.85))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(suggestion.primaryText)
+                                .foregroundStyle(.primary)
+                            if !suggestion.secondaryText.isEmpty {
+                                Text(suggestion.secondaryText)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(AccessibilityID.Plan.suggestion(suggestion.primaryText))
+            }
+        }
+        .padding(.top, Theme.Spacing.xxs)
+        .transition(.opacity)
+    }
+
+    // MARK: Stops on the way
+
+    private var stopsCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(model.stops.enumerated()), id: \.element.id) { index, stop in
+                stopRow(stop, index: index)
+                if !model.input(for: .stop(stop.id)).suggestions.isEmpty {
+                    suggestionList(for: .stop(stop.id))
+                }
+                Divider()
+            }
+            if model.canAddStop {
+                Button {
+                    if let field = withAnimation(.snappy, { model.addStop() }) { focusedField = field }
+                } label: {
+                    Label("Add a stop", systemImage: "plus.circle.fill")
+                        .font(.body.weight(.medium))
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+                .accessibilityIdentifier(AccessibilityID.Plan.addStop)
+            }
+            Text(model.stops.isEmpty
+                ? "Places to visit on the way, like a park or a friend's town, with how long to stay."
+                : "With stops on the way, Waystage plans one route through them, in this order.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, Theme.Spacing.xs)
+        }
+        .card(padding: Theme.Spacing.s)
+    }
+
+    private func stopRow(_ stop: PlanTripViewModel.StopInput, index: Int) -> some View {
+        let field = PlanTripViewModel.Field.stop(stop.id)
+        return VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+            HStack(spacing: Theme.Spacing.xs) {
+                Image(systemName: "mappin.circle.fill")
+                    .foregroundStyle(Theme.color(for: .visit))
+                    .accessibilityHidden(true)
+                TextField("Stop \(index + 1)", text: Binding(
+                    get: { model.input(for: field).text },
+                    set: { model.queryChanged($0, for: field) }
+                ))
+                .font(.body.weight(stop.location.place == nil ? .regular : .semibold))
+                .focused($focusedField, equals: field)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier(AccessibilityID.Plan.stop(index))
+                if stop.location.isResolving {
+                    ProgressView()
+                } else if stop.location.place != nil {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Theme.success)
+                        .accessibilityLabel("Place selected")
+                }
+                Menu {
+                    Button("Move earlier", systemImage: "arrow.up") { withAnimation(.snappy) { model.moveStop(stop.id, by: -1) } }
+                        .disabled(index == 0)
+                    Button("Move later", systemImage: "arrow.down") { withAnimation(.snappy) { model.moveStop(stop.id, by: 1) } }
+                        .disabled(index == model.stops.count - 1)
+                    Button("Remove", systemImage: "trash", role: .destructive) { withAnimation(.snappy) { model.removeStop(stop.id) } }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3)
+                        .frame(width: 36, height: 36)
+                }
+                .accessibilityLabel("Stop \(index + 1) options")
+                .accessibilityIdentifier(AccessibilityID.Plan.stopMenu(index))
+            }
+            Stepper(
+                value: Binding(get: { stop.stayMinutes }, set: { model.setStay($0, for: stop.id) }),
+                in: PlanTripViewModel.stayRange, step: PlanTripViewModel.stayStep
+            ) {
+                Text("Stay \(model.stayText(stop.stayMinutes))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityIdentifier(AccessibilityID.Plan.stopStay(index))
+        }
+        .padding(.vertical, Theme.Spacing.xs)
     }
 
     // MARK: When
