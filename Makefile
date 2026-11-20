@@ -1,7 +1,7 @@
 # Waystage developer commands. Run `make help`.
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: help bootstrap secrets project open test test-quick test-core test-gateway test-ios lint format icon screenshots beta release
+.PHONY: help bootstrap secrets project open test test-quick test-core test-gateway test-ios lint format icon screenshots upload-build create-version update-version submit-for-review release-all signing
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -50,8 +50,20 @@ icon: ## Regenerate the App Store icon
 screenshots: ## Capture sandbox screenshots for design review (macOS; not for the App Store)
 	bundle exec fastlane screenshots
 
-beta: ## Build and upload to TestFlight
-	bundle exec fastlane beta
+upload-build: ## Upload a build to TestFlight
+	bundle exec fastlane upload_build
 
-release: ## Upload the listing, review notes and age rating to App Store Connect
-	bundle exec fastlane release
+create-version: ## App Store Connect: + Version, then update-version
+	bundle exec fastlane create_version
+
+update-version: ## App Store Connect: the version page and App Information from the repository
+	bundle exec fastlane update_version
+
+submit-for-review: ## App Store Connect: choose the build, Submit for Review
+	bundle exec fastlane submit_for_review
+
+release-all: ## All of the above in one run
+	bundle exec fastlane release_all
+
+signing: ## Create or renew the signing certificate and App Store profile
+	bundle exec fastlane signing

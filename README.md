@@ -71,9 +71,10 @@ XCUITests drive the real app in an offline sandbox. Every run is recorded in
 
 ## Shipping
 
-See [docs/APP_STORE_RELEASE.md](docs/APP_STORE_RELEASE.md). The manual *Release* GitHub workflow
-runs lane `beta` (TestFlight) or `release` (listing, review notes and age rating for App Store
-submission; screenshots are taken on a real iPhone); on a Mac, `make beta` and `make release` do the same.
+See [docs/APP_STORE_RELEASE.md](docs/APP_STORE_RELEASE.md). The manual *Release* GitHub workflow has
+one lane per App Store Connect step (`upload_build`, `create_version`, `update_version`,
+`submit_for_review`) and `release_all` for all of them; *Signing* creates or renews the signing
+certificate and profile. On a Mac, `make` runs the same lanes (`make help`).
 
 ## Third-party services
 

@@ -23,6 +23,13 @@ Version 1.1.1: 1.1.0 is approved, so App Store Connect only takes builds with a 
 - Google's Maps SDK is pinned to the Navigation SDK's version (11.3.0): Google's 11.4.0 Maps SDK
   doesn't build with the 11.3.0 Navigation SDK. CI also builds the app for iPhones as Release
   does.
+- **Release workflow: one lane per App Store Connect step.** `upload_build` (TestFlight),
+  `create_version` (+ Version), `update_version` (the version page and App Information, now with
+  screenshots and app previews from `fastlane/app_store`), `submit_for_review` (choose the build,
+  Submit for Review), and `release_all` for all of them in one run. Lanes stop early with the
+  reason when App Store Connect wouldn't accept the step. Creating or renewing the signing
+  certificate and profile moved to a separate **Signing** workflow; the only checkbox left is
+  **run_tests**. The App Review contact can come from optional secrets.
 
 ## [1.1.0] — 2026-11-18
 

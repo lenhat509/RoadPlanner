@@ -4,6 +4,9 @@
 #   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_CONTENT (base64 .p8)  — App Store Connect API key
 #   MATCH_GIT_URL, MATCH_PASSWORD                              — fastlane match
 #   WAYSTAGE_BUNDLE_ID, WAYSTAGE_TEAM_ID                         — app identity
+# Optional:
+#   REVIEW_FIRST_NAME, REVIEW_LAST_NAME, REVIEW_PHONE, REVIEW_EMAIL — App Review contact
+#   RELEASE_VERSION, RELEASE_BUILD — the Release workflow's "version" and "build" fields
 require "json"
 require "fileutils"
 
@@ -14,9 +17,18 @@ SCHEME = "Waystage"
 # A 6.9-inch iPhone, the size App Store Connect asks for (CI passes its newest Pro Max).
 SCREENSHOT_DEVICE = ENV["SCREENSHOT_DEVICE"].to_s.empty? ? "iPhone 16 Pro Max" : ENV["SCREENSHOT_DEVICE"]
 
+# Lanes that compile the app need the Xcode project, generated from project.yml. The App Store
+# lanes only talk to App Store Connect and run on Linux, which has no XcodeGen.
+LANES_THAT_BUILD = %i[test screenshots upload_build release_all].freeze
+
+# Screenshots and app previews for the App Store (public), kept apart from the sandbox screenshots
+# in fastlane/screenshots, which are never uploaded. See fastlane/app_store/README.md. Absolute,
+# because Fastfile code runs in fastlane/ while actions run in the project root.
+APP_STORE_MEDIA = File.expand_path("app_store", __dir__)
+
 platform :ios do
-  before_all do
-    Dir.chdir("..") { sh("xcodegen", "generate", "--quiet") }
+  before_all do |lane|
+    Dir.chdir("..") { sh("xcodegen", "generate", "--quiet") } if LANES_THAT_BUILD.include?(lane)
   end
 
   desc "Runs app unit tests and UI tests on the simulator"
@@ -52,19 +64,96 @@ platform :ios do
     rename_exported_screenshots(output_path)
   end
 
-  desc "Builds, signs and uploads a TestFlight build"
-  lane :beta do
+  # One lane per App Store Connect step, plus release_all for all of them in one run. The Release
+  # workflow runs them; the Signing workflow runs `signing`.
+
+  desc "Upload a build to TestFlight (MARKETING_VERSION from project.yml)"
+  lane :upload_build do
     verify_release_configuration(require_gateway: false)
     api_key = asc_api_key
-    # MATCH_READONLY=false (the workflow's "create_certificates") lets the first run create the
-    # certificate and profile, no Mac needed. Read it before setup_ci, which resets it to true.
-    readonly = ENV.fetch("MATCH_READONLY", is_ci.to_s) == "true"
+    ensure_higher_than_approved!(asc_app, marketing_version)
+    build_and_upload(api_key: api_key, wait_for_processing: false)
+  end
+
+  desc "Create the version (+ Version, Prepare for Submission), then fill it in as update_version does"
+  lane :create_version do
+    api_key = asc_api_key
+    app = asc_app
+    version = requested_version || marketing_version
+    ensure_higher_than_approved!(app, version)
+    current = version_in_progress(app)
+    if current
+      if current.version_string == version
+        next_step = editable?(current) ? ": run update_version or submit_for_review" : ""
+        UI.user_error!("#{version} already exists (#{state_name(current)})#{next_step}.")
+      end
+      UI.user_error!("#{current.version_string} is #{state_name(current)}. App Store Connect keeps one version in progress: " \
+                     "submit it or delete it in App Store Connect before creating #{version}.")
+    end
+    upload_version_page(api_key: api_key, version: version, create: true)
+  end
+
+  desc "Fill in the version page and App Information from the repository (texts, screenshots, previews, age rating, App Review Information)"
+  lane :update_version do
+    api_key = asc_api_key
+    version = requested_version || marketing_version
+    current = editable_version!(asc_app, version)
+    upload_version_page(api_key: api_key, version: current.version_string, create: false)
+  end
+
+  desc "Choose the build (newest of the version, or RELEASE_BUILD) and Submit for Review"
+  lane :submit_for_review do
+    api_key = asc_api_key
+    current = editable_version!(asc_app, requested_version)
+    build = ENV["RELEASE_BUILD"].to_s.strip
+    submit_version(api_key: api_key, version: current, build_number: build.empty? ? "latest" : build)
+  end
+
+  desc "All steps in one run: upload_build, create_version if needed, update_version, submit_for_review with the new build"
+  lane :release_all do
+    verify_release_configuration(require_gateway: false)
+    api_key = asc_api_key
+    app = asc_app
+    version = marketing_version
+    ensure_higher_than_approved!(app, version)
+    # Checked before building, so a version that can't take this build stops the run early.
+    current = version_in_progress(app)
+    if current && (current.version_string != version || !editable?(current))
+      UI.user_error!("#{current.version_string} is #{state_name(current)}, so #{version} can't be submitted now. " \
+                     "Submit or delete #{current.version_string} in App Store Connect first.")
+    end
+    build_number = build_and_upload(api_key: api_key, wait_for_processing: true)
+    begin
+      upload_version_page(api_key: api_key, version: version, create: current.nil?)
+      submit_version(api_key: api_key, version: editable_version!(app, version), build_number: build_number.to_s)
+    rescue StandardError => e
+      UI.user_error!("#{e.message}\nBuild #{build_number} of #{version} is in TestFlight. Once the problem is fixed, finish with " \
+                     "update_version (or create_version if #{version} doesn't exist yet), then submit_for_review with build #{build_number}.")
+    end
+  end
+
+  desc "Create or renew the signing certificate and App Store profile (the Signing workflow)"
+  lane :signing do
+    api_key = asc_api_key
     setup_ci if is_ci
     bundle_id = ENV.fetch("WAYSTAGE_BUNDLE_ID")
-    # MATCH_FORCE=true (the workflow's "refresh_profile") makes a new profile, e.g. after CarPlay
-    # was turned on for the App ID.
-    force = ENV["MATCH_FORCE"] == "true"
-    match(type: "appstore", app_identifier: bundle_id, readonly: readonly && !force, force: force, api_key: api_key)
+    # Creates the certificate if there is none, replaces it if it expired, and always makes a new
+    # profile, which picks up capabilities added to the App ID (as CarPlay was).
+    match(type: "appstore", app_identifier: bundle_id, readonly: false, force: true, renew_expired_certs: true, api_key: api_key)
+    verify_profile_has_carplay(bundle_id)
+  end
+
+  # Signs with the stored certificate and profile (read-only), builds with the next build number
+  # and uploads to TestFlight. Returns the build number.
+  private_lane :build_and_upload do |options|
+    api_key = options[:api_key]
+    setup_ci if is_ci
+    bundle_id = ENV.fetch("WAYSTAGE_BUNDLE_ID")
+    begin
+      match(type: "appstore", app_identifier: bundle_id, readonly: true, api_key: api_key)
+    rescue StandardError => e
+      UI.user_error!("#{e.message}\nIf the certificate or profile expired, run the Signing workflow, then build again.")
+    end
     verify_profile_has_carplay(bundle_id)
     # Sign only the app target manually with the match profile (Swift package targets are not signed).
     update_code_signing_settings(
@@ -84,43 +173,67 @@ platform :ios do
       output_directory: "build",
       xcargs: "CURRENT_PROJECT_VERSION=#{build_number}"
     )
-    upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
+    # release_all waits until Apple has processed the build, so it can be chosen for review.
+    upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: !options[:wait_for_processing])
+    UI.success("Uploaded #{marketing_version} (build #{build_number}) to TestFlight")
+    build_number
   end
 
-  desc "Uploads the listing, review notes and age rating to App Store Connect; with submit (the workflow's submit_for_review) also submits the version's newest build for review"
-  lane :release do |options|
-    # No build happens here: the app that goes to the store is the TestFlight build from `beta`,
-    # which checks its own configuration. Screenshots are taken on a real iPhone with real Google
-    # data and uploaded in App Store Connect by hand, so this lane leaves them alone.
-    api_key = asc_api_key
+  # The version page and App Information, from the repository: fastlane/metadata (texts, App
+  # Review notes), app_rating_config.json (Age Rating), the App Review contact from the
+  # REVIEW_* secrets (blank ones leave App Store Connect's values), and fastlane/app_store
+  # (screenshots and previews; an empty folder leaves App Store Connect's media untouched).
+  # Versions are released automatically once approved.
+  private_lane :upload_version_page do |options|
+    screenshots = Dir.glob(File.join(APP_STORE_MEDIA, "screenshots", "*", "*.{png,jpg,jpeg}"))
+    previews = Dir.glob(File.join(APP_STORE_MEDIA, "previews", "*", "*.{mp4,mov,m4v}"))
+    contact = {
+      first_name: ENV["REVIEW_FIRST_NAME"], last_name: ENV["REVIEW_LAST_NAME"],
+      phone_number: ENV["REVIEW_PHONE"], email_address: ENV["REVIEW_EMAIL"]
+    }.reject { |_, value| value.to_s.strip.empty? }
+    UI.message("Screenshots: #{screenshots.empty? ? "none in fastlane/app_store, left as they are" : screenshots.size}")
+    UI.message("App previews: #{previews.empty? ? "none in fastlane/app_store, left as they are" : previews.size}")
     deliver(
-      api_key: api_key,
-      app_version: marketing_version,
+      api_key: options[:api_key],
+      app_version: options[:version],
+      # create_version creates the version; update_version never creates or renames one.
+      skip_app_version_update: !options[:create],
       skip_binary_upload: true,
       metadata_path: "fastlane/metadata",
-      skip_screenshots: true,
       app_rating_config_path: "fastlane/app_rating_config.json",
-      # Selects the newest build of this version (waiting until Apple has processed it) and
-      # submits it; the encryption answer comes from Info.plist (ITSAppUsesNonExemptEncryption).
-      submit_for_review: options[:submit] == true || ENV["SUBMIT_FOR_REVIEW"] == "true",
-      # Released as soon as Apple approves it, as every version so far.
+      app_review_information: contact,
+      skip_screenshots: screenshots.empty?,
+      screenshots_path: File.join(APP_STORE_MEDIA, "screenshots"),
+      overwrite_screenshots: true,
+      app_previews_path: previews.empty? ? nil : File.join(APP_STORE_MEDIA, "previews"),
+      overwrite_preview_videos: true,
       automatic_release: true,
       force: true,
-      precheck_include_in_app_purchases: false,
-      submission_information: { add_id_info_uses_idfa: false, export_compliance_uses_encryption: false }
+      precheck_include_in_app_purchases: false
     )
   end
 
-  desc "Updates App Store metadata only"
-  lane :metadata do
+  # Chooses the build and submits the version for review. "latest" waits until the version's
+  # newest build is processed. The encryption answer is also in Info.plist
+  # (ITSAppUsesNonExemptEncryption = NO).
+  private_lane :submit_version do |options|
+    version = options[:version]
+    # Released automatically once approved, also when the version was created by hand.
+    version.update(attributes: { releaseType: "AFTER_APPROVAL" }) unless version.release_type == "AFTER_APPROVAL"
+    build = options[:build_number] == "latest" ? "its newest build" : "build #{options[:build_number]}"
+    UI.message("Submitting #{version.version_string} with #{build}")
     deliver(
-      api_key: asc_api_key,
-      app_version: marketing_version,
+      api_key: options[:api_key],
+      app_version: version.version_string,
+      build_number: options[:build_number],
+      skip_app_version_update: true,
       skip_binary_upload: true,
+      skip_metadata: true,
       skip_screenshots: true,
-      metadata_path: "fastlane/metadata",
-      app_rating_config_path: "fastlane/app_rating_config.json",
-      force: true
+      submit_for_review: true,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submission_information: { add_id_info_uses_idfa: false, export_compliance_uses_encryption: false }
     )
   end
 
@@ -153,8 +266,73 @@ platform :ios do
   end
 end
 
-# The app's version (MARKETING_VERSION in project.yml). The App Store version is set to it, so the
-# builds uploaded by `beta` (e.g. 1.0.0) can be chosen for review.
+# App Store Connect states of versions Apple has approved (live, or about to be), in both of
+# Spaceship's state attributes. A new version must be higher than these.
+APPROVED_STATES = %w[
+  ACCEPTED PENDING_APPLE_RELEASE PENDING_DEVELOPER_RELEASE PROCESSING_FOR_DISTRIBUTION READY_FOR_DISTRIBUTION
+  REPLACED_WITH_NEW_VERSION READY_FOR_SALE PROCESSING_FOR_APP_STORE
+].freeze
+# A version on its way to review, which App Store Connect allows one of at a time; the first ones
+# can still be edited and submitted.
+EDITABLE_STATES = %w[PREPARE_FOR_SUBMISSION DEVELOPER_REJECTED REJECTED METADATA_REJECTED INVALID_BINARY READY_FOR_REVIEW].freeze
+IN_PROGRESS_STATES = (EDITABLE_STATES + %w[WAITING_FOR_REVIEW IN_REVIEW WAITING_FOR_EXPORT_COMPLIANCE]).freeze
+
+def asc_app
+  bundle_id = ENV.fetch("WAYSTAGE_BUNDLE_ID")
+  Spaceship::ConnectAPI::App.find(bundle_id) || UI.user_error!("No app with the bundle ID #{bundle_id} in App Store Connect")
+end
+
+def version_state(version)
+  version.app_version_state || version.app_store_state
+end
+
+# As App Store Connect shows it, e.g. "Prepare for Submission".
+def state_name(version)
+  version_state(version).to_s.split("_").map(&:capitalize).join(" ").gsub(/\b(For|With|Of)\b/, &:downcase)
+end
+
+def editable?(version)
+  EDITABLE_STATES.include?(version_state(version))
+end
+
+def ios_versions(app)
+  app.get_app_store_versions(filter: { platform: "IOS" })
+end
+
+# The version on its way to review (in Prepare for Submission, rejected, or in review), if any.
+def version_in_progress(app)
+  ios_versions(app).find { |v| IN_PROGRESS_STATES.include?(version_state(v)) }
+end
+
+# The version that can be edited and submitted; `wanted` (if given) must be that version.
+def editable_version!(app, wanted)
+  current = version_in_progress(app)
+  UI.user_error!("No version is in Prepare for Submission: run create_version first.") unless current
+  if wanted && current.version_string != wanted
+    UI.user_error!("#{current.version_string} is the version in progress (#{state_name(current)}), not #{wanted}.")
+  end
+  return current if editable?(current)
+  UI.user_error!("#{current.version_string} is #{state_name(current)}: it can't be changed or submitted until Apple decides " \
+                 "(or until you remove it from review in App Store Connect).")
+end
+
+# App Store Connect only takes builds and versions higher than the last approved version.
+def ensure_higher_than_approved!(app, version)
+  approved = ios_versions(app).select { |v| APPROVED_STATES.include?(version_state(v)) }.map(&:version_string)
+  newest = approved.max_by { |v| Gem::Version.new(v) }
+  return if newest.nil? || Gem::Version.new(version) > Gem::Version.new(newest)
+  UI.user_error!("#{newest} is already approved, and App Store Connect only takes higher versions: " \
+                 "raise MARKETING_VERSION in project.yml (now #{version}).")
+end
+
+# The Release workflow's "Version" field (blank: none).
+def requested_version
+  value = ENV["RELEASE_VERSION"].to_s.strip
+  value.empty? ? nil : value
+end
+
+# The app's version (MARKETING_VERSION in project.yml); builds carry it, and a version's builds
+# must match its number.
 def marketing_version
   File.read(File.expand_path("../project.yml", __dir__), encoding: "UTF-8")[/MARKETING_VERSION:\s*"?([0-9.]+)"?/, 1]
 end
@@ -184,7 +362,6 @@ def verify_profile_has_carplay(bundle_id)
   UI.user_error!(
     "The provisioning profile doesn't include CarPlay yet. In the Apple Developer portal, open " \
     "Certificates, IDs & Profiles > Identifiers > #{bundle_id}, turn on CarPlay Navigation (listed " \
-    "once Apple has granted it to your account) and save. Then run the Release workflow again with " \
-    "\"refresh_profile\" ticked."
+    "once Apple has granted it to your account) and save. Then run the Signing workflow, and build again."
   )
 end

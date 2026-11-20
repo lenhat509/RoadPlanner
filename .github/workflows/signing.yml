@@ -1,0 +1,35 @@
+name: Signing
+# Creates or renews the App Store signing certificate and provisioning profile (fastlane match,
+# stored encrypted in the certificates repository). Builds only read them. Run this:
+#   - after a capability is turned on for the App ID (as CarPlay was): a new profile includes it;
+#   - when the certificate expires (Apple: one year): a new certificate and profile;
+#   - on first setup: the certificate and profile are created.
+# Builds stop with a message pointing here when one of these is needed.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  signing:
+    # match installs the certificate into a macOS keychain.
+    runs-on: xcode-27
+    environment: app-store
+    timeout-minutes: 30
+    env:
+      WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || secrets.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
+      WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || secrets.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: fastlane signing
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+        run: bundle exec fastlane signing

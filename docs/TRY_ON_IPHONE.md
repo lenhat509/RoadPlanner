@@ -55,6 +55,7 @@ Everything goes in GitHub, under **Settings → Secrets and variables → Action
 | Variable | `WAYSTAGE_TEAM_ID` | your Team ID |
 | Variable (optional) | `WAYSTAGE_COMPANY_NAME` | the legal name on your Google Maps Platform account, shown in Google's navigation terms dialog (default "Waystage") |
 | Secret (optional) | `WAYSTAGE_GATEWAY_URL`, `WAYSTAGE_GATEWAY_TOKEN` | only once the gateway is deployed |
+| Secret (optional) | `REVIEW_FIRST_NAME`, `REVIEW_LAST_NAME`, `REVIEW_PHONE`, `REVIEW_EMAIL` | the App Review contact, uploaded with the version page (only Apple sees it) |
 
 Nothing uses `SECRETS_XCCONFIG` or any `APPETIZE_…` secret or variable any more; delete them if
 they're listed.
@@ -63,10 +64,10 @@ Never paste these values into issues, chats or commits.
 
 ### Build and install
 
-1. **Actions → Release → Run workflow** with lane `beta` and **create_certificates** ticked
-   (first run only — it creates your distribution certificate and profile in the certificates
-   repo). Untick it for every later run. After turning on CarPlay Navigation for the App ID, tick
-   **refresh_profile** once instead, for a profile that includes CarPlay.
+1. First time only: **Actions → Signing → Run workflow** creates your distribution certificate and
+   profile in the certificates repo. Run it again after turning on CarPlay Navigation for the App
+   ID (a profile that includes CarPlay) and when the certificate expires (yearly).
+   Then **Actions → Release → Run workflow** with lane `upload_build`.
 2. After the run, App Store Connect processes the build (~10–30 minutes). In **TestFlight →
    Internal Testing**, add yourself as a tester (internal testers need no beta review).
 3. On your iPhone, install **TestFlight** from the App Store, open the invitation email and

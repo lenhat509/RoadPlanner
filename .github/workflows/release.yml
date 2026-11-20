@@ -1,34 +1,56 @@
 name: Release
-# Shows the lane in the list of runs, e.g. "Release: beta".
-run-name: "Release: ${{ inputs.lane }}${{ inputs.create_certificates && ' (create certificates)' || '' }}"
+# One lane per App Store Connect step, plus release_all for all of them in one run. The run's name
+# shows the lane, e.g. "Release: submit_for_review 1.1.1 (build 11)".
+run-name: "Release: ${{ inputs.lane }}${{ inputs.version != '' && format(' {0}', inputs.version) || '' }}${{ inputs.build != '' && format(' (build {0})', inputs.build) || '' }}"
 
 on:
   workflow_dispatch:
     inputs:
       lane:
-        description: "beta = build and send to TestFlight; release = fill in the version's App Store entry (listing, What's New, review notes, age rating; not screenshots), released automatically once approved; metadata = the same text without touching the release setting"
+        description: "upload_build: a build to TestFlight · create_version: + Version, then update_version · update_version: the version page and App Information from the repository · submit_for_review: choose the build, Submit for Review · release_all: all of them in one run"
         type: choice
-        options: [beta, release, metadata]
-        default: beta
-      create_certificates:
-        description: "First run only: let fastlane match create the signing certificate and profile"
-        type: boolean
-        default: false
-      refresh_profile:
-        description: "Make a new provisioning profile (once, after turning on CarPlay Navigation for the App ID)"
-        type: boolean
-        default: false
+        options: [upload_build, create_version, update_version, submit_for_review, release_all]
+        default: upload_build
       run_tests:
-        description: "Lane beta: run the iOS test suite before building"
-        type: boolean
-        default: true
-      submit_for_review:
-        description: "Lane release: also select this version's newest build (waits until Apple has processed it) and submit it for review; released automatically once approved"
+        description: "Run the iOS tests before building (upload_build, release_all)"
         type: boolean
         default: false
+      version:
+        description: "Version, e.g. 1.1.1 (create_version, update_version, submit_for_review). Blank: MARKETING_VERSION in project.yml; for submit_for_review, the version in Prepare for Submission"
+        type: string
+        default: ""
+      build:
+        description: "Build number, e.g. 11 (submit_for_review). Blank: the version's newest build"
+        type: string
+        default: ""
 
 jobs:
-  release:
+  options:
+    name: Check the options
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          LANE: ${{ inputs.lane }}
+          RUN_TESTS: ${{ inputs.run_tests }}
+          VERSION: ${{ inputs.version }}
+          BUILD: ${{ inputs.build }}
+        run: |
+          stop() { echo "::error::$1"; exit 1; }
+          case "$LANE" in
+            upload_build|release_all)
+              [ -z "$VERSION$BUILD" ] || stop "$LANE builds the version in project.yml (MARKETING_VERSION): leave version and build blank." ;;
+            *)
+              [ "$RUN_TESTS" != "true" ] || stop "run_tests is for upload_build and release_all, which build the app." ;;
+          esac
+          if [ -n "$BUILD" ] && [ "$LANE" != "submit_for_review" ]; then stop "build is for submit_for_review."; fi
+          [[ -z "$VERSION" || "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]] || stop "version looks like 1.1.1."
+          [[ -z "$BUILD" || "$BUILD" =~ ^[0-9]+$ ]] || stop "build is a number, like 11."
+          echo "$LANE${VERSION:+ $VERSION}${BUILD:+ (build $BUILD)}"
+
+  # Lanes that build the app: on a Mac with Xcode 27.
+  build:
+    needs: options
+    if: ${{ inputs.lane == 'upload_build' || inputs.lane == 'release_all' }}
     # Xcode 27 (iOS 27 SDK): from April 2027 the App Store only takes apps built with it
     # (ITMS-90725). GitHub ships one Xcode major version per macOS image; Xcode 27 is on this one.
     runs-on: xcode-27
@@ -40,11 +62,6 @@ jobs:
       WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || secrets.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
       WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || secrets.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
     steps:
-      - name: Check the options
-        if: ${{ inputs.submit_for_review && inputs.lane != 'release' }}
-        run: |
-          echo "::error::Submitting for review needs lane 'release'. Upload the build with lane 'beta' first, then run lane 'release' with submit_for_review."
-          exit 1
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -80,8 +97,8 @@ jobs:
           for name in WAYSTAGE_BUNDLE_ID WAYSTAGE_TEAM_ID GOOGLE_MAPS_API_KEY WAYSTAGE_GATEWAY_URL WAYSTAGE_GATEWAY_TOKEN WAYSTAGE_COMPANY_NAME; do
             if [ -n "${!name}" ]; then echo "set:     $name"; else echo "not set: $name"; fi
           done
-      - name: Test before shipping
-        if: ${{ inputs.run_tests && inputs.lane == 'beta' }}
+      - name: Run the iOS tests
+        if: ${{ inputs.run_tests }}
         run: scripts/test-all.sh ios
       - name: fastlane ${{ inputs.lane }}
         env:
@@ -91,7 +108,42 @@ jobs:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          MATCH_READONLY: ${{ inputs.create_certificates && 'false' || 'true' }}
-          MATCH_FORCE: ${{ inputs.refresh_profile && 'true' || 'false' }}
-          SUBMIT_FOR_REVIEW: ${{ inputs.submit_for_review && 'true' || 'false' }}
+          # App Review contact (optional; blank ones leave App Store Connect's values).
+          REVIEW_FIRST_NAME: ${{ secrets.REVIEW_FIRST_NAME }}
+          REVIEW_LAST_NAME: ${{ secrets.REVIEW_LAST_NAME }}
+          REVIEW_PHONE: ${{ secrets.REVIEW_PHONE }}
+          REVIEW_EMAIL: ${{ secrets.REVIEW_EMAIL }}
+        run: bundle exec fastlane ${{ inputs.lane }}
+
+  # Lanes that only talk to App Store Connect: on Linux (no Mac queue, no Mac minutes).
+  app-store:
+    needs: options
+    if: ${{ inputs.lane == 'create_version' || inputs.lane == 'update_version' || inputs.lane == 'submit_for_review' }}
+    runs-on: ubuntu-latest
+    environment: app-store
+    # submit_for_review can wait for Apple to finish processing a build.
+    timeout-minutes: 60
+    env:
+      WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || secrets.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
+      WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || secrets.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
+      # fastlane expects a UTF-8 locale.
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: fastlane ${{ inputs.lane }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          REVIEW_FIRST_NAME: ${{ secrets.REVIEW_FIRST_NAME }}
+          REVIEW_LAST_NAME: ${{ secrets.REVIEW_LAST_NAME }}
+          REVIEW_PHONE: ${{ secrets.REVIEW_PHONE }}
+          REVIEW_EMAIL: ${{ secrets.REVIEW_EMAIL }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_BUILD: ${{ inputs.build }}
         run: bundle exec fastlane ${{ inputs.lane }}

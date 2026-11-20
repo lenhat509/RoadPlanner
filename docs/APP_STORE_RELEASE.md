@@ -26,15 +26,15 @@ another machine, change `runs-on` in `ci.yml`, `release.yml` and `screenshots.ym
    ([TRY_ON_IPHONE.md](TRY_ON_IPHONE.md#github-secrets-and-variables)), including the optional
    `WAYSTAGE_COMPANY_NAME` variable: the legal name on the Google Maps Platform account, shown in
    Google's navigation terms dialog (default "Waystage").
-7. **Signing**: the first **Actions → Release** run, lane `beta`, with **create_certificates**
-   ticked creates the certificate and profile (stored encrypted in the certificates repository).
-   After turning on a capability for the App ID (CarPlay), run it once with **refresh_profile**
-   ticked for a new profile; `beta` stops with an explanation if the profile lacks CarPlay. See
-   [CARPLAY.md](CARPLAY.md).
-8. **App Store Connect**, besides what fastlane uploads:
-   * **App Review Information** on the version page: your name, phone and email. Only Apple sees
-     it, so it isn't kept in this public repository; fastlane uploads the review notes and leaves
-     the contact as you set it.
+7. **Signing**: **Actions → Signing → Run workflow** creates the distribution certificate and the
+   App Store profile (stored encrypted in the certificates repository). Run it again after
+   turning on a capability for the App ID (as for CarPlay) and when the certificate expires
+   (yearly); builds stop with a message pointing to it. See [CARPLAY.md](CARPLAY.md).
+8. **App Store Connect**, besides what the Release workflow uploads:
+   * **App Review Information** contact (name, phone, email): only Apple sees it, so it isn't in
+     the repository. Either save it as the optional secrets `REVIEW_FIRST_NAME`,
+     `REVIEW_LAST_NAME`, `REVIEW_PHONE` and `REVIEW_EMAIL` (uploaded with the version page), or
+     set it in App Store Connect; missing secrets leave App Store Connect's values.
    * **App Privacy**: as in [the next section](#app-privacy-nutrition-label-answers).
    * **Pricing and Availability**: Free. Prices, fuel grades and units are for the US, so the
      United States.
@@ -73,34 +73,61 @@ version, and appear on the store page as soon as they're published.
 
 ## Review notes
 
-`fastlane/metadata/review_information/notes.txt` (uploaded by the `release` lane) explains the
+`fastlane/metadata/review_information/notes.txt` (uploaded with the version page) explains the
 flow, Google's navigation terms before the first drive, how to try CarPlay, and why background
 location is used (voice guidance during an active trip, also while shown on CarPlay). Background
 modes declared: `location`, `audio`. Export compliance: `ITSAppUsesNonExemptEncryption = NO`
 (HTTPS only).
+
+## Release workflow
+
+**Actions → Release → Run workflow**, then pick a lane: one per App Store Connect step, plus
+`release_all` for all of them.
+
+| Lane | App Store Connect step | Runs on |
+|---|---|---|
+| `upload_build` | Upload a build of `MARKETING_VERSION` to TestFlight | Mac |
+| `create_version` | **+ Version** (Prepare for Submission), then `update_version` | Linux |
+| `update_version` | The version page (App Previews and Screenshots, Promotional Text, Description, Keywords, Support URL, Marketing URL, Copyright, What's New, App Review Information, Version Release: automatically) and App Information (Name, Subtitle, Category, Age Rating, Privacy Policy URL), from the repository | Linux |
+| `submit_for_review` | Choose the **Build** (the version's newest, or the one given), **Submit for Review** | Linux |
+| `release_all` | `upload_build` → `create_version` if needed → `update_version` → `submit_for_review` with the new build | Mac |
+
+Options: **run_tests** (before building; off by default), **version** (blank: `MARKETING_VERSION`,
+or the version in Prepare for Submission for `submit_for_review`) and **build** (for
+`submit_for_review`). An option a lane doesn't use stops the run with the reason.
+
+The lanes stop early, with the reason, when App Store Connect wouldn't accept the step: a version
+not higher than the last approved one, a different version already in progress (App Store Connect
+keeps one; the lanes never rename it), or a version Waiting for Review.
+
+**Uploaded from the repository:** `fastlane/metadata` (texts, App Review notes and demo account,
+categories, copyright), `fastlane/app_rating_config.json` (Age Rating), `fastlane/app_store`
+(screenshots and app previews; see its README), and the optional App Review contact secrets.
+**Not possible from GitHub:** App Privacy, Pricing and Availability, Agreements, Tax and Banking,
+and replies to App Review: those are done in App Store Connect.
 
 ## Each release
 
 1. Update `CHANGELOG.md`, `MARKETING_VERSION` in `project.yml`, and
    `fastlane/metadata/en-US/release_notes.txt`, and push to `main`.
 2. Wait for the **CI** workflow to pass (every test suite, including the UI tests).
-3. **Actions → Release**, lane `beta`. Test the TestFlight build on your iPhone with a passenger
-   operating the phone: planning, Google's navigation with the screen locked, arrival at a stop,
-   "Continue to next stop", resume after force-quitting, rerouting; and CarPlay (see
-   [CARPLAY.md](CARPLAY.md#testing)), which no automated test covers.
-4. If the Navigation SDK version changed, check its privacy manifest against
+3. If the Navigation SDK version changed, check its privacy manifest against
    [App Privacy](#app-privacy-nutrition-label-answers) and update the answers in App Store
    Connect (Apple's API can't).
-5. **Screenshots**, the first time and when the app looks different: take them on your iPhone with
-   the TestFlight build, planning a real trip (real Google routes, places and prices), and upload
-   them in App Store Connect → the version → **Previews and Screenshots** (see below). Otherwise
-   the previous version's carry over.
-6. **Actions → Release**, lane `release`, with **submit_for_review** ticked. It creates the
-   version in App Store Connect if needed, uploads the listing, What's New, review notes and age
-   rating, waits until Apple has processed the version's newest build, selects it and submits it
-   for review. The version is released automatically once approved. Without
-   **submit_for_review** it stops after the upload, and you submit in App Store Connect (select
-   the build, **Submit for Review**).
+4. **Screenshots and previews**, the first time and when the app looks different: take them on
+   your iPhone with a TestFlight build, planning a real trip (real Google routes, places and
+   prices), and commit them to `fastlane/app_store` (see below). Otherwise the previous version's
+   carry over.
+5. Either in one run, or step by step:
+   * **One run:** lane `release_all`. It submits without a TestFlight test in between, so use it
+     when the build was already tested (from an earlier `upload_build`) or for small changes.
+   * **Step by step:** `upload_build`, then test the TestFlight build on your iPhone with a
+     passenger operating the phone (planning, Google's navigation with the screen locked, arrival
+     at a stop, "Continue to next stop", resume after force-quitting, rerouting, and CarPlay: see
+     [CARPLAY.md](CARPLAY.md#testing)); then `create_version`, check the version page in App
+     Store Connect, change files and run `update_version` as needed, and `submit_for_review`.
+
+The version is released automatically once approved.
 
 ## Screenshots
 
@@ -112,6 +139,8 @@ show the app in use).
   a plan's timeline with its stops, a stop's details, and the drive screen.
 * Press the side button and volume up together. Hide personal things first (your home address,
   notifications); a full battery and good signal look tidier.
+* Commit them to `fastlane/app_store/screenshots/en-US/` as `01-….png`, `02-….png` (the order on
+  the store). The size picks the slot; see `fastlane/app_store/README.md`.
 * Drive-screen shots: parked, or by a passenger. Never while driving.
 * Sizes: the main slot ("iPhone with Dynamic Island, medium display") takes 1179 × 2556 or
   1206 × 2622, what an iPhone 14 Pro, 15, 15 Pro, 16, 16 Pro, 17 or 17 Pro produces. Pro Max
@@ -124,13 +153,14 @@ show the app in use).
 iPhone (Control Center → Screen Recording), then cut it with captions:
 
 ```bash
-python3 scripts/make_app_preview.py fastlane/app_previews/plan-and-drive.json recording.mp4 preview-1.mp4
+python3 scripts/make_app_preview.py fastlane/app_previews/plan-and-drive.json recording.mp4 fastlane/app_store/previews/en-US/01-plan-and-drive_IPHONE_67.mp4
 ```
 
 Each JSON file lists the parts of the recording to use, their speed and caption, and how much to crop
 off the top (the status bar, recording indicator and AssistiveTouch button aren't part of the app).
-Leave out street-level close-ups near home: previews are public. Upload in App Store Connect → the
-version → **Previews and Screenshots**.
+Leave out street-level close-ups near home: previews are public. Commit them to
+`fastlane/app_store/previews/en-US/` with the slot in the name, e.g.
+`01-plan-and-drive_IPHONE_67.mp4` (see `fastlane/app_store/README.md`).
 
 ## Guideline notes
 

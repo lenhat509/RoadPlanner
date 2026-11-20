@@ -13,12 +13,12 @@ profile still need it.
    open **Identifiers**, then the app's ID (the `WAYSTAGE_BUNDLE_ID`).
 2. Turn on **CarPlay Navigation** (under *Capabilities* or *Additional Capabilities*; it appears
    once Apple has granted it) and click **Save**.
-3. On GitHub, **Actions → Release → Run workflow**, lane `beta`, with **refresh_profile** ticked.
-   fastlane makes a new App Store provisioning profile that includes CarPlay, then builds and
-   uploads to TestFlight.
+3. On GitHub, **Actions → Signing → Run workflow**. fastlane makes a new App Store provisioning
+   profile that includes CarPlay. Then build as usual (**Actions → Release**, lane
+   `upload_build`).
 
-Later releases don't need **refresh_profile**. If the profile doesn't include CarPlay, the
-`beta` lane stops before building and says which step is missing.
+Later releases don't need the Signing workflow. If the profile doesn't include CarPlay, the
+building lanes stop before building and say which step is missing.
 
 As soon as a build with the entitlement is installed, Waystage appears on the CarPlay home
 screen of every user of that build (TestFlight testers first, then everyone after release).
