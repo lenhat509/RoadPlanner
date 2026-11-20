@@ -52,8 +52,11 @@ enum AccessibilityID {
         static let keepStop = "results.keepStop"
         static let removeStop = "results.removeStop"
         static func hotelChoice(_ index: Int) -> String { "results.hotelChoice.\(index)" }
-        static let planAgain = "results.planAgain"
-        static let discardChanges = "results.discardChanges"
+        static let undo = "results.undo"
+        static let updating = "results.updating"
+        static let addStopHere = "results.addStopHere"
+        static let addStopSearch = "results.addStopSearch"
+        static let addStopConfirm = "results.addStopConfirm"
     }
 
     enum Drive {

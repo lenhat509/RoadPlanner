@@ -11,7 +11,15 @@ struct PlanResultScreen: View {
     @State private var isStarting = false
     @State private var mapExpanded = false
     @State private var mapCommand: MapCommand?
+    /// "Add a stop after this one": the stop it goes after.
+    @State private var addingAfter: AddingStop?
     @Environment(\.openURL) private var openURL
+    private let dependencies: AppDependencies
+
+    struct AddingStop: Identifiable {
+        let stopID: String
+        var id: String { stopID }
+    }
     private let formatters: TripFormatters
     private let startButtonTitle: String?
     let onStart: (ActiveTrip) -> Void
@@ -22,6 +30,7 @@ struct PlanResultScreen: View {
     ) {
         _model = State(initialValue: PlanResultViewModel(result: result, dependencies: dependencies))
         formatters = dependencies.formatters
+        self.dependencies = dependencies
         self.startButtonTitle = startButtonTitle
         self.onStart = onStart
     }
@@ -80,53 +89,53 @@ struct PlanResultScreen: View {
                             .accessibilityLabel(note)
                             .accessibilityIdentifier(AccessibilityID.Results.startNote)
                     }
-                    if model.hasChanges {
-                        // Changes to the plan apply when it's planned again.
+                    if model.canUndo {
                         Button {
-                            Task { await model.planAgainWithChanges() }
+                            withAnimation(.snappy) { model.undo() }
                         } label: {
-                            Label("Plan again with your changes", systemImage: "arrow.triangle.2.circlepath")
+                            Label("Undo last change", systemImage: "arrow.uturn.backward")
                         }
-                        .buttonStyle(.primary)
-                        .disabled(model.isPlanningAgain)
-                        .accessibilityIdentifier(AccessibilityID.Results.planAgain)
-                        Button("Discard changes") { withAnimation(.snappy) { model.discardChanges() } }
-                            .font(.footnote.weight(.medium))
-                            .disabled(model.isPlanningAgain)
-                            .accessibilityIdentifier(AccessibilityID.Results.discardChanges)
-                    } else {
-                        Button {
-                            Task {
-                                isStarting = true
-                                defer { isStarting = false }
-                                if let trip = await model.startTrip() { onStart(trip) }
-                            }
-                        } label: {
-                            Label(startTitle, systemImage: "car.fill")
-                        }
-                        .buttonStyle(.primary)
-                        .disabled(isStarting || model.selected == nil)
-                        .accessibilityIdentifier(AccessibilityID.Results.start)
+                        .font(.footnote.weight(.semibold))
+                        .accessibilityIdentifier(AccessibilityID.Results.undo)
                     }
+                    Button {
+                        Task {
+                            isStarting = true
+                            defer { isStarting = false }
+                            if let trip = await model.startTrip() { onStart(trip) }
+                        }
+                    } label: {
+                        Label(startTitle, systemImage: "car.fill")
+                    }
+                    .buttonStyle(.primary)
+                    .disabled(isStarting || model.selected == nil || model.isUpdating)
+                    .accessibilityIdentifier(AccessibilityID.Results.start)
                 }
             }
         }
         .overlay {
-            if model.isPlanningAgain {
-                ProgressView("Planning again…")
+            if model.isUpdating {
+                ProgressView("Updating the plan…")
                     .padding(Theme.Spacing.l)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .accessibilityIdentifier(AccessibilityID.Results.updating)
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: model.isPlanningAgain)
-        .alert("Can't plan this again", isPresented: Binding(
-            get: { model.planAgainError != nil },
-            set: { if !$0 { model.dismissPlanAgainError() } }
+        .animation(.easeInOut(duration: 0.2), value: model.isUpdating)
+        .alert("Can't update the plan", isPresented: Binding(
+            get: { model.updateError != nil },
+            set: { if !$0 { model.dismissUpdateError() } }
         )) {
-            Button("OK", role: .cancel) { model.dismissPlanAgainError() }
+            Button("OK", role: .cancel) { model.dismissUpdateError() }
         } message: {
-            Text(model.planAgainError ?? "")
+            Text(model.updateError ?? "")
+        }
+        .sheet(item: $addingAfter) { adding in
+            AddStopSheet(dependencies: dependencies) { place, stay in
+                addingAfter = nil
+                Task { await model.apply(.addStop(after: adding.stopID, place: place, stay: stay)) }
+            }
         }
         .sheet(item: $selectedStop) { stop in
             StopDetailSheet(
@@ -135,20 +144,30 @@ struct PlanResultScreen: View {
                     stop: stop, formatters: formatters, tankCapacityGallons: model.selected?.request.vehicle.tankCapacityGallons
                 ),
                 travelers: model.selected?.request.travelers ?? 2,
-                editing: StopEditing(
-                    state: { model.editState(for: stop.id) },
-                    formatters: formatters,
-                    toggleKeep: { model.toggleKeep(stop.id) },
-                    toggleRemove: { model.toggleRemove(stop.id) },
-                    chooseHotel: { model.chooseHotel($0, for: stop.id) }
-                )
+                editing: editing(for: stop.id)
             )
         }
     }
 
-    /// The bottom button's title: from another screen (planning the rest of a trip again) it says
-    /// what it does there.
+    /// The bottom button's title: from another screen it says what it does there.
     private var startTitle: String { startButtonTitle ?? "Start driving" }
+
+    /// Changes to a stop, applied at once (the plan is made again; Undo brings it back).
+    private func editing(for stopID: String) -> StopEditing {
+        StopEditing(
+            stopID: stopID,
+            state: { model.editState(for: stopID) },
+            formatters: formatters,
+            apply: { edit in
+                selectedStop = nil
+                Task { await model.apply(edit) }
+            },
+            addStopAfter: {
+                selectedStop = nil
+                addingAfter = AddingStop(stopID: stopID)
+            }
+        )
+    }
 
     // MARK: Map
 
@@ -246,11 +265,11 @@ struct PlanResultScreen: View {
             VStack(spacing: Theme.Spacing.s) {
                 SectionLabel(title: "Day by day")
                 ForEach(model.days) { day in
-                    DayTimelineView(day: day, kept: model.keptOrChosenStopIDs, removed: model.removedStopIDs) { stopID in
+                    DayTimelineView(day: day, editing: { editing(for: $0) }) { stopID in
                         selectedStop = model.selected?.stops.first { $0.id == stopID }
                     }
                 }
-                Text("Tap a stop to keep it, remove it or pick another hotel, then plan again.")
+                Text("Touch and hold a stop to remove it, keep it, pick another hotel or add a stop after it. The plan updates right away.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -396,8 +415,8 @@ struct PlanOptionCard: View {
 /// One day of the itinerary as a vertical timeline.
 struct DayTimelineView: View {
     let day: DaySection
-    var kept: Set<String> = []
-    var removed: Set<String> = []
+    /// Changes a stop can take (nil: read-only).
+    var editing: ((String) -> StopEditing)?
     let onSelect: (String) -> Void
 
     /// "Day 1" from "Day 1 · Mon, May 3".
@@ -420,12 +439,14 @@ struct DayTimelineView: View {
                 .padding(.bottom, Theme.Spacing.xs)
             ForEach(Array(day.stops.enumerated()), id: \.element.id) { index, stop in
                 Button { onSelect(stop.id) } label: {
-                    StopRowView(
-                        stop: stop, isFirst: index == 0, isLast: index == day.stops.count - 1,
-                        isKept: kept.contains(stop.id) || stop.isRequired, isRemoved: removed.contains(stop.id)
-                    )
+                    StopRowView(stop: stop, isFirst: index == 0, isLast: index == day.stops.count - 1, isKept: stop.isRequired)
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    if let editing = editing?(stop.id) {
+                        StopEditMenu(stopKind: stop.kind, editing: editing)
+                    }
+                }
             }
         }
         .card()
@@ -440,7 +461,6 @@ struct StopRowView: View {
     let isFirst: Bool
     let isLast: Bool
     var isKept = false
-    var isRemoved = false
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.s) {
@@ -459,17 +479,11 @@ struct StopRowView: View {
                 HStack(spacing: 4) {
                     Text(stop.title)
                         .font(.subheadline.weight(.semibold))
-                        .strikethrough(isRemoved)
-                    if isKept && stop.kind != .origin && stop.kind != .destination {
+                    if isKept && stop.kind != .origin && stop.kind != .destination && stop.kind != .visit {
                         Image(systemName: "pin.fill")
                             .font(.caption2)
                             .foregroundStyle(Theme.accent)
                             .accessibilityLabel("Kept")
-                    }
-                    if isRemoved {
-                        Text("Removed")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Theme.warning)
                     }
                 }
                 Text(stop.timeText)
@@ -494,14 +508,45 @@ struct StopRowView: View {
     }
 }
 
-/// What the stop details sheet can change in the plan (keep, remove, another hotel).
+/// What can change about a stop (keep, remove, another hotel, a stop after it); each change
+/// updates the plan at once.
 struct StopEditing {
-    /// Read while the sheet draws, so it follows the changes.
+    let stopID: String
     let state: () -> StopEditState?
     let formatters: TripFormatters
-    let toggleKeep: () -> Void
-    let toggleRemove: () -> Void
-    let chooseHotel: (HotelChoice?) -> Void
+    let apply: (PlanEdit) -> Void
+    let addStopAfter: () -> Void
+}
+
+/// The stop's actions, for its long-press menu (the details sheet shows the same).
+struct StopEditMenu: View {
+    let stopKind: StopKind
+    let editing: StopEditing
+
+    var body: some View {
+        if let state = editing.state() {
+            if state.canKeep {
+                Button(state.isKept ? "Stop keeping it" : "Keep this stop", systemImage: state.isKept ? "pin.slash" : "pin") {
+                    editing.apply(.toggleKeep(stopID: stopID))
+                }
+            }
+            if state.canRemove {
+                Button("Remove", systemImage: "minus.circle", role: .destructive) { editing.apply(.remove(stopID: stopID)) }
+            }
+            if !state.hotelChoices.isEmpty {
+                Menu("Other hotels", systemImage: "bed.double") {
+                    ForEach(state.hotelChoices) { choice in
+                        Button(choice.place.name) { editing.apply(.chooseHotel(stopID: stopID, choice)) }
+                    }
+                }
+            }
+        }
+        if stopKind != .destination {
+            Button("Add a stop after this one", systemImage: "plus.circle", action: editing.addStopAfter)
+        }
+    }
+
+    private var stopID: String { editing.stopID }
 }
 
 /// Details and outbound links (Google Maps, Expedia) for a stop.
@@ -543,8 +588,8 @@ struct StopDetailSheet: View {
                             .accessibilityIdentifier(AccessibilityID.Results.stopNotice)
                     }
                 }
-                if let editing, let state = editing.state() {
-                    editSections(editing, state)
+                if let editing {
+                    editSections(editing, editing.state())
                 }
                 Section("Open in") {
                     Button {
@@ -576,7 +621,6 @@ struct StopDetailSheet: View {
                 }
             }
             .navigationTitle(stop.isRoadsidePullOff ? "Rest break" : stop.kind.displayName)
-            .animation(.snappy, value: editing?.state())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -588,53 +632,54 @@ struct StopDetailSheet: View {
     }
 
     @ViewBuilder
-    private func editSections(_ editing: StopEditing, _ state: StopEditState) -> some View {
+    private func editSections(_ editing: StopEditing, _ state: StopEditState?) -> some View {
         Section {
-            if state.canKeep {
-                Button(action: editing.toggleKeep) {
-                    Label(state.isKept ? "Kept in the next plan" : "Keep this stop", systemImage: state.isKept ? "pin.fill" : "pin")
+            if let state, state.canKeep {
+                Button {
+                    editing.apply(.toggleKeep(stopID: stop.id))
+                } label: {
+                    Label(state.isKept ? "Stop keeping it" : "Keep this stop", systemImage: state.isKept ? "pin.slash" : "pin")
                 }
                 .accessibilityIdentifier(AccessibilityID.Results.keepStop)
             }
-            if state.canRemove {
-                Button(role: state.isRemoved ? nil : .destructive, action: editing.toggleRemove) {
-                    Label(
-                        state.isRemoved ? "Put it back" : "Remove this stop",
-                        systemImage: state.isRemoved ? "arrow.uturn.backward" : "minus.circle"
-                    )
+            if let state, state.canRemove {
+                Button(role: .destructive) {
+                    editing.apply(.remove(stopID: stop.id))
+                } label: {
+                    Label("Remove this stop", systemImage: "minus.circle")
                 }
                 .accessibilityIdentifier(AccessibilityID.Results.removeStop)
             }
+            if stop.kind != .destination {
+                Button(action: editing.addStopAfter) {
+                    Label("Add a stop after this one", systemImage: "plus.circle")
+                }
+                .accessibilityIdentifier(AccessibilityID.Results.addStopHere)
+            }
         } header: {
-            Text("Change this plan")
+            Text("Change the plan")
         } footer: {
             Text(stop.kind == .visit || stop.isRequiredStop
-                ? "Changes apply when you plan again."
-                : "Changes apply when you plan again. A removed break or fuel stop may be replaced by another where your break rhythm or fuel needs one.")
+                ? "The plan updates right away; Undo brings the previous one back."
+                : "The plan updates right away; Undo brings the previous one back. Another break or fuel stop may take a removed one's place where your break rhythm or fuel needs one.")
         }
-        if !state.hotelChoices.isEmpty {
+        if let state, !state.hotelChoices.isEmpty {
             Section {
                 ForEach(Array(state.hotelChoices.enumerated()), id: \.element.id) { index, choice in
                     Button {
-                        editing.chooseHotel(state.chosenHotel?.id == choice.id ? nil : choice)
+                        editing.apply(.chooseHotel(stopID: stop.id, choice))
                     } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(choice.place.name).foregroundStyle(.primary)
-                                Text(hotelDetail(choice, formatters: editing.formatters))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if state.chosenHotel?.id == choice.id {
-                                Image(systemName: "checkmark").foregroundStyle(Theme.accent)
-                            }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(choice.place.name).foregroundStyle(.primary)
+                            Text(hotelDetail(choice, formatters: editing.formatters))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .accessibilityIdentifier(AccessibilityID.Results.hotelChoice(index))
                 }
             } header: {
-                Text("Other hotels nearby")
+                Text("Stay somewhere else tonight")
             } footer: {
                 Text("Rates aren't booked or guaranteed. \(attribution)")
             }

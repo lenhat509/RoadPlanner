@@ -245,7 +245,7 @@ final class WaystageUITests: XCTestCase {
         XCTAssertTrue(visit.waitForExistence(timeout: 5), "Los Angeles is in the plan with its 1 h stay")
     }
 
-    func testRemovingAStopAndPlanningAgain() {
+    func testRemovingAStopUpdatesThePlanAndUndoBringsItBack() {
         launch()
         planLosAngelesToVegas()
         let timeline = element(AccessibilityID.Results.timeline)
@@ -260,13 +260,43 @@ final class WaystageUITests: XCTestCase {
         let remove = app.buttons[AccessibilityID.Results.removeStop]
         XCTAssertTrue(remove.waitForExistence(timeout: 5))
         remove.tap()
-        app.buttons["Done"].firstMatch.tap()
-        let planAgain = app.buttons[AccessibilityID.Results.planAgain]
-        XCTAssertTrue(planAgain.waitForExistence(timeout: 5), "changes are planned on request")
-        planAgain.tap()
-        XCTAssertTrue(app.buttons[AccessibilityID.Results.start].waitForExistence(timeout: 30), "the new plan is shown")
+        // The plan updates by itself: Undo appears once it has.
+        let undo = app.buttons[AccessibilityID.Results.undo]
+        XCTAssertTrue(undo.waitForExistence(timeout: 30), "the plan updated")
         let removed = timeline.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name + ",")).firstMatch
-        XCTAssertFalse(removed.exists, "\(name) isn't in the new plan")
+        XCTAssertFalse(removed.exists, "\(name) isn't in the updated plan")
+        undo.tap()
+        XCTAssertTrue(removed.waitForExistence(timeout: 5), "Undo brings \(name) back")
+    }
+
+    func testAddingAStopAfterTheStart() {
+        launch()
+        app.buttons[AccessibilityID.Home.planTrip].tap()
+        choosePlace(field: AccessibilityID.Plan.origin, typing: "San Fr", pick: "San Francisco")
+        choosePlace(field: AccessibilityID.Plan.destination, typing: "Vegas", pick: "Las Vegas")
+        app.buttons[AccessibilityID.Plan.submit].tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.start].waitForExistence(timeout: 30))
+        let timeline = element(AccessibilityID.Results.timeline)
+        let start = timeline.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "San Francisco")).firstMatch
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        start.tap()
+        let addHere = app.buttons[AccessibilityID.Results.addStopHere]
+        XCTAssertTrue(addHere.waitForExistence(timeout: 5))
+        addHere.tap()
+        choosePlace(field: AccessibilityID.Results.addStopSearch, typing: "Los", pick: "Los Angeles")
+        let add = app.buttons[AccessibilityID.Results.addStopConfirm]
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntilEnabled(add), "Los Angeles was chosen")
+        add.tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.undo].waitForExistence(timeout: 30), "the plan updated")
+        let visit = timeline.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "1 h there")).firstMatch
+        XCTAssertTrue(visit.waitForExistence(timeout: 5), "Los Angeles is in the plan with its 1 h stay")
+    }
+
+    private func waitUntilEnabled(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !element.isEnabled && Date() < deadline { Thread.sleep(forTimeInterval: 0.25) }
+        return element.isEnabled
     }
 
     func testSettingsArePersisted() {
