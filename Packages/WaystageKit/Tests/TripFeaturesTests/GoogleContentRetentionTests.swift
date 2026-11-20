@@ -131,6 +131,33 @@ struct GoogleContentRetentionTests {
         #expect(opened.stops.contains { $0.place.name == "Gas station" || $0.place.name == "Rest stop" })
     }
 
+    @Test("Stops on the way are stored like the start and end: place IDs, coordinates for 30 days, no names or prices")
+    func stopsOnTheWay() async throws {
+        var (itinerary, details) = try await googlePlan()
+        let museum = Place(
+            id: "ChIJ\(String(repeating: "m", count: 20))", name: "Museum", address: "1 Main St",
+            coordinate: GeoCoordinate(latitude: 35.5, longitude: -116.5), utcOffsetMinutes: -480
+        )
+        itinerary.request.stops = [
+            .visit(museum, stay: 3_600),
+            RequiredStop(place: museum, purpose: .fuel, fuelPricePerGallon: 4.99),
+        ]
+        let stored = GoogleContentRetention.storageForm(of: itinerary)
+        for stop in stored.request.requiredStops {
+            #expect(stop.place.id == museum.id && stop.place.coordinate == museum.coordinate)
+            #expect(stop.place.name.isEmpty && stop.place.address == nil)
+            #expect(stop.fuelPricePerGallon == nil, "a station's own price isn't kept")
+        }
+        #expect(stored.request.requiredStops.first?.stay == 3_600, "the stay is the traveler's plan")
+        let expired = GoogleContentRetention.expiredForm(of: itinerary)
+        #expect(expired.request.requiredStops.allSatisfy { $0.place.coordinate == GeoCoordinate(latitude: 0, longitude: 0) })
+
+        // Opening it fills the names back in; an outline also gets the positions back.
+        let repository = RetainingTripRepository(base: InMemoryTripRepository(), places: FakePlaceDetails(details + [museum]), now: { testNow })
+        let opened = await repository.withDetails(expired)
+        #expect(opened.request.requiredStops.allSatisfy { $0.place.name == "Museum" && $0.place.coordinate == museum.coordinate })
+    }
+
     @Test("After 30 days a plan's coordinates and route lines are deleted, on disk too")
     func expiry() async throws {
         let (itinerary, details) = try await googlePlan(createdAt: testNow.addingTimeInterval(-31 * 86_400))

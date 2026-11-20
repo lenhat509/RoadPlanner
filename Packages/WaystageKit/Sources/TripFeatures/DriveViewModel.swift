@@ -530,6 +530,165 @@ public final class DriveViewModel: Identifiable {
         statusMessage = nil
     }
 
+    // MARK: Planning the rest again
+
+    /// Why planning the rest of the trip again could help.
+    public struct ReplanSuggestion: Equatable, Sendable {
+        public enum Reason: Equatable, Sendable {
+            /// Tonight's hotel (this stop) is now reached well after the end of the driving day.
+            case lateForHotel(stopID: String)
+            /// The destination is now reached after the deadline.
+            case deadlineAtRisk
+        }
+
+        public var reason: Reason
+        /// "Tonight's hotel: now around 11:40 PM, after your 9:00 PM day end."
+        public var text: String
+    }
+
+    /// How late (past the driving day's end, or the deadline) before planning again is suggested.
+    public static let replanMargin: TimeInterval = 30 * 60
+
+    /// Suggests planning the rest of the trip again when the plan's times no longer work: tonight's
+    /// hotel is projected well past the end of the driving day, or the destination past the
+    /// deadline. Drive mode offers it only while stopped (never as a message: CarPlay shows those
+    /// on its own).
+    public var replanSuggestion: ReplanSuggestion? {
+        guard canPlanRestAgain else { return nil }
+        let itinerary = trip.itinerary
+        let projected = trip.projectedSchedule(now: dependencies.now(), remainingToTarget: isOnLeg ? legProgress?.timeRemaining : nil)
+        let byID = Dictionary(uniqueKeysWithValues: projected.map { ($0.stopID, $0) })
+        let formatters = dependencies.formatters
+        let policy = itinerary.appliedPolicy
+        let ahead = itinerary.stops.indices.filter { $0 >= trip.progress.targetStopIndex }
+            .map { itinerary.stops[$0] }
+            .filter { !trip.progress.skippedStopIDs.contains($0.id) }
+        // Tonight's hotel: the first one ahead.
+        if let hotel = ahead.first(where: { $0.kind == .lodging }), let planned = hotel.arrival,
+           let projected = byID[hotel.id]?.arrival, !(mode == .atStop && hotel.id == trip.targetStop?.id) {
+            let offset = TimeInterval(hotel.place.utcOffsetSeconds)
+            let midnight = floor((planned.timeIntervalSince1970 + offset) / Units.secondsPerDay) * Units.secondsPerDay
+            let dayEnd = Date(timeIntervalSince1970: midnight + policy.dayEnd.secondsFromMidnight - offset)
+            if projected > dayEnd.addingTimeInterval(Self.replanMargin), projected > planned.addingTimeInterval(Self.replanMargin) {
+                let time = formatters.clockTime(projected, utcOffsetSeconds: Int(offset))
+                let end = formatters.clockTime(dayEnd, utcOffsetSeconds: Int(offset))
+                return ReplanSuggestion(
+                    reason: .lateForHotel(stopID: hotel.id),
+                    text: "Tonight's hotel: now around \(time), after your \(end) day end."
+                )
+            }
+        }
+        if let deadline = itinerary.request.arriveBy, let destination = itinerary.stops.last,
+           !itinerary.warnings.contains(where: { $0.code == .deadlineMissed }),
+           let projected = byID[destination.id]?.arrival, projected > deadline.addingTimeInterval(Self.replanMargin) {
+            let offset = destination.place.utcOffsetSeconds
+            return ReplanSuggestion(
+                reason: .deadlineAtRisk,
+                text: "Now arriving around \(formatters.dateTime(projected, utcOffsetSeconds: offset)), "
+                    + "after your \(formatters.dateTime(deadline, utcOffsetSeconds: offset)) deadline."
+            )
+        }
+        return nil
+    }
+
+    /// The rest of the trip can be planned again (not on the way to the start, not once arrived).
+    public var canPlanRestAgain: Bool { mode != .completed && !isHeadingToStart }
+
+    /// The trip from here: from the stop the car is at (or where it is) to the same destination,
+    /// leaving now, with the same car, limits and deadline. Visits and kept stops still ahead
+    /// stay; fuel is estimated from the plan; today's driving so far counts.
+    public func restOfTripRequest() -> TripRequest? {
+        guard canPlanRestAgain else { return nil }
+        let itinerary = trip.itinerary
+        let stops = itinerary.stops
+        let target = trip.progress.targetStopIndex
+        guard stops.indices.contains(target) else { return nil }
+        var request = itinerary.request
+        let now = dependencies.now()
+        if mode == .atStop, let here = trip.targetStop {
+            request.origin = here.place
+        } else {
+            guard let here = currentLocation ?? trip.progress.lastKnownLocation else { return nil }
+            request.origin = Place(
+                id: "current-location", name: "Current Location", coordinate: here,
+                utcOffsetMinutes: (guidedStop?.place ?? request.origin).utcOffsetSeconds / 60
+            )
+        }
+        request.departure = now
+        if let deadline = request.arriveBy, deadline <= now { request.arriveBy = nil }
+        let firstAhead = mode == .atStop ? target + 1 : target
+        let ahead = firstAhead < stops.count - 1 ? Array(stops[firstAhead..<(stops.count - 1)]) : []
+        let required = ahead.filter { $0.isRequiredStop && !trip.progress.skippedStopIDs.contains($0.id) }
+            .map(PlanResultViewModel.requiredStop(keeping:))
+        request.stops = required.isEmpty ? nil : required
+        request.vehicle.initialFuelFraction = estimatedFuelFraction()
+        let driven = drivenSinceLastNight()
+        request.startState = driven > 0 ? StartState(drivenToday: driven) : nil
+        return request
+    }
+
+    /// The tank level now, from the plan: at a stop, after its planned purchase; on the way, part
+    /// way between the last stop's departure and the next stop's arrival.
+    private func estimatedFuelFraction() -> Double {
+        let stops = trip.itinerary.stops
+        let tank = max(1, trip.itinerary.request.vehicle.tankCapacityGallons)
+        let target = trip.progress.targetStopIndex
+        func departureFuel(_ index: Int) -> Double? {
+            guard stops.indices.contains(index) else { return nil }
+            let stop = stops[index]
+            if index == 0 { return tank * trip.itinerary.request.vehicle.initialFuelFraction }
+            return stop.fuelOnArrivalGallons.map { $0 + (stop.fuelPurchase?.gallons ?? 0) }
+        }
+        let gallons: Double
+        if mode == .atStop {
+            gallons = departureFuel(target) ?? tank / 2
+        } else {
+            let start = departureFuel(target - 1) ?? tank / 2
+            let end = stops.indices.contains(target) ? (stops[target].fuelOnArrivalGallons ?? start) : start
+            let legLength = trip.legToTarget?.distanceMeters ?? 0
+            let done = legLength > 0 ? 1 - min(1, max(0, (legProgress?.distanceRemaining ?? legLength) / legLength)) : 0
+            gallons = start - (start - end) * done
+        }
+        return min(1, max(0.05, gallons / tank))
+    }
+
+    /// Planned driving since the last night (or the start), up to where the car is.
+    private func drivenSinceLastNight() -> TimeInterval {
+        let stops = trip.itinerary.stops
+        let target = trip.progress.targetStopIndex
+        let reached = mode == .atStop ? target : target - 1
+        guard reached >= 0 else { return 0 }
+        var driven: TimeInterval = 0
+        var index = reached
+        while index > 0, stops[index].kind != .lodging {
+            if let arrival = stops[index].arrival, let departure = stops[index - 1].departure {
+                driven += max(0, arrival.timeIntervalSince(departure))
+            }
+            index -= 1
+        }
+        if mode != .atStop, stops.indices.contains(target), let arrival = stops[target].arrival,
+           let departure = stops[target - 1].departure {
+            let legLength = trip.legToTarget?.distanceMeters ?? 0
+            let done = legLength > 0 ? 1 - min(1, max(0, (legProgress?.distanceRemaining ?? legLength) / legLength)) : 0
+            driven += max(0, arrival.timeIntervalSince(departure)) * done
+        }
+        return driven
+    }
+
+    /// Plans the rest of the trip again (`restOfTripRequest`).
+    public func planRestAgain() async -> PlanResult? {
+        guard let request = restOfTripRequest() else { return nil }
+        do {
+            return try await dependencies.planner.plan(request) { _ in }
+        } catch let error as PlanningError {
+            statusMessage = error.message
+            return nil
+        } catch {
+            statusMessage = "The rest of the trip couldn't be planned. Check your connection and try again."
+            return nil
+        }
+    }
+
     // MARK: Internals
 
     private func readyGuidance() async {

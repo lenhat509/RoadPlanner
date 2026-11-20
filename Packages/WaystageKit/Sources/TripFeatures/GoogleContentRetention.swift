@@ -27,6 +27,13 @@ public enum GoogleContentRetention {
         var stored = itinerary
         stored.request.origin = stripped(stored.request.origin)
         stored.request.destination = stripped(stored.request.destination)
+        stored.request.stops = stored.request.stops?.map { stop in
+            var stop = stop
+            stop.place = stripped(stop.place)
+            // May be a station's own (Google) price; planning again finds the current one.
+            stop.fuelPricePerGallon = nil
+            return stop
+        }
         let fuelType = itinerary.request.vehicle.fuelType
         stored.stops = stored.stops.map { stop in
             var stop = stop
@@ -55,6 +62,11 @@ public enum GoogleContentRetention {
         let none = GeoCoordinate(latitude: 0, longitude: 0)
         if expired.request.origin.googlePlaceID != nil { expired.request.origin.coordinate = none }
         if expired.request.destination.googlePlaceID != nil { expired.request.destination.coordinate = none }
+        expired.request.stops = expired.request.stops?.map { stop in
+            var stop = stop
+            if stop.place.googlePlaceID != nil { stop.place.coordinate = none }
+            return stop
+        }
         expired.stops = expired.stops.map { stop in
             var stop = stop
             stop.place.coordinate = none
@@ -186,7 +198,7 @@ public actor RetainingTripRepository: TripRepository {
 
     private static func places(in itinerary: Itinerary, everyStop: Bool) -> [Place] {
         var places = [itinerary.request.origin, itinerary.request.destination]
-        if everyStop { places += itinerary.stops.map(\.place) }
+        if everyStop { places += itinerary.stops.map(\.place) + itinerary.request.requiredStops.map(\.place) }
         return places
     }
 
@@ -201,6 +213,12 @@ public actor RetainingTripRepository: TripRepository {
         result.request.origin = fill(result.request.origin, kind: .origin, refreshPosition: outline)
         result.request.destination = fill(result.request.destination, kind: .destination, refreshPosition: outline)
         if everyStop {
+            // Stops on the way are planned again from their place IDs too.
+            result.request.stops = result.request.stops?.map { stop in
+                var stop = stop
+                stop.place = fill(stop.place, kind: Self.kind(of: stop.purpose), refreshPosition: outline)
+                return stop
+            }
             result.stops = result.stops.map { stop in
                 var stop = stop
                 stop.place = fill(stop.place, kind: stop.kind, refreshPosition: false)
@@ -208,6 +226,15 @@ public actor RetainingTripRepository: TripRepository {
             }
         }
         return result
+    }
+
+    private static func kind(of purpose: RequiredStop.Purpose) -> StopKind {
+        switch purpose {
+        case .visit: .visit
+        case .rest: .rest
+        case .fuel: .fuel
+        case .lodging: .lodging
+        }
     }
 
     private func fill(_ place: Place, kind: StopKind, refreshPosition: Bool) -> Place {

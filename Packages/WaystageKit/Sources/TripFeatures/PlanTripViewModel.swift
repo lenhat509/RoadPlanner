@@ -11,6 +11,8 @@ public final class PlanTripViewModel {
     public enum Field: Hashable, Sendable {
         case origin
         case destination
+        /// A stop on the way, by its row's ID.
+        case stop(String)
     }
 
     public struct LocationInput: Equatable, Sendable {
@@ -19,6 +21,22 @@ public final class PlanTripViewModel {
         public var suggestions: [PlaceSuggestion] = []
         public var isResolving = false
     }
+
+    /// A place to stop at on the way, and how long to stay.
+    public struct StopInput: Identifiable, Equatable, Sendable {
+        public var id: String
+        public var location = LocationInput()
+        public var stayMinutes: Double
+
+        public init(id: String = UUID().uuidString, stayMinutes: Double = 60) {
+            self.id = id
+            self.stayMinutes = stayMinutes
+        }
+    }
+
+    /// Stays offered for a stop on the way, in minutes (5 min to 12 h).
+    public static let stayRange: ClosedRange<Double> = 5...720
+    public static let stayStep: Double = 15
 
     /// Outcome of validating the form.
     public enum Validation: Equatable, Sendable {
@@ -35,6 +53,8 @@ public final class PlanTripViewModel {
     // Form state
     public var origin = LocationInput()
     public var destination = LocationInput()
+    /// Stops on the way, in route order.
+    public var stops: [StopInput] = []
     public var departure: Date {
         didSet { if !isApplyingDefaultDeparture { departureEditedByUser = true } }
     }
@@ -87,14 +107,53 @@ public final class PlanTripViewModel {
     // MARK: Places
 
     public func input(for field: Field) -> LocationInput {
-        field == .origin ? origin : destination
+        switch field {
+        case .origin: origin
+        case .destination: destination
+        case let .stop(id): stops.first { $0.id == id }?.location ?? LocationInput()
+        }
     }
 
     private func update(_ field: Field, _ change: (inout LocationInput) -> Void) {
         switch field {
         case .origin: change(&origin)
         case .destination: change(&destination)
+        case let .stop(id):
+            guard let index = stops.firstIndex(where: { $0.id == id }) else { return }
+            change(&stops[index].location)
         }
+    }
+
+    // MARK: Stops on the way
+
+    public var canAddStop: Bool { stops.count < RequiredStop.maximumCount }
+
+    /// Adds an empty stop at the end (before the destination); returns its field.
+    @discardableResult
+    public func addStop() -> Field? {
+        guard canAddStop else { return nil }
+        let stop = StopInput()
+        stops.append(stop)
+        return .stop(stop.id)
+    }
+
+    public func removeStop(_ id: String) {
+        searchTasks[.stop(id)]?.cancel()
+        searchTasks[.stop(id)] = nil
+        stops.removeAll { $0.id == id }
+    }
+
+    /// Moves a stop earlier or later on the way (`offset` -1 or +1).
+    public func moveStop(_ id: String, by offset: Int) {
+        guard let index = stops.firstIndex(where: { $0.id == id }) else { return }
+        let target = index + offset
+        guard stops.indices.contains(target) else { return }
+        stops.swapAt(index, target)
+    }
+
+    public func setStay(_ minutes: Double, for id: String) {
+        guard let index = stops.firstIndex(where: { $0.id == id }) else { return }
+        stops[index].stayMinutes = min(max(minutes, Self.stayRange.lowerBound), Self.stayRange.upperBound)
     }
 
     /// Called as the user types; fetches suggestions after a short pause.
@@ -202,6 +261,8 @@ public final class PlanTripViewModel {
 
     public func swapLocations() {
         swap(&origin, &destination)
+        // Driving the other way passes the stops in the opposite order.
+        stops.reverse()
     }
 
     // MARK: Validation
@@ -217,7 +278,9 @@ public final class PlanTripViewModel {
         policy.maxContinuousDriving = customRestEnabled ? restIntervalHours * 3_600 : DrivingPolicy.standard.maxContinuousDriving
         policy.maxDailyDriving = max(policy.maxContinuousDriving, maxDailyDrivingHours * 3_600)
         policy.fuelReserveFraction = minimumFuelPercent / 100
+        if stops.contains(where: { $0.location.place == nil }) { errors.append(.invalidStop) }
         guard let origin = origin.place, let destination = destination.place else { return .invalid(errors) }
+        let required = stops.compactMap { stop in stop.location.place.map { RequiredStop.visit($0, stay: stop.stayMinutes * 60) } }
         let request = TripRequest(
             origin: origin,
             destination: destination,
@@ -231,9 +294,10 @@ public final class PlanTripViewModel {
             ),
             policy: policy,
             goal: goal,
-            travelers: travelers
+            travelers: travelers,
+            stops: required
         )
-        errors += request.validationErrors()
+        errors += request.validationErrors().filter { !errors.contains($0) }
         return errors.isEmpty ? .valid(request) : .invalid(errors)
     }
 

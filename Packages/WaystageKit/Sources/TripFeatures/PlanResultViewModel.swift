@@ -80,6 +80,19 @@ public struct RouteChoice: Equatable, Identifiable, Sendable {
     }
 }
 
+/// What the traveler can change about one stop of the selected plan.
+public struct StopEditState: Equatable, Sendable {
+    /// The next plan must include it (a visit, a stop kept from this plan, a chosen hotel).
+    public var isKept: Bool
+    public var isRemoved: Bool
+    /// Another hotel chosen instead of this one.
+    public var chosenHotel: HotelChoice?
+    /// Real places can be kept; generated breaks and lodging search areas can't.
+    public var canKeep: Bool
+    public var canRemove: Bool
+    public var hotelChoices: [HotelChoice]
+}
+
 /// Compare routes and plans, inspect the timeline, save or start the trip.
 ///
 /// A search can find a few different routes; the best is selected first. The user picks one
@@ -87,10 +100,20 @@ public struct RouteChoice: Equatable, Identifiable, Sendable {
 @MainActor
 @Observable
 public final class PlanResultViewModel {
-    public let result: PlanResult
-    public var selectedGoal: OptimizationGoal
+    /// The plans shown; replaced when the traveler plans again with changes.
+    public private(set) var result: PlanResult
+    public var selectedGoal: OptimizationGoal {
+        didSet { if oldValue != selectedGoal { resetEdits() } }
+    }
     public private(set) var selectedRouteID: String
     public private(set) var isSaved = false
+
+    /// Changes to the selected plan, applied by `planAgainWithChanges()`.
+    public private(set) var keptStopIDs: Set<String> = []
+    public private(set) var removedStopIDs: Set<String> = []
+    public private(set) var chosenHotels: [String: HotelChoice] = [:]
+    public private(set) var isPlanningAgain = false
+    public private(set) var planAgainError: String?
 
     private let dependencies: AppDependencies
 
@@ -102,6 +125,7 @@ public final class PlanResultViewModel {
         selectedGoal = result.itineraries[result.recommendedGoal] != nil
             ? result.recommendedGoal
             : (result.options.first?.goal ?? .balanced)
+        resetEdits()
     }
 
     public var selectedRoute: RoutePlan? { result.routes.first { $0.id == selectedRouteID } ?? result.routes.first }
@@ -119,6 +143,133 @@ public final class PlanResultViewModel {
         guard result.routes.contains(where: { $0.id == id }) else { return }
         selectedRouteID = id
         isSaved = false
+        resetEdits()
+    }
+
+    // MARK: Editing the plan
+
+    /// Whether anything was changed since the plan was made.
+    public var hasChanges: Bool {
+        guard let plan = selected else { return false }
+        let alreadyRequired = Set(plan.stops.filter(\.isRequiredStop).map(\.id))
+        return keptStopIDs != alreadyRequired || !removedStopIDs.isEmpty || !chosenHotels.isEmpty
+    }
+
+    public func editState(for stopID: String) -> StopEditState? {
+        guard let plan = selected, let stop = plan.stops.first(where: { $0.id == stopID }),
+              stop.kind != .origin, stop.kind != .destination else { return nil }
+        let isReal = !stop.isRoadsidePullOff && !stop.place.id.hasPrefix("lodging-area-")
+        return StopEditState(
+            isKept: keptStopIDs.contains(stopID) || chosenHotels[stopID] != nil,
+            isRemoved: removedStopIDs.contains(stopID),
+            chosenHotel: chosenHotels[stopID],
+            canKeep: isReal && stop.kind != .visit,
+            canRemove: isReal || stop.kind == .visit,
+            hotelChoices: stop.kind == .lodging ? (selectedRoute?.hotelChoices[stop.place.id] ?? []) : []
+        )
+    }
+
+    /// Keep (or stop keeping) a stop in the next plan.
+    public func toggleKeep(_ stopID: String) {
+        guard editState(for: stopID)?.canKeep == true else { return }
+        if keptStopIDs.remove(stopID) == nil {
+            keptStopIDs.insert(stopID)
+            removedStopIDs.remove(stopID)
+        }
+    }
+
+    /// Remove a stop from the next plan (or bring it back). A removed visit is gone; a removed
+    /// break, fuel stop or hotel isn't planned again (another may take its place).
+    public func toggleRemove(_ stopID: String) {
+        guard editState(for: stopID)?.canRemove == true else { return }
+        if removedStopIDs.remove(stopID) == nil {
+            removedStopIDs.insert(stopID)
+            keptStopIDs.remove(stopID)
+            chosenHotels[stopID] = nil
+        }
+    }
+
+    /// Stay at another hotel that night (nil: the planned one).
+    public func chooseHotel(_ choice: HotelChoice?, for stopID: String) {
+        guard let state = editState(for: stopID), choice == nil || state.hotelChoices.contains(where: { $0.id == choice?.id }) else { return }
+        chosenHotels[stopID] = choice
+        if choice != nil { removedStopIDs.remove(stopID) }
+    }
+
+    private func resetEdits() {
+        keptStopIDs = Set(selected?.stops.filter(\.isRequiredStop).map(\.id) ?? [])
+        removedStopIDs = []
+        chosenHotels = [:]
+        planAgainError = nil
+    }
+
+    /// The selected plan's request with the changes: kept stops, visits and chosen hotels become
+    /// stops the plan must include (in route order), removed places are avoided. A departure
+    /// that has passed moves to the next hour (with the deadline, as when a saved trip is planned
+    /// again).
+    public func changedRequest() -> TripRequest? {
+        guard let plan = selected else { return nil }
+        var request = plan.request
+        var required: [RequiredStop] = []
+        var avoided = request.avoidedPlaceIDs ?? []
+        for stop in plan.stops.dropFirst().dropLast() {
+            if removedStopIDs.contains(stop.id) {
+                if stop.kind != .visit, !avoided.contains(stop.place.id) { avoided.append(stop.place.id) }
+                continue
+            }
+            if let hotel = chosenHotels[stop.id] {
+                required.append(hotel.requiredStop)
+                continue
+            }
+            guard keptStopIDs.contains(stop.id) else { continue }
+            required.append(Self.requiredStop(keeping: stop))
+        }
+        request.stops = required.isEmpty ? nil : required
+        request.avoidedPlaceIDs = avoided.isEmpty ? nil : avoided
+        let now = dependencies.now()
+        if request.departure < now {
+            let nextHour = Date(timeIntervalSinceReferenceDate: (now.timeIntervalSinceReferenceDate / 3_600).rounded(.up) * 3_600)
+            let shift = nextHour.timeIntervalSince(request.departure)
+            request.departure = nextHour
+            request.arriveBy = request.arriveBy.map { $0.addingTimeInterval(shift) }
+        }
+        return request
+    }
+
+    /// A stop of a plan as a stop the next plan must include.
+    static func requiredStop(keeping stop: ItineraryStop) -> RequiredStop {
+        switch stop.kind {
+        case .visit:
+            return .visit(stop.place, stay: stop.dwellDuration ?? 3_600)
+        case .lodging:
+            return RequiredStop(place: stop.place, purpose: .lodging, lodging: stop.lodging)
+        case .fuel:
+            return RequiredStop(
+                place: stop.place, purpose: .fuel,
+                fuelPricePerGallon: stop.fuelPurchase.flatMap { $0.isPriceEstimated ? nil : $0.pricePerGallon }
+            )
+        case .rest, .origin, .destination:
+            return RequiredStop(place: stop.place, purpose: .rest)
+        }
+    }
+
+    /// Plans again with the changes; the new plans replace these.
+    public func planAgainWithChanges() async {
+        guard let request = changedRequest(), !isPlanningAgain else { return }
+        isPlanningAgain = true
+        defer { isPlanningAgain = false }
+        do {
+            let planned = try await dependencies.planner.plan(request) { _ in }
+            result = planned
+            selectedRouteID = planned.routes.first?.id ?? ""
+            selectedGoal = planned.itineraries[selectedGoal] != nil ? selectedGoal : planned.recommendedGoal
+            isSaved = false
+            resetEdits()
+        } catch let error as PlanningError {
+            planAgainError = error.message
+        } catch {
+            planAgainError = "This plan couldn't be made. Check your connection and try again."
+        }
     }
 
     /// The plan with the selected style on a route (for drawing every route on the map).
