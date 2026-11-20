@@ -21,10 +21,13 @@ wasn't released on its own.
   chosen hotels; **Undo** brings the previous plan back.
 - **Adjust the rest.** Stopped at a stop (or before Start), drive mode says when tonight's hotel
   would be reached well after the end of the driving day, or the destination after the deadline.
-  **Adjust the rest** keeps the plan: every stop and hotel still ahead stays, re-timed from now,
-  and the sheet says what changes. If tonight's hotel is now too far, **Stop earlier tonight**
+  **Adjust the rest** keeps the plan: your stops and the hotels still ahead stay, re-timed from
+  now; Waystage picks its breaks and fuel stops again for the new timing. The sheet says what
+  changes, and a message says why when the rest can't be adjusted. If tonight's hotel is now too far, **Stop earlier tonight**
   finds a hotel near where today's driving ends, with others to choose from. Also in the drive
   menu; never offered while guiding.
+- **Up to 10 places to visit.** The limit counts only places you add; kept stops and hotels don't
+  count toward it (a trip can keep up to 25 stops, the most one route can go through).
 - **Your own stop is the break.** To reach a stop you chose (or the destination), driving may run
   up to 30 minutes past the break interval instead of stopping just before it.
 

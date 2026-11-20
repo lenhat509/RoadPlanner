@@ -70,7 +70,7 @@ struct AdjustRestTests {
         #expect(model.replanSuggestion?.reason == .deadlineAtRisk)
     }
 
-    @Test("At a stop: the rest starts there, now, keeps every stop ahead but Waystage's breaks, and counts today's driving")
+    @Test("At a stop: the rest starts there, now, keeps your stops and the hotels ahead, and counts today's driving")
     func restOfTripFromAStop() async throws {
         let harness = FeatureHarness(), clock = Clock()
         var request = SampleTrips.request(from: "sf", to: "den")
@@ -84,22 +84,24 @@ struct AdjustRestTests {
         #expect(rest.departure == clock.now)
         #expect(rest.destination.id == "den")
         let ahead = itinerary.stops.dropFirst(stopIndex + 1).dropLast()
-        let expected = ahead.filter { $0.isRequiredStop || ($0.kind != .rest && !$0.isRoadsidePullOff && !$0.place.id.hasPrefix("lodging-area-")) }
-        #expect(rest.requiredStops.map(\.place.id) == expected.map(\.place.id), "every stop ahead is kept, in order")
+        let expected = ahead.filter { $0.isRequiredStop || $0.kind == .visit || ($0.kind == .lodging && !$0.place.id.hasPrefix("lodging-area-")) }
+        #expect(rest.requiredStops.map(\.place.id) == expected.map(\.place.id), "your stops and hotels are kept, in order")
+        #expect(!rest.requiredStops.contains { $0.purpose == .fuel || $0.purpose == .rest }, "Waystage chooses its fuel stops and breaks again")
         #expect(rest.requiredStops.contains { $0.purpose == .visit && $0.stay == 5_400 })
         let planned = try #require(itinerary.stops[stopIndex].arrival).timeIntervalSince(try #require(itinerary.stops[0].departure))
         #expect(abs((rest.startState?.drivenToday ?? 0) - planned) < 1)
         #expect((0.05...1).contains(rest.vehicle.initialFuelFraction))
     }
 
-    @Test("Adjusting keeps the plan: the stops ahead stay, re-timed from now, and what changed is listed")
+    @Test("Adjusting keeps the plan: your stops and hotels ahead stay, re-timed from now, and what changed is listed")
     func adjustKeepsThePlan() async throws {
         let harness = FeatureHarness(), clock = Clock()
         let itinerary = try await plan(SampleTrips.request(from: "sf", to: "den"), harness)
         clock.now = try #require(itinerary.stops[1].arrival).addingTimeInterval(1_800)
         let model = DriveViewModel(trip: trip(itinerary, at: 1, phase: .atStop), dependencies: dependencies(harness, clock))
         let adjustment = try #require(await model.adjustRest())
-        let kept = itinerary.stops.dropFirst(2).dropLast().filter { $0.kind == .fuel || $0.kind == .lodging }
+        let kept = itinerary.stops.dropFirst(2).dropLast().filter { $0.kind == .lodging && !$0.place.id.hasPrefix("lodging-area-") }
+        #expect(!kept.isEmpty)
         for stop in kept {
             #expect(adjustment.plan.stops.contains { $0.place.id == stop.place.id && $0.isRequiredStop }, "\(stop.place.name) is kept")
         }
@@ -107,6 +109,7 @@ struct AdjustRestTests {
         #expect(adjustment.changes.first?.hasPrefix("Arrive Denver") == true)
         #expect(adjustment.changes.contains { $0.hasPrefix("Tonight: ") })
         #expect(!adjustment.stopsEarlierTonight)
+        #expect(!adjustment.changes.contains { $0.hasPrefix("No longer in the plan") }, "nothing of yours is dropped")
 
         let next = try #require(await model.use(adjustment))
         #expect(next.id == adjustment.plan.id && next.id != itinerary.id)
@@ -134,6 +137,24 @@ struct AdjustRestTests {
         let other = try #require(earlier.hotelChoices.first)
         let chosen = try #require(await model.adjust(earlier, stayingAt: other))
         #expect(chosen.plan.stops.first { $0.kind == .lodging }?.place.id == other.place.id)
+    }
+
+    @Test("A long trip with many fuel stops and nights ahead can be adjusted")
+    func longTrip() async throws {
+        let harness = FeatureHarness(), clock = Clock()
+        var request = SampleTrips.request(from: "sf", to: "nyc")
+        request.stops = [.visit(SampleTrips.city("lv"), stay: 3_600), .visit(SampleTrips.city("den"), stay: 3_600)]
+        let itinerary = try await plan(request, harness)
+        // Fuel stops, hotels and visits ahead: more than 10 (1.2.0 build 13 refused to adjust these).
+        let ahead = itinerary.stops.dropFirst(2).dropLast()
+            .filter { $0.kind != .rest && !$0.isRoadsidePullOff && !$0.place.id.hasPrefix("lodging-area-") }
+        #expect(ahead.count > RequiredStop.maximumCount)
+        clock.now = try #require(itinerary.stops[1].arrival).addingTimeInterval(600)
+        let model = DriveViewModel(trip: trip(itinerary, at: 1, phase: .atStop), dependencies: dependencies(harness, clock))
+        let adjustment = try #require(await model.adjustRest(), "\(model.statusMessage ?? "")")
+        #expect(model.statusMessage == nil)
+        #expect(adjustment.plan.stops.contains { $0.place.id == "den" && $0.kind == .visit })
+        #expect(adjustment.plan.stops.last?.place.id == "nyc")
     }
 
     @Test("On the way: the rest starts where the car is")

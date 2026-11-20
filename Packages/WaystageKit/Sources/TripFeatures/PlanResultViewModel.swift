@@ -167,6 +167,11 @@ public final class PlanResultViewModel {
 
     public var canUndo: Bool { !history.isEmpty && !isUpdating }
 
+    /// Another place to visit can be added (up to `RequiredStop.maximumCount`).
+    public var canAddStop: Bool {
+        (selected?.stops.count { $0.kind == .visit } ?? 0) < RequiredStop.maximumCount
+    }
+
     /// Makes the plan again with the change. Your own stops, kept stops and chosen hotels stay;
     /// Waystage re-chooses the rest. The previous plan can be brought back with `undo()`.
     public func apply(_ edit: PlanEdit) async {

@@ -598,10 +598,10 @@ public final class DriveViewModel: Identifiable {
     /// destination, leaving now, with the same car, limits and deadline; fuel is estimated from the
     /// plan and today's driving so far counts.
     ///
-    /// Every stop still ahead is kept (visits, kept stops, fuel stops and hotels) except the breaks
-    /// Waystage added, which are placed again where they're needed. With `releasingTonight`,
-    /// tonight's hotel and Waystage's own choices after it are left to the planner (your own stops
-    /// stay), to stop earlier tonight.
+    /// Your stops (places to visit, kept stops) and the hotels still ahead are kept; Waystage's own
+    /// breaks and fuel stops are chosen again for the new timing and tank level. With
+    /// `releasingTonight`, tonight's hotel and the hotels after it are left to the planner too (your
+    /// own stops stay), to stop earlier tonight.
     public func restOfTripRequest(releasingTonight: Bool = false) -> TripRequest? {
         guard canPlanRestAgain else { return nil }
         let itinerary = trip.itinerary
@@ -626,9 +626,9 @@ public final class DriveViewModel: Identifiable {
             ? stops[firstAhead..<(stops.count - 1)].filter { !trip.progress.skippedStopIDs.contains($0.id) } : []
         let tonight = ahead.firstIndex { $0.kind == .lodging }
         let kept = ahead.enumerated().filter { offset, stop in
-            if stop.isRequiredStop { return true }
-            guard stop.kind != .rest, !stop.isRoadsidePullOff, !stop.place.id.hasPrefix("lodging-area-") else { return false }
-            // Stopping earlier tonight: the planner chooses tonight's hotel and what follows it again.
+            if Self.isYours(stop) { return true }
+            guard stop.kind == .lodging, !stop.place.id.hasPrefix("lodging-area-") else { return false }
+            // Stopping earlier tonight: the planner chooses tonight's hotel and the ones after it again.
             if releasingTonight, let tonight, ahead.distance(from: ahead.startIndex, to: tonight) <= offset { return false }
             return true
         }.map { PlanResultViewModel.requiredStop(keeping: $0.element) }
@@ -638,6 +638,9 @@ public final class DriveViewModel: Identifiable {
         request.startState = driven > 0 ? StartState(drivenToday: driven) : nil
         return request
     }
+
+    /// A stop the traveler chose: a place to visit or a stop they kept.
+    private static func isYours(_ stop: ItineraryStop) -> Bool { stop.isRequiredStop || stop.kind == .visit }
 
     /// The tank level now, from the plan: at a stop, after its planned purchase; on the way, part
     /// way between the last stop's departure and the next stop's arrival.
@@ -724,10 +727,18 @@ public final class DriveViewModel: Identifiable {
     }
 
     private func adjustment(for request: TripRequest?, stopsEarlierTonight: Bool) async -> Adjustment? {
-        guard let request else { return nil }
+        guard let request else {
+            statusMessage = currentLocation == nil && mode != .atStop
+                ? "Waiting for your location to adjust the rest of the trip. Try again in a moment."
+                : "The rest of the trip can't be adjusted from here."
+            return nil
+        }
         do {
             let result = try await dependencies.planner.plan(request) { _ in }
-            guard let plan = result.itineraries[request.goal] ?? result.recommended else { return nil }
+            guard let plan = result.itineraries[request.goal] ?? result.recommended else {
+                statusMessage = "Waystage couldn't find a plan for the rest of the trip."
+                return nil
+            }
             let tonight = plan.stops.first { $0.kind == .lodging }
             return Adjustment(
                 plan: plan,
@@ -782,9 +793,13 @@ public final class DriveViewModel: Identifiable {
                 lines.append("Tonight: \(tonight.place.name) · check in \(checkIn)")
             }
         }
+        // Your stops and hotels that are gone (Waystage's breaks and fuel stops are chosen again;
+        // the new ones are in the plan). Tonight's replaced hotel is in the line above.
         let kept = Set(plan.stops.map(\.place.id))
+        let hasTonight = plan.stops.contains { $0.kind == .lodging }
         let dropped = old.stops.dropFirst(trip.progress.targetStopIndex + (mode == .atStop ? 1 : 0)).dropLast()
-            .filter { $0.kind != .rest && !$0.isRoadsidePullOff && !kept.contains($0.place.id) }
+            .filter { Self.isYours($0) || ($0.kind == .lodging && !$0.place.id.hasPrefix("lodging-area-")) }
+            .filter { !kept.contains($0.place.id) && !(hasTonight && $0.id == oldTonight?.id) }
             .map(\.place.name)
         if !dropped.isEmpty { lines.append("No longer in the plan: \(dropped.joined(separator: ", "))") }
         return lines

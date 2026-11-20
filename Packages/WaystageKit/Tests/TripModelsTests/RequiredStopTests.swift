@@ -22,10 +22,14 @@ struct RequiredStopTests {
         #expect(request(stops: [.visit(yellowstone, stay: 13.0 * 3_600)]).validationErrors() == [.invalidStay])
     }
 
-    @Test("At most 10 stops, each with a place")
+    @Test("At most 10 places to visit and 25 stops in all, each with a place")
     func limits() {
         let eleven = (0..<11).map { _ in RequiredStop.visit(yellowstone, stay: 3_600) }
-        #expect(request(stops: eleven).validationErrors().contains(.tooManyStops))
+        #expect(request(stops: eleven).validationErrors() == [.tooManyStops])
+        let hotels = (0..<15).map { _ in RequiredStop(place: yellowstone, purpose: .lodging) }
+        let ten = Array(eleven.prefix(10))
+        #expect(request(stops: ten + hotels).validationErrors().isEmpty, "kept stops and hotels don't count as places to visit")
+        #expect(request(stops: ten + hotels + [hotels[0]]).validationErrors() == [.tooManyKeptStops])
         let nowhere = Place(id: "x", name: "", coordinate: GeoCoordinate(latitude: 200, longitude: 0))
         #expect(request(stops: [.visit(nowhere, stay: 3_600)]).validationErrors() == [.invalidStop])
     }

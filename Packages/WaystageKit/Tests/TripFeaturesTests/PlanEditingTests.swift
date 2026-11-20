@@ -86,6 +86,7 @@ struct PlanEditingTests {
         let visit = try #require(next.stops.first { $0.kind == .visit })
         #expect(visit.place.id == "lv" && visit.dwellDuration == 5_400.0)
         #expect(plan.request.requiredStops.isEmpty)
+        #expect(model.canAddStop)
     }
 
     @Test("A departure that has passed moves to the next hour when the plan is made again")

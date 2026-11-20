@@ -158,6 +158,7 @@ struct PlanResultScreen: View {
             stopID: stopID,
             state: { model.editState(for: stopID) },
             formatters: formatters,
+            canAddStop: { model.canAddStop },
             apply: { edit in
                 selectedStop = nil
                 Task { await model.apply(edit) }
@@ -514,6 +515,7 @@ struct StopEditing {
     let stopID: String
     let state: () -> StopEditState?
     let formatters: TripFormatters
+    let canAddStop: () -> Bool
     let apply: (PlanEdit) -> Void
     let addStopAfter: () -> Void
 }
@@ -541,7 +543,7 @@ struct StopEditMenu: View {
                 }
             }
         }
-        if stopKind != .destination {
+        if stopKind != .destination && editing.canAddStop() {
             Button("Add a stop after this one", systemImage: "plus.circle", action: editing.addStopAfter)
         }
     }
@@ -650,7 +652,7 @@ struct StopDetailSheet: View {
                 }
                 .accessibilityIdentifier(AccessibilityID.Results.removeStop)
             }
-            if stop.kind != .destination {
+            if stop.kind != .destination && editing.canAddStop() {
                 Button(action: editing.addStopAfter) {
                     Label("Add a stop after this one", systemImage: "plus.circle")
                 }

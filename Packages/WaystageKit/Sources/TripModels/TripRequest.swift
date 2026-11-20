@@ -32,7 +32,10 @@ public enum TripRequestError: String, Error, Codable, CaseIterable, Sendable {
     case invalidRestInterval
     case invalidDailyDriving
     case invalidFuelReserve
+    /// More than `RequiredStop.maximumCount` places to visit.
     case tooManyStops
+    /// More stops to keep than one Google route can go through.
+    case tooManyKeptStops
     case invalidStop
     case invalidStay
 
@@ -48,7 +51,8 @@ public enum TripRequestError: String, Error, Codable, CaseIterable, Sendable {
         case .invalidRestInterval: "Rest interval must be between 30 minutes and 5 hours."
         case .invalidDailyDriving: "Daily driving must be at least as long as the rest interval."
         case .invalidFuelReserve: "Minimum fuel level must be between 5% and 50% of the tank."
-        case .tooManyStops: "Add at most \(RequiredStop.maximumCount) stops on the way."
+        case .tooManyStops: "You can add up to \(RequiredStop.maximumCount) places to visit on the way."
+        case .tooManyKeptStops: "A trip can keep up to \(RequiredStop.maximumRouted) stops. Remove a few, or stop keeping them."
         case .invalidStop: "Choose a place for each stop on the way."
         case .invalidStay: "A stop on the way can last 5 minutes to 12 hours."
         }
@@ -65,7 +69,10 @@ public struct RequiredStop: Codable, Hashable, Sendable, Identifiable {
         case rest, fuel, lodging
     }
 
+    /// Places to visit a trip can have (the plan form's limit).
     public static let maximumCount = 10
+    /// Stops of any kind a trip can keep: one Google route goes through at most 25.
+    public static let maximumRouted = 25
     /// How long a visit can last.
     public static let allowedStay: ClosedRange<TimeInterval> = 5 * 60...12 * 3_600
 
@@ -176,7 +183,8 @@ public struct TripRequest: Codable, Hashable, Sendable {
         if policy.maxDailyDriving < policy.maxContinuousDriving { errors.append(.invalidDailyDriving) }
         if !DrivingPolicy.allowedFuelReserve.contains(policy.fuelReserveFraction) { errors.append(.invalidFuelReserve) }
         let stops = requiredStops
-        if stops.count > RequiredStop.maximumCount { errors.append(.tooManyStops) }
+        if stops.count(where: { $0.purpose == .visit }) > RequiredStop.maximumCount { errors.append(.tooManyStops) }
+        if stops.count > RequiredStop.maximumRouted { errors.append(.tooManyKeptStops) }
         if stops.contains(where: { !$0.place.coordinate.isValid }) { errors.append(.invalidStop) }
         if stops.contains(where: { $0.purpose == .visit && !RequiredStop.allowedStay.contains($0.stay ?? 0) }) {
             errors.append(.invalidStay)
