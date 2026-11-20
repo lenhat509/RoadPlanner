@@ -87,7 +87,7 @@ platform :ios do
     upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
   end
 
-  desc "Uploads the listing, review notes and age rating to App Store Connect (does not submit by default)"
+  desc "Uploads the listing, review notes and age rating to App Store Connect; with submit (the workflow's submit_for_review) also submits the version's newest build for review"
   lane :release do |options|
     # No build happens here: the app that goes to the store is the TestFlight build from `beta`,
     # which checks its own configuration. Screenshots are taken on a real iPhone with real Google
@@ -100,12 +100,14 @@ platform :ios do
       metadata_path: "fastlane/metadata",
       skip_screenshots: true,
       app_rating_config_path: "fastlane/app_rating_config.json",
-      submit_for_review: options[:submit] == true,
+      # Selects the newest build of this version (waiting until Apple has processed it) and
+      # submits it; the encryption answer comes from Info.plist (ITSAppUsesNonExemptEncryption).
+      submit_for_review: options[:submit] == true || ENV["SUBMIT_FOR_REVIEW"] == "true",
       # Released as soon as Apple approves it, as every version so far.
       automatic_release: true,
       force: true,
       precheck_include_in_app_purchases: false,
-      submission_information: { add_id_info_uses_idfa: false }
+      submission_information: { add_id_info_uses_idfa: false, export_compliance_uses_encryption: false }
     )
   end
 

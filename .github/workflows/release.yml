@@ -19,9 +19,13 @@ on:
         type: boolean
         default: false
       run_tests:
-        description: "Run the iOS test suite before building"
+        description: "Lane beta: run the iOS test suite before building"
         type: boolean
         default: true
+      submit_for_review:
+        description: "Lane release: also select this version's newest build (waits until Apple has processed it) and submit it for review; released automatically once approved"
+        type: boolean
+        default: false
 
 jobs:
   release:
@@ -36,6 +40,11 @@ jobs:
       WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || secrets.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
       WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || secrets.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
     steps:
+      - name: Check the options
+        if: ${{ inputs.submit_for_review && inputs.lane != 'release' }}
+        run: |
+          echo "::error::Submitting for review needs lane 'release'. Upload the build with lane 'beta' first, then run lane 'release' with submit_for_review."
+          exit 1
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -72,7 +81,7 @@ jobs:
             if [ -n "${!name}" ]; then echo "set:     $name"; else echo "not set: $name"; fi
           done
       - name: Test before shipping
-        if: ${{ inputs.run_tests }}
+        if: ${{ inputs.run_tests && inputs.lane == 'beta' }}
         run: scripts/test-all.sh ios
       - name: fastlane ${{ inputs.lane }}
         env:
@@ -84,4 +93,5 @@ jobs:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_READONLY: ${{ inputs.create_certificates && 'false' || 'true' }}
           MATCH_FORCE: ${{ inputs.refresh_profile && 'true' || 'false' }}
+          SUBMIT_FOR_REVIEW: ${{ inputs.submit_for_review && 'true' || 'false' }}
         run: bundle exec fastlane ${{ inputs.lane }}

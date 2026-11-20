@@ -88,13 +88,19 @@ modes declared: `location`, `audio`. Export compliance: `ITSAppUsesNonExemptEncr
    operating the phone: planning, Google's navigation with the screen locked, arrival at a stop,
    "Continue to next stop", resume after force-quitting, rerouting; and CarPlay (see
    [CARPLAY.md](CARPLAY.md#testing)), which no automated test covers.
-4. **Actions → Release**, lane `release`. It uploads the listing, review notes and age rating.
-   If the Navigation SDK version changed, check its privacy manifest against
-   [App Privacy](#app-privacy-nutrition-label-answers) first.
+4. If the Navigation SDK version changed, check its privacy manifest against
+   [App Privacy](#app-privacy-nutrition-label-answers) and update the answers in App Store
+   Connect (Apple's API can't).
 5. **Screenshots**, the first time and when the app looks different: take them on your iPhone with
    the TestFlight build, planning a real trip (real Google routes, places and prices), and upload
-   them in App Store Connect → the version → **Previews and Screenshots** (see below).
-6. In App Store Connect, select the build and submit it for review.
+   them in App Store Connect → the version → **Previews and Screenshots** (see below). Otherwise
+   the previous version's carry over.
+6. **Actions → Release**, lane `release`, with **submit_for_review** ticked. It creates the
+   version in App Store Connect if needed, uploads the listing, What's New, review notes and age
+   rating, waits until Apple has processed the version's newest build, selects it and submits it
+   for review. The version is released automatically once approved. Without
+   **submit_for_review** it stops after the upload, and you submit in App Store Connect (select
+   the build, **Submit for Review**).
 
 ## Screenshots
 
