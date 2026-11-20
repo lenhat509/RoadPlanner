@@ -48,6 +48,8 @@ struct DriveScreen: View {
     @State private var adjustment: DriveViewModel.Adjustment?
     @State private var showsAdjustment = false
     @State private var isAdjusting = false
+    /// "Adjust visits", while the driver looks at it.
+    @State private var visitsEditor: AdjustVisitsViewModel?
 
     init(
         model: DriveViewModel, dependencies: AppDependencies, navigation: GoogleNavigationEngine?,
@@ -117,6 +119,23 @@ struct DriveScreen: View {
                         }
                     },
                     onCancel: { showsAdjustment = false }
+                )
+                .preferredColorScheme(appColorScheme)
+            }
+        }
+        .sheet(isPresented: Binding(get: { visitsEditor != nil }, set: { if !$0 { visitsEditor = nil } })) {
+            if let visitsEditor {
+                AdjustVisitsSheet(
+                    model: visitsEditor,
+                    dependencies: dependencies,
+                    onUse: { plan in
+                        Task {
+                            guard let trip = await model.use(plan: plan) else { return }
+                            self.visitsEditor = nil
+                            onReplaceTrip(trip)
+                        }
+                    },
+                    onCancel: { self.visitsEditor = nil }
                 )
                 .preferredColorScheme(appColorScheme)
             }
@@ -400,7 +419,8 @@ struct DriveScreen: View {
                 headline: model.isHeadingToStart ? "Head to the start of your trip" : nil,
                 startTitle: model.isHeadingToStart ? "Directions to start" : "Start",
                 onExit: exitDrive,
-                onStart: startNavigation
+                onStart: startNavigation,
+                onAdjustVisits: { visitsEditor = model.visitsEditor() }
             ) {
                 menuContent
             }

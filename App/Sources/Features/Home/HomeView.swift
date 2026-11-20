@@ -7,6 +7,8 @@ import TripPlanner
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var model: HomeViewModel
+    /// "Adjust visits" for the trip in progress.
+    @State private var visits: VisitsEditing?
     let isDemo: Bool
     let onPlanTrip: () -> Void
     let onOpenSettings: () -> Void
@@ -63,6 +65,20 @@ struct HomeView: View {
             }
         }
         .task(id: environment.drive?.id) { await model.load() }
+        .sheet(item: $visits) { visits in
+            AdjustVisitsSheet(
+                model: visits.editor,
+                dependencies: environment.dependencies,
+                onUse: { plan in
+                    Task {
+                        guard await visits.drive.use(plan: plan) != nil else { return }
+                        self.visits = nil
+                        await model.load()
+                    }
+                },
+                onCancel: { self.visits = nil }
+            )
+        }
     }
 
     // MARK: Sections
@@ -160,6 +176,15 @@ struct HomeView: View {
             }
             .buttonStyle(.primary)
             .accessibilityIdentifier(AccessibilityID.Home.resume)
+            Button {
+                let drive = DriveViewModel(trip: trip, dependencies: environment.dependencies)
+                visits = VisitsEditing(drive: drive, editor: drive.visitsEditor())
+            } label: {
+                Label("Adjust visits", systemImage: "mappin.and.ellipse")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.secondary)
+            .accessibilityIdentifier(AccessibilityID.Home.adjustVisits)
         }
         .card()
     }
@@ -257,4 +282,11 @@ struct HomeView: View {
         }
         .accessibilityElement(children: .combine)
     }
+}
+
+/// "Adjust visits" for the trip in progress, opened from Home (no drive running).
+private struct VisitsEditing: Identifiable {
+    let id = UUID()
+    let drive: DriveViewModel
+    let editor: AdjustVisitsViewModel
 }

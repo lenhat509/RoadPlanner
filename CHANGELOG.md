@@ -26,6 +26,11 @@ wasn't released on its own.
   changes, and a message says why when the rest can't be adjusted. If tonight's hotel is now too far, **Stop earlier tonight**
   finds a hotel near where today's driving ends, with others to choose from. Also in the drive
   menu; never offered while guiding.
+- **Adjust visits.** From drive mode's preview (next to Start) or the trip on Home (next to
+  Resume): every stop still ahead with its address and arrival time, and the places to visit to
+  add or remove. A new visit goes where it adds the least driving; each change updates the list
+  at once (Undo goes back), and **Use this plan** makes it the trip. Before the trip starts the
+  whole plan is made again; once it has, the rest of the trip from where you are.
 - **Up to 10 places to visit.** The limit counts only places you add; kept stops and hotels don't
   count toward it (a trip can keep up to 25 stops, the most one route can go through).
 - **Your own stop is the break.** To reach a stop you chose (or the destination), driving may run

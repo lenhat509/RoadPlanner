@@ -293,6 +293,51 @@ final class WaystageUITests: XCTestCase {
         XCTAssertTrue(visit.waitForExistence(timeout: 5), "Los Angeles is in the plan with its 1 h stay")
     }
 
+    func testAdjustingVisitsFromTheDrivePreview() {
+        launch()
+        app.buttons[AccessibilityID.Home.planTrip].tap()
+        choosePlace(field: AccessibilityID.Plan.origin, typing: "San Fr", pick: "San Francisco")
+        choosePlace(field: AccessibilityID.Plan.destination, typing: "Vegas", pick: "Las Vegas")
+        app.buttons[AccessibilityID.Plan.submit].tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.start].waitForExistence(timeout: 30))
+        openDrive()
+        let adjust = app.buttons[AccessibilityID.Drive.adjustVisits]
+        XCTAssertTrue(adjust.waitForExistence(timeout: 15), "the preview offers Adjust visits; on screen: \(app.visibleIdentifiers())")
+        adjust.tap()
+        let addVisit = app.buttons[AccessibilityID.Drive.addVisit]
+        XCTAssertTrue(addVisit.waitForExistence(timeout: 5))
+        let use = app.buttons[AccessibilityID.Drive.useVisits]
+        XCTAssertFalse(use.isEnabled, "nothing to use before a change")
+        addVisit.tap()
+        choosePlace(field: AccessibilityID.Results.addStopSearch, typing: "Los", pick: "Los Angeles")
+        let add = app.buttons[AccessibilityID.Results.addStopConfirm]
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntilEnabled(add), "Los Angeles was chosen")
+        add.tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Drive.removeVisit].waitForExistence(timeout: 30), "Los Angeles is listed as a visit")
+        XCTAssertTrue(waitUntilEnabled(use, timeout: 10))
+        use.tap()
+        XCTAssertTrue(use.waitForNonExistence(timeout: 10))
+        XCTAssertTrue(element(AccessibilityID.Drive.preview).waitForExistence(timeout: 15), "the new plan opens on its preview")
+    }
+
+    func testAdjustingVisitsFromTheTripOnHome() {
+        launch()
+        planLosAngelesToVegas()
+        startDrive()
+        waitUntilStopped()
+        let exit = app.buttons[AccessibilityID.Drive.exit]
+        XCTAssertTrue(exit.waitForExistence(timeout: 5))
+        exit.tap()
+        let adjust = app.buttons[AccessibilityID.Home.adjustVisits]
+        XCTAssertTrue(adjust.waitForExistence(timeout: 5), "the trip on Home offers Adjust visits")
+        adjust.tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Drive.addVisit].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons[AccessibilityID.Drive.useVisits].isEnabled, "nothing to use before a change")
+        app.navigationBars.buttons["Cancel"].tap()
+        XCTAssertTrue(app.buttons[AccessibilityID.Home.resume].waitForExistence(timeout: 5))
+    }
+
     private func waitUntilEnabled(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while !element.isEnabled && Date() < deadline { Thread.sleep(forTimeInterval: 0.25) }

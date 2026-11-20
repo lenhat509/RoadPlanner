@@ -141,7 +141,7 @@ public final class DriveViewModel: Identifiable {
         }
     }
 
-    private let dependencies: AppDependencies
+    let dependencies: AppDependencies
     private var guidance: any TurnByTurnGuidance { dependencies.guidance }
     private var updatesTask: Task<Void, Never>?
     private var lastSave: Date?
@@ -806,11 +806,14 @@ public final class DriveViewModel: Identifiable {
     }
 
     /// Makes the adjusted plan the trip being driven (saved like a started plan).
-    public func use(_ adjustment: Adjustment) async -> ActiveTrip? {
-        let next = ActiveTrip(itinerary: adjustment.plan)
+    public func use(_ adjustment: Adjustment) async -> ActiveTrip? { await use(plan: adjustment.plan) }
+
+    /// Makes a plan for the rest of the trip (adjusted, or with other visits) the trip being driven.
+    public func use(plan: Itinerary) async -> ActiveTrip? {
+        let next = ActiveTrip(itinerary: plan)
         do {
             try await dependencies.repository.saveActiveTrip(next)
-            try await dependencies.repository.saveItinerary(adjustment.plan)
+            try await dependencies.repository.saveItinerary(plan)
         } catch {
             statusMessage = "The adjusted plan couldn't be saved. Try again."
             return nil

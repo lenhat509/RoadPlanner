@@ -7,10 +7,12 @@ struct AddStopSheet: View {
     @State private var model: PlaceSearchViewModel
     @Environment(\.dismiss) private var dismiss
     @FocusState private var isSearching: Bool
+    let title: String
     let onAdd: (Place, TimeInterval) -> Void
 
-    init(dependencies: AppDependencies, onAdd: @escaping (Place, TimeInterval) -> Void) {
+    init(dependencies: AppDependencies, title: String = "Add a stop", onAdd: @escaping (Place, TimeInterval) -> Void) {
         _model = State(initialValue: PlaceSearchViewModel(dependencies: dependencies))
+        self.title = title
         self.onAdd = onAdd
     }
 
@@ -58,7 +60,7 @@ struct AddStopSheet: View {
                     Section { Text(error).foregroundStyle(Theme.warning) }
                 }
             }
-            .navigationTitle("Add a stop")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
