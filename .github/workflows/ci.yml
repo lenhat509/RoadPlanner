@@ -63,6 +63,12 @@ jobs:
         run: swiftlint lint
       - name: Package tests on iOS + app unit tests + XCUITests
         run: scripts/test-all.sh ios
+      - name: Build for iPhone as Release does (not signed)
+        # The tests build for the simulator in Debug; Release archives for iPhones, where linking
+        # can fail on its own (e.g. Google SDK versions that don't match).
+        run: |
+          xcodebuild build -quiet -project Waystage.xcodeproj -scheme Waystage -configuration Release \
+            -destination "generic/platform=iOS" CODE_SIGNING_ALLOWED=NO
       - name: Upload test logs and result bundles
         if: always()
         uses: actions/upload-artifact@v4
