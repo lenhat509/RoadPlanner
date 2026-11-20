@@ -207,6 +207,9 @@ final class WaystageUITests: XCTestCase {
         launch()
         planLosAngelesToVegas()
         startDrive()
+        // The simulated car reaching a stop swaps the panel holding the menu, which closes it
+        // between finding "End trip" and tapping it: end the trip once the car has stopped.
+        waitUntilStopped()
         guard let endTrip = app.tripMenuItem("End trip") else {
             return XCTFail("trip menu did not open; on screen: \(app.visibleIdentifiers())")
         }
