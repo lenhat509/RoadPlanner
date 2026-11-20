@@ -15,17 +15,30 @@ wasn't released on its own.
   that long and plans the breaks, fuel and nights around them; it can't skip them. A trip with
   stops on the way has one route through them (Google offers no alternative routes through
   stops), plus its toll-free version.
-- **Edit a plan.** In a plan's stop details: keep a stop, remove it, or pick another hotel nearby
-  for that night. **Plan again with your changes** plans the trip again with the kept stops and
-  the chosen hotel included and the removed places left out (another break or fuel stop takes a
-  removed one's place where the break rhythm or fuel needs one).
-- **Plan the rest again.** Stopped at a stop (or before Start), drive mode says when tonight's
-  hotel would be reached well after the end of the driving day, or the destination after the
-  deadline, and offers to plan the rest of the trip again from there, leaving now, with the stops
-  still ahead. Also in the drive menu. Never offered while guiding.
+- **Edit a plan, and it updates right away.** Touch and hold any stop (or open it) to remove it,
+  keep it, stay at another hotel that night, or add a stop after it (the same place search as the
+  plan form, with a stay). The plan is made again at once, keeping your own stops, kept stops and
+  chosen hotels; **Undo** brings the previous plan back.
+- **Adjust the rest.** Stopped at a stop (or before Start), drive mode says when tonight's hotel
+  would be reached well after the end of the driving day, or the destination after the deadline.
+  **Adjust the rest** keeps the plan: every stop and hotel still ahead stays, re-timed from now,
+  and the sheet says what changes. If tonight's hotel is now too far, **Stop earlier tonight**
+  finds a hotel near where today's driving ends, with others to choose from. Also in the drive
+  menu; never offered while guiding.
+- **Your own stop is the break.** To reach a stop you chose (or the destination), driving may run
+  up to 30 minutes past the break interval instead of stopping just before it.
+
+### Fixed
+- Plans could pile up stops: breaks minutes apart and several hotels close together, where a route
+  passes the same area twice (TestFlight build 12). A place is now placed only near the stretch
+  where it was found (and on each pass of such a route), breaks Waystage adds are at least
+  45 minutes apart, and once real directions are known, stops that aren't where the plan put them
+  are replaced and breaks crowded within 30 minutes of another stop are dropped.
+- Plans shown from drive mode follow the phone's light or dark setting, like the rest of the app
+  (only drive mode's map and panels follow Google's day and night look).
 
 ### Changed
-- Planning again in the same session (an edited plan, the rest of a trip) reuses that session's
+- Planning again in the same session (an edited plan, an adjusted trip) reuses that session's
   place searches for road already searched: no extra Google fees for them. They're kept in memory
   only, for 30 minutes.
 - **Release workflow: one lane per App Store Connect step.** `upload_build` (TestFlight),

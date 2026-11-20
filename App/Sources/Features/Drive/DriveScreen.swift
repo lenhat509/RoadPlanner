@@ -40,25 +40,24 @@ struct DriveScreen: View {
     private let navigation: GoogleNavigationEngine?
     /// Leaves drive mode (the environment stops the drive).
     let onFinish: () -> Void
-    /// Drives a new plan for the rest of the trip instead (the environment replaces the drive).
+    /// Drives the adjusted plan instead (the environment replaces the drive).
     let onReplaceTrip: (ActiveTrip) -> Void
-    /// The rest of the trip planned again, while the driver looks at it.
-    @State private var restOfTrip: RestOfTrip?
-    @State private var isPlanningRest = false
-
-    struct RestOfTrip: Identifiable {
-        let id = UUID()
-        let result: PlanResult
-    }
+    /// The phone's light or dark setting: plans shown from drive mode follow it.
+    let appColorScheme: ColorScheme
+    /// The rest of the trip, adjusted, while the driver looks at it.
+    @State private var adjustment: DriveViewModel.Adjustment?
+    @State private var showsAdjustment = false
+    @State private var isAdjusting = false
 
     init(
         model: DriveViewModel, dependencies: AppDependencies, navigation: GoogleNavigationEngine?,
-        onReplaceTrip: @escaping (ActiveTrip) -> Void, onFinish: @escaping () -> Void
+        appColorScheme: ColorScheme, onReplaceTrip: @escaping (ActiveTrip) -> Void, onFinish: @escaping () -> Void
     ) {
         self.model = model
         _showsSafetyNotice = State(initialValue: !dependencies.preferences.load().hasAcceptedSafetyNotice)
         self.dependencies = dependencies
         self.navigation = navigation
+        self.appColorScheme = appColorScheme
         self.onReplaceTrip = onReplaceTrip
         self.onFinish = onFinish
     }
@@ -100,23 +99,31 @@ struct DriveScreen: View {
         } message: {
             Text("Your progress on this trip will be cleared.")
         }
-        // Only ever opened by the driver, while stopped (or before Start).
-        .sheet(item: $restOfTrip) { plan in
-            NavigationStack {
-                PlanResultScreen(result: plan.result, dependencies: dependencies, startButtonTitle: "Use this plan") { trip in
-                    restOfTrip = nil
-                    onReplaceTrip(trip)
-                }
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { restOfTrip = nil }
-                    }
-                }
+        // Only ever opened by the driver, while stopped (or before Start). It follows the phone's
+        // light or dark setting, like the plans elsewhere in the app.
+        .sheet(isPresented: $showsAdjustment) {
+            if let adjustment {
+                AdjustRestSheet(
+                    adjustment: adjustment,
+                    formatters: dependencies.formatters,
+                    isWorking: isAdjusting,
+                    onStopEarlier: { change { await model.stopEarlierTonight() } },
+                    onChooseHotel: { hotel in change { await model.adjust(adjustment, stayingAt: hotel) } },
+                    onUse: {
+                        Task {
+                            guard let trip = await model.use(adjustment) else { return }
+                            showsAdjustment = false
+                            onReplaceTrip(trip)
+                        }
+                    },
+                    onCancel: { showsAdjustment = false }
+                )
+                .preferredColorScheme(appColorScheme)
             }
         }
         .overlay {
-            if isPlanningRest {
-                ProgressView("Planning the rest of the trip…")
+            if isAdjusting && !showsAdjustment {
+                ProgressView("Adjusting the rest of the trip…")
                     .padding(Theme.Spacing.l)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
@@ -444,12 +451,12 @@ struct DriveScreen: View {
             Label(suggestion.text, systemImage: "clock.badge.exclamationmark")
                 .font(.subheadline.weight(.medium))
                 .fixedSize(horizontal: false, vertical: true)
-            Button(action: planRestAgain) {
-                Label("Plan the rest again", systemImage: "arrow.triangle.2.circlepath")
+            Button(action: adjustRest) {
+                Label("Adjust the rest", systemImage: "arrow.triangle.2.circlepath")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.secondary)
-            .disabled(isPlanningRest)
+            .disabled(isAdjusting)
         }
         .padding(Theme.Spacing.s)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -457,12 +464,26 @@ struct DriveScreen: View {
         .accessibilityIdentifier(AccessibilityID.Drive.replanSuggestion)
     }
 
-    private func planRestAgain() {
-        guard !isPlanningRest else { return }
-        isPlanningRest = true
+    /// Adjusts the rest of the trip, keeping the plan, and shows what changes.
+    private func adjustRest() {
+        guard !isAdjusting else { return }
+        isAdjusting = true
         Task {
-            defer { isPlanningRest = false }
-            if let result = await model.planRestAgain() { restOfTrip = RestOfTrip(result: result) }
+            defer { isAdjusting = false }
+            if let adjusted = await model.adjustRest() {
+                adjustment = adjusted
+                showsAdjustment = true
+            }
+        }
+    }
+
+    /// Replaces the adjustment shown (stopping earlier tonight, another hotel).
+    private func change(_ make: @escaping @MainActor () async -> DriveViewModel.Adjustment?) {
+        guard !isAdjusting else { return }
+        isAdjusting = true
+        Task {
+            defer { isAdjusting = false }
+            if let changed = await make() { adjustment = changed }
         }
     }
 
@@ -495,10 +516,10 @@ struct DriveScreen: View {
             }
         }
         if model.canPlanRestAgain && isStoppedForPlanning {
-            Button(action: planRestAgain) {
-                Label("Plan the rest again", systemImage: "arrow.triangle.2.circlepath")
+            Button(action: adjustRest) {
+                Label("Adjust the rest", systemImage: "arrow.triangle.2.circlepath")
             }
-            .accessibilityIdentifier(AccessibilityID.Drive.planRestAgain)
+            .accessibilityIdentifier(AccessibilityID.Drive.adjustRest)
         }
         if let url = model.googleMapsURL {
             Button {

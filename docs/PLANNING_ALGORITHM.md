@@ -117,6 +117,22 @@ block for stops on the way, editing a plan and planning the rest of a trip again
   driving already done (keeping an hour to reach tonight's stop); the validator counts it too.
 * **Lodging searches** follow the stays: a long visit ends a driving day earlier along the route.
 * The straight-through fallback keeps the required stops.
+* **Your own stop is the break:** the drive to a required stop or to the destination may run
+  `DrivingPolicy.stretchToOwnStop` (30 min) past the break interval, instead of a break just
+  before it (the validator allows the same).
+
+## Stops never pile up
+
+* **One pass at a time:** a place is projected only near the stretch of route where it was found
+  (±20 km of the search's section). A place found on two passes of a route (out to a stop and
+  back) is a candidate on each pass (`CandidateBuilder.mergeDuplicates`).
+* **Spacing:** a break the optimizer adds comes at least `minimumBreakSpacing` (45 min, or half the
+  break interval if shorter) after the previous stop; fuel and overnight stops may come sooner when
+  they're needed.
+* **After real directions** (`TripPlanningService.finalize`): a stop whose real drive there and on
+  both differ from the plan's distances by more than 25 km and a third isn't where the plan put it;
+  the plan is made once more without it (`misplacedStops`). A break less than 30 min from the stop
+  before or after it is dropped and its legs joined (`droppingCrowdedBreaks`).
 
 ## Feasibility first — the relaxation ladder
 

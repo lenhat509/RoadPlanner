@@ -594,10 +594,15 @@ public final class DriveViewModel: Identifiable {
     /// The rest of the trip can be planned again (not on the way to the start, not once arrived).
     public var canPlanRestAgain: Bool { mode != .completed && !isHeadingToStart }
 
-    /// The trip from here: from the stop the car is at (or where it is) to the same destination,
-    /// leaving now, with the same car, limits and deadline. Visits and kept stops still ahead
-    /// stay; fuel is estimated from the plan; today's driving so far counts.
-    public func restOfTripRequest() -> TripRequest? {
+    /// The rest of the trip from here: from the stop the car is at (or where it is) to the same
+    /// destination, leaving now, with the same car, limits and deadline; fuel is estimated from the
+    /// plan and today's driving so far counts.
+    ///
+    /// Every stop still ahead is kept (visits, kept stops, fuel stops and hotels) except the breaks
+    /// Waystage added, which are placed again where they're needed. With `releasingTonight`,
+    /// tonight's hotel and Waystage's own choices after it are left to the planner (your own stops
+    /// stay), to stop earlier tonight.
+    public func restOfTripRequest(releasingTonight: Bool = false) -> TripRequest? {
         guard canPlanRestAgain else { return nil }
         let itinerary = trip.itinerary
         let stops = itinerary.stops
@@ -617,10 +622,17 @@ public final class DriveViewModel: Identifiable {
         request.departure = now
         if let deadline = request.arriveBy, deadline <= now { request.arriveBy = nil }
         let firstAhead = mode == .atStop ? target + 1 : target
-        let ahead = firstAhead < stops.count - 1 ? Array(stops[firstAhead..<(stops.count - 1)]) : []
-        let required = ahead.filter { $0.isRequiredStop && !trip.progress.skippedStopIDs.contains($0.id) }
-            .map(PlanResultViewModel.requiredStop(keeping:))
-        request.stops = required.isEmpty ? nil : required
+        let ahead = firstAhead < stops.count - 1
+            ? stops[firstAhead..<(stops.count - 1)].filter { !trip.progress.skippedStopIDs.contains($0.id) } : []
+        let tonight = ahead.firstIndex { $0.kind == .lodging }
+        let kept = ahead.enumerated().filter { offset, stop in
+            if stop.isRequiredStop { return true }
+            guard stop.kind != .rest, !stop.isRoadsidePullOff, !stop.place.id.hasPrefix("lodging-area-") else { return false }
+            // Stopping earlier tonight: the planner chooses tonight's hotel and what follows it again.
+            if releasingTonight, let tonight, ahead.distance(from: ahead.startIndex, to: tonight) <= offset { return false }
+            return true
+        }.map { PlanResultViewModel.requiredStop(keeping: $0.element) }
+        request.stops = kept.isEmpty ? nil : kept
         request.vehicle.initialFuelFraction = estimatedFuelFraction()
         let driven = drivenSinceLastNight()
         request.startState = driven > 0 ? StartState(drivenToday: driven) : nil
@@ -675,18 +687,120 @@ public final class DriveViewModel: Identifiable {
         return driven
     }
 
-    /// Plans the rest of the trip again (`restOfTripRequest`).
-    public func planRestAgain() async -> PlanResult? {
-        guard let request = restOfTripRequest() else { return nil }
+    /// The rest of the trip, adjusted: the plan, and what changed compared with the trip being driven.
+    public struct Adjustment: Identifiable, Sendable {
+        public var id = UUID()
+        public var plan: Itinerary
+        /// "Arrive San José Thu 3:10 PM (+1 h 20)", "Tonight: Hampton Inn · check in 11:40 PM", …
+        public var changes: [String]
+        /// Tonight's hotel is now reached after the end of the driving day.
+        public var isLateTonight: Bool
+        /// Other hotels near tonight's stop, to stop somewhere else.
+        public var hotelChoices: [HotelChoice]
+        /// The planner chose tonight's hotel (stopping earlier), rather than keeping the planned one.
+        public var stopsEarlierTonight: Bool
+    }
+
+    /// Adjusts the rest of the trip, keeping the plan (`restOfTripRequest`).
+    public func adjustRest() async -> Adjustment? {
+        await adjustment(for: restOfTripRequest(), stopsEarlierTonight: false)
+    }
+
+    /// Adjusts the rest, letting Waystage choose a hotel where today's driving now ends.
+    public func stopEarlierTonight() async -> Adjustment? {
+        await adjustment(for: restOfTripRequest(releasingTonight: true), stopsEarlierTonight: true)
+    }
+
+    /// The adjustment with another of tonight's hotels.
+    public func adjust(_ adjustment: Adjustment, stayingAt hotel: HotelChoice) async -> Adjustment? {
+        guard var request = restOfTripRequest(releasingTonight: true),
+              let tonight = adjustment.plan.stops.firstIndex(where: { $0.kind == .lodging }) else { return nil }
+        // Tonight's hotel goes where the plan's was, among the stops the plan keeps.
+        let before = adjustment.plan.stops[..<tonight].filter(\.isRequiredStop).count
+        var stops = request.stops ?? []
+        stops.insert(hotel.requiredStop, at: min(before, stops.count))
+        request.stops = stops
+        return await self.adjustment(for: request, stopsEarlierTonight: true)
+    }
+
+    private func adjustment(for request: TripRequest?, stopsEarlierTonight: Bool) async -> Adjustment? {
+        guard let request else { return nil }
         do {
-            return try await dependencies.planner.plan(request) { _ in }
+            let result = try await dependencies.planner.plan(request) { _ in }
+            guard let plan = result.itineraries[request.goal] ?? result.recommended else { return nil }
+            let tonight = plan.stops.first { $0.kind == .lodging }
+            return Adjustment(
+                plan: plan,
+                changes: changes(to: plan),
+                isLateTonight: tonight.map { isLate($0, policy: plan.appliedPolicy) } ?? false,
+                // Stopping earlier: only hotels this side of where today's driving ends (one much
+                // farther on would need another night before it).
+                hotelChoices: (tonight.flatMap { result.routes.first?.hotelChoices[$0.place.id] } ?? [])
+                    .filter { $0.timeFromPlanned <= 15 * 60 },
+                stopsEarlierTonight: stopsEarlierTonight
+            )
         } catch let error as PlanningError {
             statusMessage = error.message
             return nil
         } catch {
-            statusMessage = "The rest of the trip couldn't be planned. Check your connection and try again."
+            statusMessage = "The rest of the trip couldn't be adjusted. Check your connection and try again."
             return nil
         }
+    }
+
+    /// Whether a stop is reached well after the end of that driving day.
+    private func isLate(_ stop: ItineraryStop, policy: DrivingPolicy) -> Bool {
+        guard let arrival = stop.arrival else { return false }
+        let offset = TimeInterval(stop.place.utcOffsetSeconds)
+        let local = arrival.timeIntervalSince1970 + offset
+        let midnight = floor(local / Units.secondsPerDay) * Units.secondsPerDay
+        let timeOfDay = local - midnight
+        // After the day's end, or after midnight but before the next day starts.
+        return timeOfDay > policy.dayEnd.secondsFromMidnight + Self.replanMargin || timeOfDay < policy.dayStart.secondsFromMidnight
+    }
+
+    /// What the adjusted plan changes for the trip being driven.
+    private func changes(to plan: Itinerary) -> [String] {
+        let formatters = dependencies.formatters
+        let old = trip.itinerary
+        var lines: [String] = []
+        if let arrival = plan.arrival, let destination = plan.stops.last {
+            let offset = destination.place.utcOffsetSeconds
+            var line = "Arrive \(destination.place.name) \(formatters.dateTime(arrival, utcOffsetSeconds: offset))"
+            if let planned = old.arrival {
+                let delta = arrival.timeIntervalSince(planned)
+                if abs(delta) >= 5 * 60 { line += " (\(delta > 0 ? "+" : "−")\(formatters.duration(abs(delta))))" }
+            }
+            lines.append(line)
+        }
+        let oldTonight = old.stops.dropFirst(trip.progress.targetStopIndex).first { $0.kind == .lodging }
+        if let tonight = plan.stops.first(where: { $0.kind == .lodging }), let arrival = tonight.arrival {
+            let checkIn = formatters.clockTime(arrival, utcOffsetSeconds: tonight.place.utcOffsetSeconds)
+            if let oldTonight, oldTonight.place.id != tonight.place.id {
+                lines.append("Tonight: \(tonight.place.name) instead of \(oldTonight.place.name) · check in \(checkIn)")
+            } else {
+                lines.append("Tonight: \(tonight.place.name) · check in \(checkIn)")
+            }
+        }
+        let kept = Set(plan.stops.map(\.place.id))
+        let dropped = old.stops.dropFirst(trip.progress.targetStopIndex + (mode == .atStop ? 1 : 0)).dropLast()
+            .filter { $0.kind != .rest && !$0.isRoadsidePullOff && !kept.contains($0.place.id) }
+            .map(\.place.name)
+        if !dropped.isEmpty { lines.append("No longer in the plan: \(dropped.joined(separator: ", "))") }
+        return lines
+    }
+
+    /// Makes the adjusted plan the trip being driven (saved like a started plan).
+    public func use(_ adjustment: Adjustment) async -> ActiveTrip? {
+        let next = ActiveTrip(itinerary: adjustment.plan)
+        do {
+            try await dependencies.repository.saveActiveTrip(next)
+            try await dependencies.repository.saveItinerary(adjustment.plan)
+        } catch {
+            statusMessage = "The adjusted plan couldn't be saved. Try again."
+            return nil
+        }
+        return next
     }
 
     // MARK: Internals

@@ -23,6 +23,9 @@ struct PlanResultRoute: Hashable {
 struct RootView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var path: [AppRoute] = []
+    /// The phone's light or dark setting (drive mode's map follows Google's day and night instead,
+    /// but the plans it shows follow the phone, like the rest of the app).
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -57,6 +60,7 @@ struct RootView: View {
         .fullScreenCover(item: driveBinding) { drive in
             DriveScreen(
                 model: drive, dependencies: environment.dependencies, navigation: environment.navigation,
+                appColorScheme: colorScheme,
                 onReplaceTrip: { trip in Task { await environment.beginDrive(trip) } }
             ) {
                 Task { await environment.endDrive() }
