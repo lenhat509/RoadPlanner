@@ -1,1 +1,1 @@
-Improvements to trip planning behind the scenes, and Waystage is now built with Apple's tools for iOS 27.
+Add stops on the way, like a park or a friend's town, with how long to stay, and Waystage plans the breaks, fuel and nights around them. Keep, remove or swap stops in a plan, and plan again. Running late? Plan the rest of the trip again from where you are.

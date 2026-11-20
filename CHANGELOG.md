@@ -6,7 +6,37 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-Version 1.1.1: 1.1.0 is approved, so App Store Connect only takes builds with a higher version.
+Version 1.2.0: flexible trips. It includes 1.1.1 (below), which is on TestFlight (build 11) but
+wasn't released on its own.
+
+### Added
+- **Stops on the way.** The plan form takes places to visit on the way, like a park or a friend's
+  town, each with how long to stay (5 minutes to 12 hours), in order. The plan stops there for
+  that long and plans the breaks, fuel and nights around them; it can't skip them. A trip with
+  stops on the way has one route through them (Google offers no alternative routes through
+  stops), plus its toll-free version.
+- **Edit a plan.** In a plan's stop details: keep a stop, remove it, or pick another hotel nearby
+  for that night. **Plan again with your changes** plans the trip again with the kept stops and
+  the chosen hotel included and the removed places left out (another break or fuel stop takes a
+  removed one's place where the break rhythm or fuel needs one).
+- **Plan the rest again.** Stopped at a stop (or before Start), drive mode says when tonight's
+  hotel would be reached well after the end of the driving day, or the destination after the
+  deadline, and offers to plan the rest of the trip again from there, leaving now, with the stops
+  still ahead. Also in the drive menu. Never offered while guiding.
+
+### Changed
+- Planning again in the same session (an edited plan, the rest of a trip) reuses that session's
+  place searches for road already searched: no extra Google fees for them. They're kept in memory
+  only, for 30 minutes.
+- **Release workflow: one lane per App Store Connect step.** `upload_build` (TestFlight),
+  `create_version` (+ Version), `update_version` (the version page and App Information, now with
+  screenshots and app previews from `fastlane/app_store`), `submit_for_review` (choose the build,
+  Submit for Review), and `release_all` for all of them in one run. Lanes stop early with the
+  reason when App Store Connect wouldn't accept the step. Creating or renewing the signing
+  certificate and profile moved to a separate **Signing** workflow; the only checkbox left is
+  **run_tests**. The App Review contact can come from optional secrets.
+
+## [1.1.1] — not released (build 11 on TestFlight)
 
 ### Changed
 - **Planning costs less in Google fees.** Road that several routes share (a toll-free version of
@@ -23,13 +53,6 @@ Version 1.1.1: 1.1.0 is approved, so App Store Connect only takes builds with a 
 - Google's Maps SDK is pinned to the Navigation SDK's version (11.3.0): Google's 11.4.0 Maps SDK
   doesn't build with the 11.3.0 Navigation SDK. CI also builds the app for iPhones as Release
   does.
-- **Release workflow: one lane per App Store Connect step.** `upload_build` (TestFlight),
-  `create_version` (+ Version), `update_version` (the version page and App Information, now with
-  screenshots and app previews from `fastlane/app_store`), `submit_for_review` (choose the build,
-  Submit for Review), and `release_all` for all of them in one run. Lanes stop early with the
-  reason when App Store Connect wouldn't accept the step. Creating or renewing the signing
-  certificate and profile moved to a separate **Signing** workflow; the only checkbox left is
-  **run_tests**. The App Review contact can come from optional secrets.
 
 ## [1.1.0] — 2026-11-18
 

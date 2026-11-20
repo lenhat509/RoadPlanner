@@ -198,6 +198,8 @@ once.
 | Turn instructions, route descriptions | No | No |
 | Navigation SDK routes, road names, speed limits | No | No: in memory during the drive only |
 | Station fuel prices | No | No: a saved plan shows the national estimate instead (marked as an estimate) |
+| Stops on the way (places to visit, kept stops) | Place IDs indefinitely, coordinates 30 days | Like the start and destination: place IDs, coordinates for 30 days, no names, addresses or station prices |
+| Place searches during the session | Not stored | In memory only, up to 30 minutes, never written to disk: planning again (an edited plan, the rest of a trip) reuses them for road already searched instead of paying for the same searches again. Other hotels offered for a night are kept with the plan just made, in memory |
 | Your own data (dates, times, plan structure, progress, vehicle) | Yours | Yes |
 
 ## Privacy: what the Navigation SDK collects
@@ -220,3 +222,8 @@ Store privacy answers include it ([APP_STORE_RELEASE.md](APP_STORE_RELEASE.md#ap
    and durations and cost totals computed from Google data. Confirm this is Waystage's content
    and not "content based on Google Maps Content" (3.2.3(c)); if not, saved plans would keep only
    place IDs and the driver's choices.
+5. **Reusing search results within a session.** When a plan is edited or the rest of a trip is
+   planned again, Waystage reuses place search results from the last 30 minutes of the same app
+   session (held in memory, never stored) rather than sending the same searches again. Confirm this
+   counts as use within the session and not caching under 3.2.3(b); if not, set
+   `searchMemoryLifetime` to 0 and every plan searches again.

@@ -95,6 +95,29 @@ a 2,615-mile San Francisco → New York trip with 353 candidate stops is optimiz
 goals in 0.23 s (~76 ms per goal); the whole pipeline excluding network latency takes 0.42 s.
 In the app, network round-trips to Google dominate planning time.
 
+## Required stops (1.2.0)
+
+A request can list stops the plan must include, in route order: places to visit with a stay, and
+stops kept from an earlier plan (a break, a fuel stop, tonight's hotel). They are one building
+block for stops on the way, editing a plan and planning the rest of a trip again.
+
+* **Routing:** the trip is routed through them as intermediate waypoints. Google's Routes API
+  returns no alternative routes for such requests, so the trip has one corridor (plus its
+  toll-free version), and no via hubs (which would be ordered after the stops).
+* **Candidates:** each required stop sits at the end of its leg (cumulative leg distance, scaled
+  to the route's geometry; time from the route profile), with no detour. A search result for the
+  same place gives it its live details (price, rate). Removed places (`avoidedPlaceIDs`) are
+  dropped from the candidates.
+* **Optimizer:** no driving segment passes the next required node, and only its own action is
+  planned there: the visit's stay, the kept break, a refuel, or an overnight (a kept hotel needs
+  no usual check-in time). The optimistic arrival bound adds the stays still to come. Fuel,
+  driving-day and overnight state carry across required stops like any stop, so the schedule
+  around them stays optimal, e.g. whether to spend the night before or after a visit.
+* **Planning again during a drive:** `startState.drivenToday` starts the first day with the
+  driving already done (keeping an hour to reach tonight's stop); the validator counts it too.
+* **Lodging searches** follow the stays: a long visit ends a driving day earlier along the route.
+* The straight-through fallback keeps the required stops.
+
 ## Feasibility first — the relaxation ladder
 
 `FeasibilityPlanner` tries increasingly relaxed settings and returns the first feasible plan, so

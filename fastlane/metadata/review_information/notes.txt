@@ -4,9 +4,10 @@ To try the full flow:
 1. On first launch, read "Before you start" and tap "Agree and continue".
 2. Tap "Plan a road trip". Choose a start (or "Use current location") and a destination a few hours away, for example Los Angeles to Las Vegas, then tap "Plan my trip".
 3. When there are 2–3 reasonable routes, they are all drawn on the map with their driving times; tap one to choose it. Compare the Fastest / Cheapest / Balanced plans, each with breaks, fuel stops and hotels for overnight trips.
+   Optional: under "Stops on the way", tap "Add a stop" to add a place to visit (with how long to stay). Tap any stop in a plan to keep it, remove it or pick another hotel, then "Plan again with your changes".
 4. Tap "Start driving". Before the first drive, Google's navigation terms appear (turn-by-turn directions are provided by Google's Navigation SDK); accept them. Then tap "Start" for turn-by-turn voice guidance.
 
-CarPlay (navigation app): connect the iPhone to CarPlay or the CarPlay Simulator after accepting the terms and the driving safety notice on the iPhone once. On the car's screen, "Trips" lists the trip in progress and saved plans; choosing one shows the next leg with "Start", which begins Google's turn-by-turn guidance (map, maneuvers, voice through the car). "End", or the car's own navigation starting, stops guidance immediately. At a stop, "Continue" previews the next leg. Planning a new trip needs typing and is done on the iPhone.
+CarPlay (navigation app): connect the iPhone to CarPlay or the CarPlay Simulator after accepting the terms and the driving safety notice on the iPhone once. On the car's screen, "Trips" lists the trip in progress and saved plans; choosing one shows the next leg with "Start", which begins Google's turn-by-turn guidance (map, maneuvers, voice through the car). "End", or the car's own navigation starting, stops guidance immediately. At a stop, "Continue" previews the next leg. Planning a new trip, editing a plan and planning the rest of a trip again need typing or reviewing a plan, so they're done on the iPhone, only while stopped.
 
 Location: used for directions, to detect arrival at a stop, and to plan from where you are. Background location and audio keep voice guidance running while the screen is locked (or the app is shown on CarPlay) during an active trip only; both stop when the trip ends.
 
