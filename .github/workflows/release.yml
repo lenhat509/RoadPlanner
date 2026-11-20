@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       lane:
-        description: "beta = build and send to TestFlight; release = fill the App Store page (listing, review notes, age rating; not screenshots); metadata = listing text only"
+        description: "beta = build and send to TestFlight; release = fill in the version's App Store entry (listing, What's New, review notes, age rating; not screenshots), released automatically once approved; metadata = the same text without touching the release setting"
         type: choice
         options: [beta, release, metadata]
         default: beta
