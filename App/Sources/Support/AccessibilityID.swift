@@ -36,6 +36,7 @@ enum AccessibilityID {
     }
 
     enum Results {
+        static let adjustVisits = "results.adjustVisits"
         static let map = "results.map"
         static let legend = "results.legend"
         static let start = "results.start"
@@ -70,12 +71,6 @@ enum AccessibilityID {
         static let useAdjustment = "drive.useAdjustment"
         static let stopEarlier = "drive.stopEarlier"
         static let replanSuggestion = "drive.replanSuggestion"
-        static let adjustVisits = "drive.adjustVisits"
-        static let addVisit = "drive.addVisit"
-        /// Takes a place added off the "Your visits" list.
-        static let discardVisit = "drive.discardVisit"
-        static let updateVisits = "drive.updateVisits"
-        static let useVisits = "drive.useVisits"
         static let arrived = "drive.arrived"
         static let skip = "drive.skip"
         static let mute = "drive.mute"
@@ -89,6 +84,15 @@ enum AccessibilityID {
         static let done = "drive.done"
         static let completedCard = "drive.completedCard"
         static let safetyAccept = "drive.safetyAccept"
+    }
+
+    /// "Adjust visits" (plan screen, and the trip on Home).
+    enum Visits {
+        static let add = "visits.add"
+        /// Takes a place added off the "Your visits" list.
+        static let discard = "visits.discard"
+        static let update = "visits.update"
+        static let use = "visits.use"
     }
 
     enum Terms {

@@ -16,7 +16,7 @@ public struct UserPreferences: Codable, Hashable, Sendable {
     public init(
         vehicle: Vehicle = Vehicle(milesPerGallon: 28),
         policy: DrivingPolicy = .standard,
-        goal: OptimizationGoal = .balanced,
+        goal: OptimizationGoal = .fastest,
         travelers: Int = 2,
         voiceGuidanceEnabled: Bool = true,
         hasAcceptedSafetyNotice: Bool = false,

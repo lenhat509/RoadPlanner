@@ -67,13 +67,8 @@ struct SettingsScreen: View {
                 Picker("Default goal", selection: $model.preferences.goal) {
                     ForEach(OptimizationGoal.allCases) { Text($0.displayName).tag($0) }
                 }
-                Stepper(value: $model.preferences.policy.valueOfTimePerHour, in: 0...200, step: 5) {
-                    Text("Your time is worth $\(Int(model.preferences.policy.valueOfTimePerHour))/hour")
-                }
             } header: {
                 Text("Planning")
-            } footer: {
-                Text("“Balanced” plans trade time against money using this value.")
             }
 
             Section("Guidance") {

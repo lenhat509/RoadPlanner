@@ -13,6 +13,8 @@ struct PlanResultScreen: View {
     @State private var mapCommand: MapCommand?
     /// "Add a stop after this one": the stop it goes after.
     @State private var addingAfter: AddingStop?
+    /// "Adjust visits", while open.
+    @State private var visitsEditor: AdjustVisitsViewModel?
     @Environment(\.openURL) private var openURL
     private let dependencies: AppDependencies
 
@@ -99,6 +101,15 @@ struct PlanResultScreen: View {
                         .accessibilityIdentifier(AccessibilityID.Results.undo)
                     }
                     Button {
+                        visitsEditor = model.visitsEditor()
+                    } label: {
+                        Label("Adjust visits", systemImage: "mappin.and.ellipse")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.secondary)
+                    .disabled(model.selected == nil || model.isUpdating)
+                    .accessibilityIdentifier(AccessibilityID.Results.adjustVisits)
+                    Button {
                         Task {
                             isStarting = true
                             defer { isStarting = false }
@@ -130,6 +141,19 @@ struct PlanResultScreen: View {
             Button("OK", role: .cancel) { model.dismissUpdateError() }
         } message: {
             Text(model.updateError ?? "")
+        }
+        .sheet(isPresented: Binding(get: { visitsEditor != nil }, set: { if !$0 { visitsEditor = nil } })) {
+            if let visitsEditor {
+                AdjustVisitsSheet(
+                    model: visitsEditor,
+                    dependencies: dependencies,
+                    onUse: {
+                        withAnimation(.snappy) { model.use(visitsEditor) }
+                        self.visitsEditor = nil
+                    },
+                    onCancel: { self.visitsEditor = nil }
+                )
+            }
         }
         .sheet(item: $addingAfter) { adding in
             AddStopSheet(dependencies: dependencies) { place, stay in
@@ -359,7 +383,7 @@ struct RouteChoiceRow: View {
 }
 
 /// A selectable plan: goal, total time, cost and nights. The selected plan is filled with the
-/// brand gradient.
+/// brand colour.
 struct PlanOptionCard: View {
     let option: PlanOption
     let isSelected: Bool
@@ -399,7 +423,7 @@ struct PlanOptionCard: View {
             .padding(Theme.Spacing.s)
             .background {
                 RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
-                    .fill(isSelected ? AnyShapeStyle(Theme.brandGradient) : AnyShapeStyle(Theme.card))
+                    .fill(isSelected ? AnyShapeStyle(Theme.brand) : AnyShapeStyle(Theme.card))
             }
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)

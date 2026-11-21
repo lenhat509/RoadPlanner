@@ -159,7 +159,7 @@ struct ItineraryOptimizerTests {
         #expect(ItineraryOptimizer(settings: settings).optimize(Fixture.problem(hours: 15, candidates: candidates)).value != nil)
     }
 
-    @Test("Goals are ordered: cheapest costs least, fastest arrives first, balanced in between")
+    @Test("Goals are ordered: cheapest costs least, fastest arrives first")
     func goalOrdering() throws {
         let hours = 20.0
         var candidates = Fixture.restAreas(everyMinutes: 30, hours: hours)
@@ -174,11 +174,9 @@ struct ItineraryOptimizerTests {
         func run(_ goal: OptimizationGoal) throws -> OptimizedSchedule {
             try #require(Fixture.optimize(Fixture.problem(hours: hours, candidates: candidates, goal: goal, vehicle: vehicle)).value)
         }
-        let fastest = try run(.fastest), cheapest = try run(.cheapest), balanced = try run(.balanced)
-        #expect(cheapest.totalCost <= balanced.totalCost + 0.01)
-        #expect(balanced.totalCost <= fastest.totalCost + 0.01)
-        #expect(fastest.arrival <= balanced.arrival)
-        #expect(balanced.arrival <= cheapest.arrival)
+        let fastest = try run(.fastest), cheapest = try run(.cheapest)
+        #expect(cheapest.totalCost <= fastest.totalCost + 0.01)
+        #expect(fastest.arrival <= cheapest.arrival)
     }
 
     @Test("Never checks into a hotel in the morning, even when morning hotels are cheaper")

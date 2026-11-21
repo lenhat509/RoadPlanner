@@ -87,6 +87,34 @@ struct AdjustVisitsTests {
         #expect(editor.visits.map(\.name) == ["Los Angeles"] && editor.visits.first?.status == .inPlan)
     }
 
+    @Test("On the plan screen: visits changed together become the plan shown, both goals, and Undo goes back")
+    func planScreen() async throws {
+        let harness = FeatureHarness(), clock = Clock()
+        let planner = CountingPlanner(harness.dependencies.planner)
+        let dependencies = dependencies(harness, clock, planner: planner)
+        var request = SampleTrips.request(from: "sf", to: "den")
+        request.stops = [.visit(SampleTrips.city("lv"), stay: 5_400)]
+        let result = try await harness.dependencies.planner.plan(request) { _ in }
+        let model = PlanResultViewModel(result: result, dependencies: dependencies)
+        let shown = try #require(model.selected)
+        let editor = try #require(model.visitsEditor())
+        #expect(editor.visits.map(\.name) == ["Las Vegas"])
+        editor.toggle(try #require(editor.visits.first).id)
+        editor.add(SampleTrips.city("la"), stay: 3_600)
+        #expect(planner.plans == 0)
+        await editor.updatePlan()
+        #expect(planner.plans == 1)
+        #expect(model.selected?.id == shown.id, "the plan screen changes only with Use this plan")
+
+        model.use(editor)
+        let next = try #require(model.selected)
+        #expect(next.stops.filter { $0.kind == .visit }.map(\.place.id) == ["la"])
+        #expect(model.options.map(\.goal) == [.fastest, .cheapest])
+        #expect(model.canUndo)
+        model.undo()
+        #expect(model.selected?.id == shown.id)
+    }
+
     @Test("At a stop: only what's ahead is listed, and the rest of the trip is planned from here")
     func atAStop() async throws {
         let harness = FeatureHarness(), clock = Clock()

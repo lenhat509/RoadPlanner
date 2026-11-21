@@ -3,7 +3,7 @@ No account, sign-in or purchase is needed.
 To try the full flow:
 1. On first launch, read "Before you start" and tap "Agree and continue".
 2. Tap "Plan a road trip". Choose a start (or "Use current location") and a destination a few hours away, for example Los Angeles to Las Vegas, then tap "Plan my trip".
-3. When there are 2–3 reasonable routes, they are all drawn on the map with their driving times; tap one to choose it. Compare the Fastest / Cheapest / Balanced plans, each with breaks, fuel stops and hotels for overnight trips.
+3. When there are 2–3 reasonable routes, they are all drawn on the map with their driving times; tap one to choose it. Compare the Fastest and Cheapest plans, each with breaks, fuel stops and hotels for overnight trips.
    Optional: under "Stops on the way", tap "Add a stop" to add a place to visit (with how long to stay). Touch and hold any stop in a plan to remove it, keep it, pick another hotel or add a stop after it; the plan updates right away ("Undo last change" brings it back).
 4. Tap "Start driving". Before the first drive, Google's navigation terms appear (turn-by-turn directions are provided by Google's Navigation SDK); accept them. Then tap "Start" for turn-by-turn voice guidance.
 

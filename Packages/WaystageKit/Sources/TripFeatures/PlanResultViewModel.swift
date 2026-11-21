@@ -3,7 +3,7 @@ import Observation
 import TripModels
 import TripPlanner
 
-/// One selectable plan (fastest / cheapest / balanced).
+/// One selectable plan (fastest / cheapest).
 public struct PlanOption: Hashable, Sendable, Identifiable {
     public var goal: OptimizationGoal
     public var title: String
@@ -131,7 +131,7 @@ public final class PlanResultViewModel {
         selectedRouteID = result.routes.first?.id ?? ""
         selectedGoal = result.itineraries[result.recommendedGoal] != nil
             ? result.recommendedGoal
-            : (result.options.first?.goal ?? .balanced)
+            : (result.options.first?.goal ?? .fastest)
     }
 
     public var selectedRoute: RoutePlan? { result.routes.first { $0.id == selectedRouteID } ?? result.routes.first }
@@ -187,6 +187,22 @@ public final class PlanResultViewModel {
         } catch {
             updateError = "The plan couldn't be updated. Check your connection and try again."
         }
+    }
+
+    /// The selected plan's places to visit, to add or remove ("Adjust visits"): changes are planned
+    /// together, for the whole trip.
+    public func visitsEditor() -> AdjustVisitsViewModel? {
+        guard let plan = selected, !isUpdating else { return nil }
+        var request = plan.request
+        Self.movePastDeparture(of: &request, now: dependencies.now())
+        return AdjustVisitsViewModel(plan: plan, request: request, firstShown: 1, dependencies: dependencies)
+    }
+
+    /// Shows the plans made in "Adjust visits"; Undo brings the previous ones back.
+    public func use(_ visits: AdjustVisitsViewModel) {
+        guard let planned = visits.updatedResult, !isUpdating else { return }
+        history.append((result, selectedRouteID, selectedGoal))
+        show(planned, goal: selectedGoal)
     }
 
     /// Brings back the plan before the last change.
@@ -245,13 +261,17 @@ public final class PlanResultViewModel {
         request.stops = required.sorted { $0.0 < $1.0 }.map(\.1)
         if request.stops?.isEmpty == true { request.stops = nil }
         request.avoidedPlaceIDs = avoided.isEmpty ? nil : avoided
-        if request.departure < now {
-            let nextHour = Date(timeIntervalSinceReferenceDate: (now.timeIntervalSinceReferenceDate / 3_600).rounded(.up) * 3_600)
-            let shift = nextHour.timeIntervalSince(request.departure)
-            request.departure = nextHour
-            request.arriveBy = request.arriveBy.map { $0.addingTimeInterval(shift) }
-        }
+        movePastDeparture(of: &request, now: now)
         return request
+    }
+
+    /// A departure that has passed moves to the next hour (with the deadline).
+    static func movePastDeparture(of request: inout TripRequest, now: Date) {
+        guard request.departure < now else { return }
+        let nextHour = Date(timeIntervalSinceReferenceDate: (now.timeIntervalSinceReferenceDate / 3_600).rounded(.up) * 3_600)
+        let shift = nextHour.timeIntervalSince(request.departure)
+        request.departure = nextHour
+        request.arriveBy = request.arriveBy.map { $0.addingTimeInterval(shift) }
     }
 
     /// A stop of a plan as a stop the next plan must include.

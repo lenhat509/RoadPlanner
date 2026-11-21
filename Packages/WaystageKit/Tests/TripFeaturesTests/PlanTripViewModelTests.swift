@@ -153,7 +153,7 @@ struct PlanTripViewModelTests {
         #expect(model.errorMessage == nil)
         #expect(!model.isPlanning)
         let result = try #require(model.result)
-        #expect(result.options.count == 3)
+        #expect(result.options.count == 2, "fastest and cheapest")
         #expect(harness.preferences.load().vehicle.milesPerGallon == 41)
     }
 

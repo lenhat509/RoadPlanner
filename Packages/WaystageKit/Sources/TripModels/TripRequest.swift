@@ -6,8 +6,13 @@ public enum OptimizationGoal: String, Codable, CaseIterable, Sendable, Identifia
     case fastest
     /// Minimize fuel + lodging + tolls.
     case cheapest
-    /// Minimize cost + time × value-of-time.
-    case balanced
+
+    /// Plans and settings saved before 1.2.0 can say "balanced", no longer offered: they open as
+    /// the fastest.
+    public init(from decoder: any Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = OptimizationGoal(rawValue: raw) ?? .fastest
+    }
 
     public var id: String { rawValue }
 
@@ -15,7 +20,6 @@ public enum OptimizationGoal: String, Codable, CaseIterable, Sendable, Identifia
         switch self {
         case .fastest: "Fastest"
         case .cheapest: "Cheapest"
-        case .balanced: "Balanced"
         }
     }
 }
@@ -148,7 +152,7 @@ public struct TripRequest: Codable, Hashable, Sendable {
         arriveBy: Date? = nil,
         vehicle: Vehicle,
         policy: DrivingPolicy = .standard,
-        goal: OptimizationGoal = .balanced,
+        goal: OptimizationGoal = .fastest,
         travelers: Int = 2,
         stops: [RequiredStop]? = nil,
         avoidedPlaceIDs: [String]? = nil,

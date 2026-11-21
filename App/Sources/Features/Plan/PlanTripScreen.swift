@@ -458,7 +458,6 @@ struct PlanTripScreen: View {
         switch model.goal {
         case .fastest: "Arrive as early as possible."
         case .cheapest: "Lowest total for gas, hotels and tolls."
-        case .balanced: "Trades time against money (about $25 per hour by default)."
         }
     }
 
@@ -470,7 +469,6 @@ struct PlanTripScreen: View {
         switch goal {
         case .fastest: "hare.fill"
         case .cheapest: "dollarsign.circle.fill"
-        case .balanced: "scalemass.fill"
         }
     }
 
@@ -478,7 +476,6 @@ struct PlanTripScreen: View {
         switch goal {
         case .fastest: "Arrive earliest"
         case .cheapest: "Lowest cost"
-        case .balanced: "Time vs. money"
         }
     }
 
@@ -508,7 +505,7 @@ struct PlanningProgressView: View {
                             .fill(Color.secondary.opacity(0.2))
                             .frame(height: 4)
                         Capsule()
-                            .fill(Theme.brandGradient)
+                            .fill(Theme.brand)
                             .frame(width: max(4, (geometry.size.width - 30) * fraction + 15), height: 4)
                         ForEach([0.25, 0.5, 0.75], id: \.self) { mark in
                             StopDot(kind: mark == 0.5 ? .fuel : (mark == 0.25 ? .rest : .lodging), size: 10)

@@ -20,11 +20,9 @@ struct LaunchIntroView: View {
 
     /// The icon's colours.
     private enum Palette {
-        static let skyTop = Color(red: 0.043, green: 0.271, blue: 0.325)
-        static let skyMiddle = Color(red: 0.102, green: 0.557, blue: 0.580)
-        static let skyHorizon = Color(red: 0.373, green: 0.722, blue: 0.659)
-        static let groundNear = Color(red: 0.031, green: 0.165, blue: 0.200)
-        static let groundFar = Color(red: 0.059, green: 0.294, blue: 0.341)
+        // Flat colours, as in the app icon (no gradients).
+        static let sky = Color(red: 0.067, green: 0.408, blue: 0.443)
+        static let ground = Color(red: 0.043, green: 0.220, blue: 0.263)
         static let sun = Color(red: 0.965, green: 0.769, blue: 0.416)
         static let road = Color(red: 0.957, green: 0.969, blue: 0.969)
         static let ink = Color(red: 0.039, green: 0.204, blue: 0.251)
@@ -56,24 +54,12 @@ struct LaunchIntroView: View {
             let ground = height - horizon
             let sun = width * 0.14
             ZStack(alignment: .topLeading) {
-                LinearGradient(
-                    stops: [
-                        .init(color: Palette.skyTop, location: 0),
-                        .init(color: Palette.skyMiddle, location: 0.82),
-                        .init(color: Palette.skyHorizon, location: 1),
-                    ],
-                    startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.56)
-                )
-                RadialGradient(
-                    colors: [Palette.sun.opacity(0.55), Palette.sun.opacity(0)],
-                    center: UnitPoint(x: 0.5, y: 0.56), startRadius: 0, endRadius: max(width, height * 0.5) * 0.6
-                )
-                .opacity(sunRise)
+                Palette.sky
                 Circle()
                     .fill(Palette.sun)
                     .frame(width: sun * 2, height: sun * 2)
                     .position(x: width / 2, y: horizon + sun * (1.05 - sunRise))
-                LinearGradient(colors: [Palette.groundFar, Palette.groundNear], startPoint: .top, endPoint: .bottom)
+                Palette.ground
                     .frame(width: width, height: ground)
                     .offset(y: horizon)
                 road(width: width, height: ground)

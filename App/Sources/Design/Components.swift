@@ -4,7 +4,7 @@ import TripModels
 
 // MARK: - Buttons
 
-/// The one primary action on a screen: a full-width gradient capsule.
+/// The one primary action on a screen: a full-width capsule in the brand colour.
 struct PrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
@@ -15,7 +15,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .background {
                 Capsule(style: .continuous)
-                    .fill(isEnabled ? AnyShapeStyle(Theme.brandGradient) : AnyShapeStyle(Color.gray.opacity(0.4)))
+                    .fill(isEnabled ? AnyShapeStyle(Theme.brand) : AnyShapeStyle(Color.gray.opacity(0.4)))
             }
             .shadow(color: isEnabled ? Theme.accent.opacity(0.3) : .clear, radius: 12, y: 6)
             .opacity(configuration.isPressed ? 0.88 : 1)
@@ -58,15 +58,10 @@ struct BottomActionBar<Content: View>: View {
             .padding(.bottom, Theme.Spacing.xs)
             .frame(maxWidth: .infinity)
             .background(alignment: .top) {
-                VStack(spacing: 0) {
-                    LinearGradient(colors: [Theme.canvas.opacity(0), Theme.canvas], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 28)
-                        .offset(y: -28)
-                        .padding(.bottom, -28)
-                    Theme.canvas
-                }
-                .ignoresSafeArea(edges: .bottom)
-                .allowsHitTesting(false)
+                Theme.canvas
+                    .overlay(alignment: .top) { Divider() }
+                    .ignoresSafeArea(edges: .bottom)
+                    .allowsHitTesting(false)
             }
     }
 }
@@ -208,7 +203,7 @@ struct StopLegend: View {
 }
 
 /// A one-line overview of a trip: every stop as a dot along a line, positioned by distance.
-/// With `progress`, the driven part of the line is filled with the brand gradient.
+/// With `progress`, the driven part of the line is filled with the brand colour.
 struct TripRibbonView: View {
     let marks: [RibbonMark]
     var progress: Double?
@@ -225,7 +220,7 @@ struct TripRibbonView: View {
                     .padding(.horizontal, inset)
                 if let progress {
                     Capsule()
-                        .fill(Theme.brandGradient)
+                        .fill(Theme.brand)
                         .frame(width: width * min(1, max(0, progress)), height: 3)
                         .padding(.leading, inset)
                 }
@@ -291,7 +286,7 @@ struct VehicleArrow: View {
             .font(.system(size: 13, weight: .bold))
             .foregroundStyle(.white)
             .frame(width: 30, height: 30)
-            .background(Theme.brandGradient, in: Circle())
+            .background(Theme.brand, in: Circle())
             .overlay(Circle().strokeBorder(.white, lineWidth: 3))
             .rotationEffect(.degrees(rotation))
             .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
@@ -406,7 +401,7 @@ struct ChoiceTile: View {
             .padding(Theme.Spacing.s)
             .background {
                 RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
-                    .fill(isSelected ? AnyShapeStyle(Theme.brandGradient) : AnyShapeStyle(Theme.mutedFill))
+                    .fill(isSelected ? AnyShapeStyle(Theme.brand) : AnyShapeStyle(Theme.mutedFill))
             }
             .shadow(color: isSelected ? Theme.accent.opacity(0.25) : .clear, radius: 8, y: 4)
         }
@@ -464,7 +459,7 @@ struct RhythmStrip: View {
             HStack(spacing: 0) {
                 ForEach(0..<blocks, id: \.self) { index in
                     Capsule()
-                        .fill(Theme.brandGradient)
+                        .fill(Theme.brand)
                         .frame(width: max(4, blockWidth), height: 6)
                     if index < blocks - 1 {
                         StopDot(kind: .rest, size: 10)

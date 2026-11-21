@@ -15,8 +15,9 @@ SCALE = 4  # supersample for smooth edges
 S = SIZE * SCALE
 HORIZON = 560 / 1024  # as a share of the height
 
-SKY = [(0.0, (11, 69, 83)), (0.5, (26, 142, 148)), (HORIZON, (95, 184, 168))]
-GROUND = [(HORIZON, (15, 75, 87)), (1.0, (8, 42, 51))]
+# Flat colours: no gradients anywhere in the app.
+SKY = (17, 104, 113)
+GROUND = (11, 56, 67)
 SUN = (246, 196, 106)
 ROAD = (244, 247, 247)
 INK = (10, 52, 64)
@@ -29,40 +30,16 @@ def px(value):
     return value * S / 1024
 
 
-def gradient_color(stops, share):
-    for (a, ca), (b, cb) in zip(stops, stops[1:]):
-        if share <= b:
-            t = 0 if b == a else max(0.0, (share - a) / (b - a))
-            return tuple(round(x + (y - x) * t) for x, y in zip(ca, cb))
-    return stops[-1][1]
-
-
 def depth_y(z):
     """Screen y (1024 grid) of a point on the road at depth z (1 = the bottom edge)."""
     return 1024 * HORIZON + 464 / z
 
 
 def main(path):
-    image = Image.new("RGB", (S, S))
+    image = Image.new("RGB", (S, S), SKY)
     draw = ImageDraw.Draw(image)
     horizon = round(S * HORIZON)
-    for row in range(S):
-        share = row / S
-        draw.line([(0, row), (S, row)], fill=gradient_color(SKY if row < horizon else GROUND, share))
-
-    # A warm glow around the sun, above the horizon only.
-    radius = round(px(460))
-    glow = Image.new("L", (256, 256))
-    glow.putdata([
-        round(255 * 0.55 * max(0.0, 1 - ((x - 127.5) ** 2 + (y - 127.5) ** 2) ** 0.5 / 128))
-        for y in range(256) for x in range(256)
-    ])
-    glow = glow.resize((radius * 2, radius * 2), Image.BILINEAR)
-    mask = Image.new("L", (S, S), 0)
-    center = (round(px(512)), round(px(563)))
-    mask.paste(glow, (center[0] - radius, center[1] - radius))
-    mask.paste(0, (0, horizon, S, S))
-    image.paste(SUN, mask=mask)
+    draw.rectangle([0, horizon, S, S], fill=GROUND)
 
     sun = px(128)
     draw.pieslice([px(512) - sun, px(560) - sun, px(512) + sun, px(560) + sun], 180, 360, fill=SUN)

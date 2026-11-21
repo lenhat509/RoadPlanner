@@ -26,13 +26,14 @@ wasn't released on its own.
   changes, and a message says why when the rest can't be adjusted. If tonight's hotel is now too far, **Stop earlier tonight**
   finds a hotel near where today's driving ends, with others to choose from. Also in the drive
   menu; never offered while guiding.
-- **Adjust visits.** From drive mode's preview (next to Start) or the trip on Home (next to
-  Resume): your visits, and every stop still ahead with its address and arrival time. Changes
+- **Adjust visits.** From the plan screen (above Start driving) or the trip on Home (below
+  Resume): your visits, with their addresses and arrival times. Changes
   are listed first and planned together: a place added shows **To be added** (green, with a
   button to take it off the list), and tapping a visit marks it **To be removed** (red; tap again
   to keep it). **Update plan** plans once with all of them (a new visit goes where it adds the
-  least driving), and **Use this plan** makes it the trip. Before the trip starts the whole plan
-  is made again; once it has, the rest of the trip from where you are.
+  least driving), and **Use this plan** shows the new plan (Undo goes back) or, from Home, makes
+  it the trip. Before the trip starts the whole plan is made again; once it has, the rest of the
+  trip from where you are.
 - **Up to 10 places to visit.** The limit counts only places you add; kept stops and hotels don't
   count toward it (a trip can keep up to 25 stops, the most one route can go through).
 - **Your own stop is the break.** To reach a stop you chose (or the destination), driving may run
@@ -48,6 +49,10 @@ wasn't released on its own.
   (only drive mode's map and panels follow Google's day and night look).
 
 ### Changed
+- **Two plans: Fastest and Cheapest.** Balanced is gone (and with it the "your time is worth"
+  setting); trips and settings saved with it open as Fastest, now the default.
+- **No gradients.** Buttons, the Home header, the drive banner, the launch animation and the app
+  icon use flat colours.
 - Planning again in the same session (an edited plan, an adjusted trip) reuses that session's
   place searches for road already searched: no extra Google fees for them. They're kept in memory
   only, for 30 minutes.

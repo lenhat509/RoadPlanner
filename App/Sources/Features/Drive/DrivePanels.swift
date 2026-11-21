@@ -29,7 +29,7 @@ struct ManeuverBannerView: View {
                 Spacer(minLength: 0)
             }
             .padding(Theme.Spacing.m)
-            .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(Theme.hero, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             if let then = banner.thenSymbolName, !isRerouting {
                 HStack(spacing: 6) {
                     Text("Then")
@@ -157,8 +157,6 @@ struct PreviewSheet<MenuContent: View>: View {
     var startTitle = "Start"
     let onExit: () -> Void
     let onStart: () -> Void
-    /// Opens "Adjust visits".
-    var onAdjustVisits: (() -> Void)?
     @ViewBuilder let menu: () -> MenuContent
 
     var body: some View {
@@ -226,14 +224,6 @@ struct PreviewSheet<MenuContent: View>: View {
                 .padding(Theme.Spacing.s)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            }
-            if let onAdjustVisits {
-                Button(action: onAdjustVisits) {
-                    Label("Adjust visits", systemImage: "mappin.and.ellipse")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.secondary)
-                .accessibilityIdentifier(AccessibilityID.Drive.adjustVisits)
             }
             HStack(spacing: Theme.Spacing.s) {
                 ExitNavigationButton(action: onExit)

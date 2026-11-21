@@ -69,9 +69,9 @@ struct HomeView: View {
             AdjustVisitsSheet(
                 model: visits.editor,
                 dependencies: environment.dependencies,
-                onUse: { plan in
+                onUse: {
                     Task {
-                        guard await visits.drive.use(plan: plan) != nil else { return }
+                        guard await visits.drive.use(plan: visits.editor.plan) != nil else { return }
                         self.visits = nil
                         await model.load()
                     }
@@ -86,7 +86,7 @@ struct HomeView: View {
     private var hero: some View {
         ZStack(alignment: .topTrailing) {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Theme.heroGradient)
+                .fill(Theme.hero)
             DecorativeRoute()
                 .frame(width: 170, height: 110)
                 .padding(.top, 14)

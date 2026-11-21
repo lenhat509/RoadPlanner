@@ -48,7 +48,8 @@ public struct DrivingPolicy: Codable, Hashable, Sendable {
     /// Minimum fuel level as a fraction of the tank. The planner makes sure the car always reaches
     /// the next gas station (and the destination) before dropping below it. Never relaxed.
     public var fuelReserveFraction: Double
-    /// Dollar value of one hour, used to trade time against money for the balanced goal.
+    /// Dollar value of one hour, used to weigh a stop's detour against its savings when choosing
+    /// which places to consider.
     public var valueOfTimePerHour: Double
 
     public init(

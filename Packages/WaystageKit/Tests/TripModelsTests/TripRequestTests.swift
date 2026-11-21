@@ -23,7 +23,7 @@ struct TripRequestTests {
             arriveBy: arriveBy,
             vehicle: Vehicle(milesPerGallon: mpg),
             policy: policy,
-            goal: .balanced
+            goal: .cheapest
         )
     }
 

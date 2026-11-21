@@ -58,7 +58,7 @@ final class WaystageUITests: XCTestCase {
         XCTAssertTrue(submit.waitForExistence(timeout: 5))
         XCTAssertTrue(submit.isEnabled)
         submit.tap()
-        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("fastest")].waitForExistence(timeout: 30))
     }
 
     /// "Start driving" opens the first leg's preview, like resuming; Start begins guidance.
@@ -148,12 +148,13 @@ final class WaystageUITests: XCTestCase {
         XCTAssertTrue(submit.isEnabled)
     }
 
-    func testPlanningShowsThreeOptionsAndADailyTimeline() {
+    func testPlanningShowsTheFastestAndCheapestPlansAndADailyTimeline() {
         launch()
         planLosAngelesToVegas()
-        for goal in ["fastest", "cheapest", "balanced"] {
+        for goal in ["fastest", "cheapest"] {
             XCTAssertTrue(app.buttons[AccessibilityID.Results.option(goal)].exists, "missing \(goal) option")
         }
+        XCTAssertFalse(app.buttons[AccessibilityID.Results.option("balanced")].exists, "Balanced isn't offered")
         XCTAssertTrue(element(AccessibilityID.Results.day(0)).exists)
         XCTAssertTrue(element(AccessibilityID.Results.legend).exists, "the map legend is shown below the route preview")
         app.buttons[AccessibilityID.Results.option("cheapest")].tap()
@@ -301,20 +302,19 @@ final class WaystageUITests: XCTestCase {
         XCTAssertTrue(visit.waitForExistence(timeout: 5), "Los Angeles is in the plan with its 1 h stay")
     }
 
-    func testAdjustingVisitsFromTheDrivePreview() {
+    func testAdjustingVisitsFromThePlan() {
         launch()
         app.buttons[AccessibilityID.Home.planTrip].tap()
         choosePlace(field: AccessibilityID.Plan.origin, typing: "San Fr", pick: "San Francisco")
         choosePlace(field: AccessibilityID.Plan.destination, typing: "Vegas", pick: "Las Vegas")
         app.buttons[AccessibilityID.Plan.submit].tap()
         XCTAssertTrue(app.buttons[AccessibilityID.Results.start].waitForExistence(timeout: 30))
-        openDrive()
-        let adjust = app.buttons[AccessibilityID.Drive.adjustVisits]
-        XCTAssertTrue(adjust.waitForExistence(timeout: 15), "the preview offers Adjust visits; on screen: \(app.visibleIdentifiers())")
+        let adjust = app.buttons[AccessibilityID.Results.adjustVisits]
+        XCTAssertTrue(adjust.waitForExistence(timeout: 5), "the plan offers Adjust visits; on screen: \(app.visibleIdentifiers())")
         adjust.tap()
-        let addVisit = app.buttons[AccessibilityID.Drive.addVisit]
+        let addVisit = app.buttons[AccessibilityID.Visits.add]
         XCTAssertTrue(addVisit.waitForExistence(timeout: 5))
-        let update = app.buttons[AccessibilityID.Drive.updateVisits]
+        let update = app.buttons[AccessibilityID.Visits.update]
         XCTAssertTrue(update.exists && !update.isEnabled, "nothing to plan before a change")
         addVisit.tap()
         choosePlace(field: AccessibilityID.Results.addStopSearch, typing: "Los", pick: "Los Angeles")
@@ -324,7 +324,7 @@ final class WaystageUITests: XCTestCase {
         add.tap()
         // Listed to be added, not planned yet; it can be taken off the list and added again.
         XCTAssertTrue(elementWithLabel(containing: "To be added").waitForExistence(timeout: 5), "Los Angeles is listed to be added")
-        let discard = app.buttons[AccessibilityID.Drive.discardVisit]
+        let discard = app.buttons[AccessibilityID.Visits.discard]
         XCTAssertTrue(discard.exists)
         discard.tap()
         XCTAssertTrue(discard.waitForNonExistence(timeout: 5), "taken off the list at once")
@@ -334,12 +334,15 @@ final class WaystageUITests: XCTestCase {
         add.tap()
         XCTAssertTrue(waitUntilEnabled(update), "a change to plan")
         update.tap()
-        let use = app.buttons[AccessibilityID.Drive.useVisits]
+        let use = app.buttons[AccessibilityID.Visits.use]
         XCTAssertTrue(use.waitForExistence(timeout: 30), "the plan was updated")
         XCTAssertFalse(elementWithLabel(containing: "To be added").exists, "Los Angeles is in the plan now")
         use.tap()
         XCTAssertTrue(use.waitForNonExistence(timeout: 10))
-        XCTAssertTrue(element(AccessibilityID.Drive.preview).waitForExistence(timeout: 15), "the new plan opens on its preview")
+        let timeline = element(AccessibilityID.Results.timeline)
+        let visit = timeline.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "1 h there")).firstMatch
+        XCTAssertTrue(visit.waitForExistence(timeout: 10), "the plan shown visits Los Angeles")
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.undo].exists, "Undo brings the previous plan back")
     }
 
     func testAdjustingVisitsFromTheTripOnHome() {
@@ -353,8 +356,8 @@ final class WaystageUITests: XCTestCase {
         let adjust = app.buttons[AccessibilityID.Home.adjustVisits]
         XCTAssertTrue(adjust.waitForExistence(timeout: 5), "the trip on Home offers Adjust visits")
         adjust.tap()
-        XCTAssertTrue(app.buttons[AccessibilityID.Drive.addVisit].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons[AccessibilityID.Drive.updateVisits].isEnabled, "nothing to plan before a change")
+        XCTAssertTrue(app.buttons[AccessibilityID.Visits.add].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons[AccessibilityID.Visits.update].isEnabled, "nothing to plan before a change")
         app.navigationBars.buttons["Cancel"].tap()
         XCTAssertTrue(app.buttons[AccessibilityID.Home.resume].waitForExistence(timeout: 5))
     }
@@ -441,7 +444,7 @@ final class WaystageUITests: XCTestCase {
         let chosen = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS %@", "Premium 91+"), object: grade)
         XCTAssertEqual(XCTWaiter().wait(for: [chosen], timeout: 5), .completed, "the field shows the chosen grade: \(grade.value ?? "")")
         app.buttons[AccessibilityID.Plan.submit].tap()
-        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("fastest")].waitForExistence(timeout: 30))
         XCTAssertTrue(elementWithLabel(containing: "of Premium 91+ · E10").waitForExistence(timeout: 10),
                       "fuel stops say what to fill up with")
     }
@@ -477,7 +480,7 @@ final class WaystageUITests: XCTestCase {
         choosePlace(field: AccessibilityID.Plan.origin, typing: "San", pick: "San Francisco")
         choosePlace(field: AccessibilityID.Plan.destination, typing: "Vegas", pick: "Las Vegas")
         app.buttons[AccessibilityID.Plan.submit].tap()
-        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("fastest")].waitForExistence(timeout: 30))
         let note = element(AccessibilityID.Results.startNote)
         XCTAssertTrue(note.exists, "the plan says it starts far from the user")
         XCTAssertTrue(note.label.hasPrefix("Starts in San Francisco"), note.label)

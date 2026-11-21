@@ -67,7 +67,7 @@ struct FeasibilityPlannerTests {
         let problem = OptimizationProblem(
             routeDistance: profile.totalDistance, routeDuration: profile.totalDuration, candidates: candidates,
             vehicle: Vehicle(milesPerGallon: 30), departure: Fixture.departure,
-            originUTCOffset: Fixture.utcOffset, destinationUTCOffset: Fixture.utcOffset, goal: .balanced
+            originUTCOffset: Fixture.utcOffset, destinationUTCOffset: Fixture.utcOffset, goal: .fastest
         )
         let result = planner.solve(problem)
         #expect(result.level == .lastResort)

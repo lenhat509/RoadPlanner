@@ -24,9 +24,7 @@ struct PlanningIntegrationTests {
         #expect(Set(result.itineraries.keys) == Set(OptimizationGoal.allCases))
         let fastest = try #require(result.itineraries[.fastest])
         let cheapest = try #require(result.itineraries[.cheapest])
-        let balanced = try #require(result.itineraries[.balanced])
-
-        for itinerary in [fastest, cheapest, balanced] {
+        for itinerary in [fastest, cheapest] {
             let violations = ScheduleValidator().violations(in: itinerary)
             #expect(violations.isEmpty, "\(itinerary.goal): \(violations)")
             #expect(itinerary.nights >= 3, "a ~46 h drive needs several nights")
@@ -39,7 +37,7 @@ struct PlanningIntegrationTests {
         // Each goal wins on its own objective (small tolerance for re-timing with real legs).
         #expect(fastest.totals.elapsedDuration <= cheapest.totals.elapsedDuration + 600)
         #expect(cheapest.totals.cost.total <= fastest.totals.cost.total + 5)
-        #expect(result.recommendedGoal == .balanced)
+        #expect(result.recommendedGoal == .fastest)
 
         try await Task.sleep(nanoseconds: 50_000_000)
         let phases = await log.phases
@@ -106,7 +104,7 @@ struct PlanningIntegrationTests {
         var policy = DrivingPolicy.standard
         policy.maxContinuousDriving = 2 * 3_600
         let result = try await SimulatedGoogleBackend.services().planner.plan(
-            SampleTrips.request(from: "sf", to: "den", goal: .balanced, policy: policy)
+            SampleTrips.request(from: "sf", to: "den", policy: policy)
         ) { _ in }
         let itinerary = try #require(result.recommended)
         #expect(ScheduleValidator().violations(in: itinerary).isEmpty)
@@ -148,7 +146,7 @@ struct PlanningIntegrationTests {
         let result = try await SimulatedGoogleBackend.services().planner.plan(SampleTrips.request(from: "sf", to: "den")) { _ in }
         #expect((2...3).contains(result.routes.count), "\(result.routes.map(\.name))")
         let shapes = result.routes.map { route in
-            (try? PolylineCodec.decode(route.itineraries[.balanced]?.overviewPolyline ?? "")) ?? []
+            (try? PolylineCodec.decode(route.itineraries[.fastest]?.overviewPolyline ?? "")) ?? []
         }
         for (index, route) in result.routes.enumerated() {
             #expect(Set(route.itineraries.keys) == Set(OptimizationGoal.allCases), "every route has every plan")

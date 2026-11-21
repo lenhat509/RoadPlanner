@@ -18,7 +18,7 @@ struct TripProgressionTests {
             ItineraryStop(id: "dest", kind: .destination, place: place, arrival: at(23), departure: nil, distanceFromStartMeters: 3, dayIndex: 1),
         ]
         let itinerary = Itinerary(
-            goal: .balanced,
+            goal: .fastest,
             request: TripRequest(
                 origin: place, destination: Place(name: "D", coordinate: GeoCoordinate(latitude: 41, longitude: -90)),
                 departure: start, vehicle: Vehicle(milesPerGallon: 30)

@@ -4,9 +4,8 @@ import TripModels
 import TripNavigation
 import TripPlanner
 
-/// "Adjust visits", from drive mode's preview or the trip banner on Home: the places to visit,
-/// and every stop still ahead (visits, breaks, fuel stops, hotels, the destination) with its
-/// address and arrival time.
+/// "Adjust visits", from the plan screen (before Start) or the trip banner on Home: the places to
+/// visit, with their addresses and arrival times.
 ///
 /// Changes are collected first and nothing is planned until "Update plan": a place added is listed
 /// as "To be added" (and can be taken off the list again), and a visit in the plan is marked "To be
@@ -52,6 +51,8 @@ public final class AdjustVisitsViewModel {
     public private(set) var errorMessage: String?
     /// The plan was made again ("Use this plan" makes it the trip).
     public private(set) var isUpdated = false
+    /// Every plan made by "Update plan" (both goals, every route), for the plan screen.
+    public private(set) var updatedResult: PlanResult?
 
     private let dependencies: AppDependencies
     private var state: State
@@ -152,6 +153,7 @@ public final class AdjustVisitsViewModel {
                 return
             }
             plan = next
+            updatedResult = result
             state = State(request: request, firstShown: 1, skipped: [], projectedArrivals: [:])
             removals = []
             additions = []

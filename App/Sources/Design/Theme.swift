@@ -1,8 +1,8 @@
 import SwiftUI
 import TripModels
 
-/// Design tokens for Waystage's look: warm "paper" background, soft white cards, one teal brand
-/// gradient, rounded type, and colour-blind-safe stop dots. Calm by default; colour is used to
+/// Design tokens for Waystage's look: warm "paper" background, soft white cards, one solid teal
+/// brand colour (no gradients anywhere), rounded type, and colour-blind-safe stop dots. Calm by default; colour is used to
 /// carry meaning (stop types, the primary action), not decoration.
 enum Theme {
     static let accent = Color.accentColor
@@ -10,15 +10,9 @@ enum Theme {
     // MARK: Brand
     static let brandDeep = Color(red: 0.04, green: 0.18, blue: 0.21)
     /// Primary actions and selected states.
-    static let brandGradient = LinearGradient(
-        colors: [Color(red: 0.09, green: 0.56, blue: 0.58), Color(red: 0.04, green: 0.32, blue: 0.41)],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
+    static let brand = Color(red: 0.06, green: 0.44, blue: 0.49)
     /// Hero header and the drive-mode banner.
-    static let heroGradient = LinearGradient(
-        colors: [Color(red: 0.07, green: 0.47, blue: 0.50), Color(red: 0.04, green: 0.18, blue: 0.22)],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
+    static let hero = Color(red: 0.05, green: 0.31, blue: 0.35)
 
     // MARK: Surfaces
     /// Warm paper in light mode, deep ink in dark mode.

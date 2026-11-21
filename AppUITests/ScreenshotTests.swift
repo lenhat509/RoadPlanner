@@ -90,7 +90,7 @@ final class ScreenshotTests: XCTestCase {
         choose(AccessibilityID.Plan.destination, typing: "New", pick: "New York")
         if let captureForm { capture(captureForm) }
         app.buttons[AccessibilityID.Plan.submit].tap()
-        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("balanced")].waitForExistence(timeout: 90))
+        XCTAssertTrue(app.buttons[AccessibilityID.Results.option("fastest")].waitForExistence(timeout: 90))
     }
 
     func testCaptureAppStoreScreenshots() {

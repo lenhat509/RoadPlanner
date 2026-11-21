@@ -9,14 +9,14 @@ import TripSandbox
 @MainActor
 @Suite("PlanResultViewModel")
 struct PlanResultViewModelTests {
-    @Test("Offers three comparable options with the recommended one selected")
+    @Test("Offers the fastest and the cheapest plan, with the recommended one selected")
     func options() async throws {
         let harness = FeatureHarness()
-        let result = try await Plans.laToVegas(goal: .balanced)
+        let result = try await Plans.laToVegas(goal: .cheapest)
         let model = PlanResultViewModel(result: result, dependencies: harness.dependencies)
-        #expect(model.options.map(\.goal) == [.fastest, .cheapest, .balanced])
-        #expect(model.selectedGoal == .balanced)
-        #expect(model.options.first { $0.goal == .balanced }?.isRecommended == true)
+        #expect(model.options.map(\.goal) == [.fastest, .cheapest])
+        #expect(model.selectedGoal == .cheapest)
+        #expect(model.options.first { $0.goal == .cheapest }?.isRecommended == true)
         #expect(model.options.contains { $0.badges.contains("Fastest") })
         #expect(model.options.contains { $0.badges.contains("Lowest cost") })
         #expect(model.options.allSatisfy { $0.costText.hasPrefix("$") })

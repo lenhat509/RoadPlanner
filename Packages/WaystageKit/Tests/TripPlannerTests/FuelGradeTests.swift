@@ -177,7 +177,7 @@ struct FuelGradeTests {
         let places = RecordingPlaces(FakePlaceSearchProvider())
         let service = TripPlanningService(routing: FakeRoutingProvider(), places: places)
         // A roomy tank, so even E85 (a quarter fewer miles per gallon) reaches the next E85 pump.
-        let result = try await service.plan(request(grade: grade, goal: .balanced, tank: 18)) { _ in }
+        let result = try await service.plan(request(grade: grade, goal: .fastest, tank: 18)) { _ in }
         for route in result.routes {
             for itinerary in route.options {
                 let fuelStops = itinerary.stops.filter { $0.fuelPurchase != nil && !$0.isRoadsidePullOff }
@@ -200,7 +200,9 @@ struct FuelGradeTests {
             }
         }
         let recommended = try #require(result.recommended)
-        #expect(recommended.stops.compactMap(\.fuelPurchase).allSatisfy { $0.grade == grade }, "the best plan keeps the grade")
+        // The best plan keeps the grade, or (E85 too rare on the fastest route) says it fills up with regular.
+        let keepsGrade = recommended.stops.compactMap(\.fuelPurchase).allSatisfy { $0.grade == grade }
+        #expect(keepsGrade || (grade == .e85 && recommended.warnings.contains { $0.code == .fuelGradeUnavailable }))
     }
 
     @Test("When E85 is too scarce, the plan fills up with regular gasoline and says so")

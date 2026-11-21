@@ -57,6 +57,15 @@ struct RequiredStopTests {
         #expect(!decodedStop.isRequiredStop)
     }
 
+    @Test("A trip saved with the Balanced goal (before 1.2.0) opens as the fastest")
+    func decodesBalanced() throws {
+        var json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(request(stops: nil))) as? [String: Any])
+        json["goal"] = "balanced"
+        let decoded = try JSONDecoder().decode(TripRequest.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(decoded.goal == .fastest)
+        #expect(OptimizationGoal.allCases == [.fastest, .cheapest])
+    }
+
     @Test("Stops round-trip with their purpose, stay and kept hotel")
     func roundTrip() throws {
         let hotel = RequiredStop(

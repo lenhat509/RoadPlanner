@@ -8,7 +8,7 @@ gasoline by default, or a specific grade with its ethanol level: Regular 87 · E
 E10, Premium 91+ · E10, Flex fuel · E85, Diesel), and optionally an arrive-by time and a custom
 "drive before resting" interval. Fuel stops are always stations that sell the chosen grade.
 **Output:** a feasible, optimized itinerary — where to rest, refuel and sleep, with the driving
-directions between every stop — for three objectives: **fastest**, **cheapest** and **balanced**.
+directions between every stop — for two objectives: **fastest** and **cheapest**.
 
 | | |
 |---|---|

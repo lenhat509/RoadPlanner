@@ -166,7 +166,7 @@ public enum SampleTrips {
     public static func request(
         from origin: String = "sf",
         to destination: String = "nyc",
-        goal: OptimizationGoal = .balanced,
+        goal: OptimizationGoal = .fastest,
         arriveBy: Date? = nil,
         mpg: Double = 30,
         policy: DrivingPolicy = .standard

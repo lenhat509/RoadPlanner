@@ -34,7 +34,8 @@ route. A trip with no fuel stop therefore still shows its gas cost.
 |---|---|---|
 | Fastest | $10,000/h | minimize arrival time (money breaks ties) |
 | Cheapest | $2/h | minimize fuel + lodging + tolls (time breaks ties, avoids silly detours) |
-| Balanced | user setting (default $25/h) | trade time against money |
+
+(1.2.0 removed the Balanced plan; trips saved with it open as Fastest.)
 
 Comfort penalties (small) prefer real rest areas over roadside pull-offs, and real hotels over
 "lodging search areas".

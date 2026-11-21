@@ -2,13 +2,13 @@ import SwiftUI
 import TripFeatures
 import TripModels
 
-/// "Adjust visits": the places to visit, and every stop still ahead with its address and arrival
-/// time. Changes are listed first (green "To be added", red "To be removed") and planned together
-/// with "Update plan"; "Use this plan" then makes the new plan the trip.
+/// "Adjust visits": the places to visit, with their addresses and arrival times. Changes are listed
+/// first (green "To be added", red "To be removed") and planned together with "Update plan"; "Use
+/// this plan" then makes the new plan the one shown (plan screen) or the trip (Home).
 struct AdjustVisitsSheet: View {
     let model: AdjustVisitsViewModel
     let dependencies: AppDependencies
-    let onUse: (Itinerary) -> Void
+    let onUse: () -> Void
     let onCancel: () -> Void
     @State private var addsVisit = false
 
@@ -22,7 +22,7 @@ struct AdjustVisitsSheet: View {
                         Label("Add a visit", systemImage: "plus.circle.fill")
                     }
                     .disabled(!model.canAddVisit)
-                    .accessibilityIdentifier(AccessibilityID.Drive.addVisit)
+                    .accessibilityIdentifier(AccessibilityID.Visits.add)
                 } footer: {
                     if !model.canEdit && !model.isUpdating {
                         Text("Visits can't be changed until your location is known. Try again in a moment.")
@@ -41,17 +41,6 @@ struct AdjustVisitsSheet: View {
                     Text("Your visits")
                 } footer: {
                     Text("Tap a visit to remove it from the plan, or tap it again to keep it. Nothing changes until you tap Update plan.")
-                }
-                Section {
-                    ForEach(model.rows) { row in
-                        StopAheadRow(row: row)
-                    }
-                } header: {
-                    Text("Stops ahead")
-                } footer: {
-                    if model.hasPendingChanges {
-                        Text("These are the current plan's stops and times. They change when you tap Update plan.")
-                    }
                 }
             }
             .disabled(model.isUpdating)
@@ -72,13 +61,11 @@ struct AdjustVisitsSheet: View {
             .safeAreaInset(edge: .bottom) {
                 BottomActionBar {
                     if model.isUpdated && !model.hasPendingChanges {
-                        Button {
-                            onUse(model.plan)
-                        } label: {
+                        Button(action: onUse) {
                             Label("Use this plan", systemImage: "checkmark")
                         }
                         .buttonStyle(.primary)
-                        .accessibilityIdentifier(AccessibilityID.Drive.useVisits)
+                        .accessibilityIdentifier(AccessibilityID.Visits.use)
                     } else {
                         Button {
                             Task { await model.updatePlan() }
@@ -87,7 +74,7 @@ struct AdjustVisitsSheet: View {
                         }
                         .buttonStyle(.primary)
                         .disabled(!model.hasPendingChanges || !model.canEdit)
-                        .accessibilityIdentifier(AccessibilityID.Drive.updateVisits)
+                        .accessibilityIdentifier(AccessibilityID.Visits.update)
                     }
                 }
             }
@@ -127,7 +114,7 @@ private struct VisitEntryRow: View {
                     }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Remove \(visit.name) from the list")
-                    .accessibilityIdentifier(AccessibilityID.Drive.discardVisit)
+                    .accessibilityIdentifier(AccessibilityID.Visits.discard)
                 }
             } else {
                 Button(action: onToggle) {
@@ -189,35 +176,6 @@ private struct VisitEntryRow: View {
         case .inPlan: "mappin.circle.fill"
         case .toBeRemoved: "minus.circle.fill"
         case .toBeAdded: "plus.circle.fill"
-        }
-    }
-}
-
-/// One stop ahead: what it is, where, and when the car gets there.
-private struct StopAheadRow: View {
-    let row: AdjustVisitsViewModel.Row
-
-    var body: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.s) {
-            StopDot(kind: row.kind, isPullOff: row.isPullOff, size: 14)
-                .padding(.top, 4)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.name)
-                    .font(.subheadline.weight(.semibold))
-                Text(row.kindText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let address = row.address, address != row.name {
-                    Text(address)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                if let eta = row.eta {
-                    Text(eta)
-                        .font(.caption.weight(.medium))
-                }
-            }
-            Spacer(minLength: 0)
         }
     }
 }

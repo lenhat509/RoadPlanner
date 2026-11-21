@@ -172,12 +172,10 @@ extension OptimizationGoal {
     ///
     /// * fastest: time dominates; money only breaks ties.
     /// * cheapest: money dominates; a small time value avoids pointless detours.
-    /// * balanced: the user's value of time.
     public func valueOfTimePerHour(policy: DrivingPolicy) -> Double {
         switch self {
         case .fastest: 10_000
         case .cheapest: 2
-        case .balanced: max(0, policy.valueOfTimePerHour)
         }
     }
 }

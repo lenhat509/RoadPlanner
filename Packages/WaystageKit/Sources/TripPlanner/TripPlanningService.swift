@@ -73,7 +73,7 @@ public struct RoutePlan: Sendable, Identifiable {
         self.hotelChoices = hotelChoices
     }
 
-    /// Plans in display order (fastest, cheapest, balanced).
+    /// Plans in display order (fastest, cheapest).
     public var options: [Itinerary] { OptimizationGoal.allCases.compactMap { itineraries[$0] } }
 
     /// Where to label a lone route: near the middle, clear of its stops (its start when it has
@@ -111,7 +111,7 @@ public struct PlanResult: Sendable {
 
     public var recommended: Itinerary? { itineraries[recommendedGoal] }
 
-    /// The best route's plans in display order (fastest, cheapest, balanced).
+    /// The best route's plans in display order (fastest, cheapest).
     public var options: [Itinerary] { routes.first?.options ?? [] }
 }
 
@@ -368,7 +368,6 @@ public final class TripPlanningService: TripPlanning, Sendable {
         let objective: Double = switch goal {
         case .fastest: hours + cost * 1e-6
         case .cheapest: cost + hours * 1e-6
-        case .balanced: cost + hours * valueOfTimePerHour
         }
         return PlanRank(
             missedDeadline: itinerary.warnings.contains { $0.code == .deadlineMissed } ? 1 : 0,
