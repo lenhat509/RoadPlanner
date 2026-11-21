@@ -4,13 +4,12 @@ import TripModels
 import TripPlanner
 
 /// The rest of the trip, adjusted from where the car is: what changes, the next stops, and (when
-/// tonight's hotel is now reached late) stopping earlier tonight.
+/// tonight's hotel is now reached late) stopping earlier tonight, at a hotel Waystage picks.
 struct AdjustRestSheet: View {
     let adjustment: DriveViewModel.Adjustment
     let formatters: TripFormatters
     let isWorking: Bool
     let onStopEarlier: () -> Void
-    let onChooseHotel: (HotelChoice) -> Void
     let onUse: () -> Void
     let onCancel: () -> Void
 
@@ -36,24 +35,6 @@ struct AdjustRestSheet: View {
                         .accessibilityIdentifier(AccessibilityID.Drive.stopEarlier)
                     } footer: {
                         Text("Tonight's hotel is now reached after your driving day ends. Stopping earlier finds a hotel near where today's driving ends; your own stops stay.")
-                    }
-                }
-                if adjustment.stopsEarlierTonight && !adjustment.hotelChoices.isEmpty {
-                    Section("Or stay at") {
-                        ForEach(adjustment.hotelChoices) { choice in
-                            Button {
-                                onChooseHotel(choice)
-                            } label: {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(choice.place.name).foregroundStyle(.primary)
-                                    if let rate = choice.nightlyRate {
-                                        Text("\(formatters.currency(rate))/night\(choice.isRateEstimated ? " (est.)" : "") · not booked")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
                 Section("Next stops") {

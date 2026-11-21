@@ -8,9 +8,10 @@ import TripPlanner
 /// visit, with their addresses and arrival times.
 ///
 /// Changes are collected first and nothing is planned until "Update plan": a place added is listed
-/// as "To be added" (and can be taken off the list again), and a visit in the plan is marked "To be
-/// removed" (or kept again) with a tap. "Update plan" plans once with all of them; the trip being
-/// driven changes only with "Use this plan" (`DriveViewModel.use(plan:)`).
+/// as "To be added" (and can be taken off the list again), a visit in the plan is marked "To be
+/// removed" (or kept again) with a tap, and visits can be moved into another order. "Update plan"
+/// plans once with all of them; the plan shown or the trip being driven changes only with "Use this
+/// plan" (`PlanResultViewModel.use(_:)`, `DriveViewModel.use(plan:)`).
 @MainActor
 @Observable
 public final class AdjustVisitsViewModel {
@@ -58,8 +59,13 @@ public final class AdjustVisitsViewModel {
     private var state: State
     /// Visits in the plan marked to be removed (row IDs).
     private var removals: Set<String> = []
-    /// Places added, not planned yet.
-    private var additions: [Addition] = []
+    /// Places added, not planned yet, by ID.
+    private var additions: [String: Addition] = [:]
+    /// The visits in the order they'll be planned: Waystage's (the plan's own, and where each place
+    /// added adds the least driving) until the traveler moves them.
+    private var order: [Entry] = []
+    /// The plan's own order of its visits (row IDs), to tell whether they were moved.
+    private var plannedOrder: [String] = []
 
     private struct State {
         /// The rest of the trip as a request the changes edit; nil when it can't be planned from here.
@@ -72,9 +78,13 @@ public final class AdjustVisitsViewModel {
     }
 
     private struct Addition {
-        var id: String
         var place: Place
         var stay: TimeInterval
+    }
+
+    private enum Entry: Hashable {
+        case planned(String)
+        case added(String)
     }
 
     init(
@@ -84,6 +94,7 @@ public final class AdjustVisitsViewModel {
         self.plan = plan
         self.dependencies = dependencies
         state = State(request: request, firstShown: firstShown, skipped: skipped, projectedArrivals: projectedArrivals)
+        resetOrder()
     }
 
     /// Every stop still ahead in the plan shown, in order, ending with the destination.
@@ -93,21 +104,29 @@ public final class AdjustVisitsViewModel {
         return stops[state.firstShown...].filter { !state.skipped.contains($0.id) }.map(row)
     }
 
-    /// The visits ahead in the plan, then the places added.
+    /// The visits, in the order they'll be planned: the plan's, with places added where they add the
+    /// least driving, until the traveler moves them.
     public var visits: [Visit] {
         let formatters = dependencies.formatters
-        let planned = rows.filter(\.isVisit).map { row in
-            let stay = plan.stops.first { $0.id == row.id }?.dwellDuration.map { "\(formatters.duration($0)) there" }
-            return Visit(
-                id: row.id, name: row.name, address: row.address,
-                detail: [stay, row.eta].compactMap { $0 }.joined(separator: " · "),
-                status: removals.contains(row.id) ? .toBeRemoved : .inPlan
-            )
+        let planned = Dictionary(rows.filter(\.isVisit).map { ($0.id, $0) }) { first, _ in first }
+        return order.compactMap { entry in
+            switch entry {
+            case let .planned(id):
+                guard let row = planned[id] else { return nil }
+                let stay = plan.stops.first { $0.id == id }?.dwellDuration.map { "\(formatters.duration($0)) there" }
+                return Visit(
+                    id: id, name: row.name, address: row.address,
+                    detail: [stay, row.eta].compactMap { $0 }.joined(separator: " · "),
+                    status: removals.contains(id) ? .toBeRemoved : .inPlan
+                )
+            case let .added(id):
+                guard let addition = additions[id] else { return nil }
+                return Visit(
+                    id: id, name: addition.place.name, address: addition.place.address,
+                    detail: "\(formatters.duration(addition.stay)) there", status: .toBeAdded
+                )
+            }
         }
-        let added = additions.map {
-            Visit(id: $0.id, name: $0.place.name, address: $0.place.address, detail: "\(formatters.duration($0.stay)) there", status: .toBeAdded)
-        }
-        return planned + added
     }
 
     /// Visits can be changed from here (the rest of the trip can be planned).
@@ -118,29 +137,49 @@ public final class AdjustVisitsViewModel {
         canEdit && visits.count { $0.status != .toBeRemoved } < RequiredStop.maximumCount
     }
 
-    /// Places added or visits marked to be removed, not planned yet.
-    public var hasPendingChanges: Bool { !removals.isEmpty || !additions.isEmpty }
+    /// Places added, visits marked to be removed or visits moved, not planned yet.
+    public var hasPendingChanges: Bool { !removals.isEmpty || !additions.isEmpty || isReordered }
 
-    /// Adds a place to the list, to be planned with "Update plan".
+    /// The visits in the plan are no longer in its order.
+    private var isReordered: Bool {
+        order.compactMap { if case let .planned(id) = $0 { id } else { nil } } != plannedOrder
+    }
+
+    /// Adds a place to the list where it adds the least driving, to be planned with "Update plan".
     public func add(_ place: Place, stay: TimeInterval) {
-        guard canAddVisit else { return }
-        additions.append(Addition(id: "added-\(UUID().uuidString)", place: place, stay: stay))
+        guard canAddVisit, let request = state.request else { return }
+        let id = "added-\(UUID().uuidString)"
+        additions[id] = Addition(place: place, stay: stay)
+        let index = Self.insertionIndex(
+            of: place.coordinate, origin: request.origin.coordinate,
+            stops: order.map { coordinate(of: $0) ?? request.origin.coordinate }, destination: request.destination.coordinate
+        )
+        order.insert(.added(id), at: index)
+    }
+
+    /// Moves visits in the list (the order they'll be planned in).
+    public func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        guard !isUpdating else { return }
+        let moving = source.sorted().filter { order.indices.contains($0) }.map { order[$0] }
+        var rest = order.enumerated().filter { !source.contains($0.offset) }.map(\.element)
+        let index = destination - source.count { $0 < destination }
+        rest.insert(contentsOf: moving, at: max(0, min(index, rest.count)))
+        order = rest
     }
 
     /// Marks a visit in the plan to be removed, or keeps it again; takes a place added off the list.
     public func toggle(_ visitID: String) {
         guard !isUpdating else { return }
-        if let index = additions.firstIndex(where: { $0.id == visitID }) {
-            additions.remove(at: index)
+        if additions.removeValue(forKey: visitID) != nil {
+            order.removeAll { $0 == .added(visitID) }
         } else if removals.contains(visitID) {
             removals.remove(visitID)
-        } else if rows.contains(where: { $0.id == visitID && $0.isVisit }) {
+        } else if plannedOrder.contains(visitID) {
             removals.insert(visitID)
         }
     }
 
-    /// Plans once with every change: visits marked are removed, places added go where they add the
-    /// least driving.
+    /// Plans once with every change: the visits in the list's order, without those marked removed.
     public func updatePlan() async {
         guard canEdit, hasPendingChanges, let request = changedRequest() else { return }
         isUpdating = true
@@ -156,7 +195,8 @@ public final class AdjustVisitsViewModel {
             updatedResult = result
             state = State(request: request, firstShown: 1, skipped: [], projectedArrivals: [:])
             removals = []
-            additions = []
+            additions = [:]
+            resetOrder()
             isUpdated = true
         } catch let error as PlanningError {
             errorMessage = error.message
@@ -167,30 +207,50 @@ public final class AdjustVisitsViewModel {
 
     public func dismissError() { errorMessage = nil }
 
-    /// The request with the changes: visits marked removed, places added inserted.
+    private func resetOrder() {
+        plannedOrder = rows.filter(\.isVisit).map(\.id)
+        order = plannedOrder.map(Entry.planned)
+    }
+
+    private func coordinate(of entry: Entry) -> GeoCoordinate? {
+        switch entry {
+        case let .planned(id): plan.stops.first { $0.id == id }?.place.coordinate
+        case let .added(id): additions[id]?.place.coordinate
+        }
+    }
+
+    /// The request with the changes: the visits in the list's order (without those marked removed),
+    /// and the other stops the plan keeps (hotels ahead, kept stops) where they add the least
+    /// driving, in their own order.
     private func changedRequest() -> TripRequest? {
         guard var request = state.request else { return nil }
-        var stops = request.stops ?? []
-        // The n-th visit shown is the n-th visit of the request (both in route order).
-        let visitIndices = stops.indices.filter { stops[$0].purpose == .visit }
-        var removed: [Int] = []
-        for (ordinal, row) in rows.filter(\.isVisit).enumerated() where removals.contains(row.id) {
-            let placeID = plan.stops.first { $0.id == row.id }?.place.id
-            if visitIndices.indices.contains(ordinal), stops[visitIndices[ordinal]].place.id == placeID {
-                removed.append(visitIndices[ordinal])
-            } else if let index = visitIndices.first(where: { stops[$0].place.id == placeID && !removed.contains($0) }) {
-                removed.append(index)
+        let stops = request.stops ?? []
+        // The n-th visit of the plan is the n-th visit of the request (both in route order).
+        let requestVisits = stops.filter { $0.purpose == .visit }
+        let visits: [RequiredStop] = order.enumerated().compactMap { _, entry in
+            switch entry {
+            case let .planned(id):
+                guard !removals.contains(id), let stop = plan.stops.first(where: { $0.id == id }) else { return nil }
+                let ordinal = plannedOrder.firstIndex(of: id) ?? -1
+                if requestVisits.indices.contains(ordinal), requestVisits[ordinal].place.id == stop.place.id {
+                    return requestVisits[ordinal]
+                }
+                return requestVisits.first { $0.place.id == stop.place.id } ?? .visit(stop.place, stay: stop.dwellDuration ?? 3_600)
+            case let .added(id):
+                return additions[id].map { .visit($0.place, stay: $0.stay) }
             }
         }
-        for index in removed.sorted(by: >) { stops.remove(at: index) }
-        for addition in additions {
+        var merged = visits
+        var earliest = 0
+        for stop in stops where stop.purpose != .visit {
             let index = Self.insertionIndex(
-                of: addition.place.coordinate, origin: request.origin.coordinate,
-                stops: stops.map(\.place.coordinate), destination: request.destination.coordinate
+                of: stop.place.coordinate, origin: request.origin.coordinate,
+                stops: merged.map(\.place.coordinate), destination: request.destination.coordinate, from: earliest
             )
-            stops.insert(.visit(addition.place, stay: addition.stay), at: index)
+            merged.insert(stop, at: index)
+            earliest = index + 1
         }
-        request.stops = stops.isEmpty ? nil : stops
+        request.stops = merged.isEmpty ? nil : merged
         return request
     }
 
@@ -215,12 +275,12 @@ public final class AdjustVisitsViewModel {
     /// Where a new place goes among the stops a plan keeps: between the two it adds the least
     /// distance to (straight lines).
     static func insertionIndex(
-        of point: GeoCoordinate, origin: GeoCoordinate, stops: [GeoCoordinate], destination: GeoCoordinate
+        of point: GeoCoordinate, origin: GeoCoordinate, stops: [GeoCoordinate], destination: GeoCoordinate, from minimum: Int = 0
     ) -> Int {
         let path = [origin] + stops + [destination]
         var best = stops.count
         var bestCost = Double.infinity
-        for index in 0..<(path.count - 1) {
+        for index in max(0, min(minimum, stops.count))..<(path.count - 1) {
             let cost = GeoMath.distance(path[index], point) + GeoMath.distance(point, path[index + 1])
                 - GeoMath.distance(path[index], path[index + 1])
             if cost < bestCost {

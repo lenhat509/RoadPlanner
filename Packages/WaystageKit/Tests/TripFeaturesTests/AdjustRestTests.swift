@@ -116,7 +116,7 @@ struct AdjustRestTests {
         #expect(try await harness.repository.loadActiveTrip()?.id == next.id, "saved as the trip being driven")
     }
 
-    @Test("Running late: stopping earlier tonight lets Waystage choose tonight's hotel, with others to pick from")
+    @Test("Running late: stopping earlier tonight lets Waystage choose tonight's hotel")
     func stopEarlierTonight() async throws {
         let harness = FeatureHarness(), clock = Clock()
         let itinerary = try await plan(SampleTrips.request(from: "sf", to: "den"), harness)
@@ -130,13 +130,7 @@ struct AdjustRestTests {
         #expect(kept.plan.stops.contains { $0.place.id == hotel.place.id }, "keeping the plan keeps tonight's hotel")
         let earlier = try #require(await model.stopEarlierTonight())
         #expect(earlier.stopsEarlierTonight)
-        let tonight = try #require(earlier.plan.stops.first { $0.kind == .lodging })
-        #expect(!earlier.hotelChoices.isEmpty)
-        #expect(!earlier.hotelChoices.contains { $0.place.id == tonight.place.id })
-        #expect(earlier.hotelChoices.allSatisfy { $0.timeFromPlanned <= 15 * 60 }, "only hotels within today's reach")
-        let other = try #require(earlier.hotelChoices.first)
-        let chosen = try #require(await model.adjust(earlier, stayingAt: other))
-        #expect(chosen.plan.stops.first { $0.kind == .lodging }?.place.id == other.place.id)
+        #expect(earlier.plan.stops.contains { $0.kind == .lodging }, "a hotel for tonight")
     }
 
     @Test("A long trip with many fuel stops and nights ahead can be adjusted")

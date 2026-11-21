@@ -108,7 +108,6 @@ struct DriveScreen: View {
                     formatters: dependencies.formatters,
                     isWorking: isAdjusting,
                     onStopEarlier: { change { await model.stopEarlierTonight() } },
-                    onChooseHotel: { hotel in change { await model.adjust(adjustment, stayingAt: hotel) } },
                     onUse: {
                         Task {
                             guard let trip = await model.use(adjustment) else { return }
@@ -477,7 +476,7 @@ struct DriveScreen: View {
         }
     }
 
-    /// Replaces the adjustment shown (stopping earlier tonight, another hotel).
+    /// Replaces the adjustment shown (stopping earlier tonight).
     private func change(_ make: @escaping @MainActor () async -> DriveViewModel.Adjustment?) {
         guard !isAdjusting else { return }
         isAdjusting = true

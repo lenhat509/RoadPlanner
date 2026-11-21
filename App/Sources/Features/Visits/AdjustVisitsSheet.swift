@@ -2,15 +2,18 @@ import SwiftUI
 import TripFeatures
 import TripModels
 
-/// "Adjust visits": the places to visit, with their addresses and arrival times. Changes are listed
-/// first (green "To be added", red "To be removed") and planned together with "Update plan"; "Use
-/// this plan" then makes the new plan the one shown (plan screen) or the trip (Home).
+/// "Adjust visits": the places to visit, in the order they'll be visited, with their addresses and
+/// arrival times. Changes are listed first (green "To be added", red "To be removed", or a new
+/// order) and planned together with "Update plan"; "Use this plan" then makes the new plan the one
+/// shown (plan screen) or the trip (Home).
 struct AdjustVisitsSheet: View {
     let model: AdjustVisitsViewModel
     let dependencies: AppDependencies
     let onUse: () -> Void
     let onCancel: () -> Void
     @State private var addsVisit = false
+    /// Moving visits (drag handles), turned on with Reorder.
+    @State private var editMode = EditMode.inactive
 
     var body: some View {
         NavigationStack {
@@ -37,12 +40,28 @@ struct AdjustVisitsSheet: View {
                     ForEach(model.visits) { visit in
                         VisitEntryRow(visit: visit) { model.toggle(visit.id) }
                     }
+                    .onMove { model.move(fromOffsets: $0, toOffset: $1) }
                 } header: {
-                    Text("Your visits")
+                    HStack {
+                        Text("Your visits")
+                        Spacer()
+                        if model.visits.count > 1 {
+                            Button(editMode.isEditing ? "Done" : "Reorder") {
+                                withAnimation { editMode = editMode.isEditing ? .inactive : .active }
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .textCase(nil)
+                            .disabled(model.isUpdating)
+                            .accessibilityIdentifier(AccessibilityID.Visits.reorder)
+                        }
+                    }
                 } footer: {
-                    Text("Tap a visit to remove it from the plan, or tap it again to keep it. Nothing changes until you tap Update plan.")
+                    Text(editMode.isEditing
+                        ? "Drag the visits into the order you want to stop at them."
+                        : "Waystage puts your visits in the order that adds the least driving; tap Reorder to change it. Tap a visit to remove it from the plan, or tap it again to keep it. Nothing changes until you tap Update plan.")
                 }
             }
+            .environment(\.editMode, $editMode)
             .disabled(model.isUpdating)
             .overlay {
                 if model.isUpdating {

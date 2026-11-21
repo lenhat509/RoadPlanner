@@ -15,25 +15,21 @@ wasn't released on its own.
   that long and plans the breaks, fuel and nights around them; it can't skip them. A trip with
   stops on the way has one route through them (Google offers no alternative routes through
   stops), plus its toll-free version.
-- **Edit a plan, and it updates right away.** Touch and hold any stop (or open it) to remove it,
-  keep it, stay at another hotel that night, or add a stop after it (the same place search as the
-  plan form, with a stay). The plan is made again at once, keeping your own stops, kept stops and
-  chosen hotels; **Undo** brings the previous plan back.
 - **Adjust the rest.** Stopped at a stop (or before Start), drive mode says when tonight's hotel
   would be reached well after the end of the driving day, or the destination after the deadline.
   **Adjust the rest** keeps the plan: your stops and the hotels still ahead stay, re-timed from
   now; Waystage picks its breaks and fuel stops again for the new timing. The sheet says what
-  changes, and a message says why when the rest can't be adjusted. If tonight's hotel is now too far, **Stop earlier tonight**
-  finds a hotel near where today's driving ends, with others to choose from. Also in the drive
+  changes, and a message says why when the rest can't be adjusted. If tonight's hotel is now too
+  far, **Stop earlier tonight** finds a hotel near where today's driving ends. Also in the drive
   menu; never offered while guiding.
-- **Adjust visits.** From the plan screen (above Start driving) or the trip on Home (below
-  Resume): your visits, with their addresses and arrival times. Changes
-  are listed first and planned together: a place added shows **To be added** (green, with a
-  button to take it off the list), and tapping a visit marks it **To be removed** (red; tap again
-  to keep it). **Update plan** plans once with all of them (a new visit goes where it adds the
-  least driving), and **Use this plan** shows the new plan (Undo goes back) or, from Home, makes
-  it the trip. Before the trip starts the whole plan is made again; once it has, the rest of the
-  trip from where you are.
+- **Adjust visits.** From the plan screen (next to Start driving, after the day-by-day plan) or
+  the trip on Home (next to Resume): your visits, in the order they'll be visited, with their
+  addresses and arrival times. Changes are listed first and planned together: a place added shows
+  **To be added** (green, with a button to take it off the list) where it adds the least driving,
+  tapping a visit marks it **To be removed** (red; tap again to keep it), and **Reorder** lets you
+  drag visits into another order. **Update plan** plans once with all of them, and **Use this
+  plan** shows the new plan (Undo goes back) or, from Home, makes it the trip. Before the trip
+  starts the whole plan is made again; once it has, the rest of the trip from where you are.
 - **Up to 10 places to visit.** The limit counts only places you add; kept stops and hotels don't
   count toward it (a trip can keep up to 25 stops, the most one route can go through).
 - **Your own stop is the break.** To reach a stop you chose (or the destination), driving may run
@@ -49,6 +45,10 @@ wasn't released on its own.
   (only drive mode's map and panels follow Google's day and night look).
 
 ### Changed
+- **The plan screen ends with its buttons**, on one line after the day-by-day plan (Undo, Adjust
+  visits, Start driving); a stop's details no longer change the plan (no keep, remove, other
+  hotels or add-a-stop actions, and no touch-and-hold menu): visits are changed in Adjust visits.
+  Choosing another hotel is gone everywhere (it made a whole new plan around that hotel).
 - **Two plans: Fastest and Cheapest.** Balanced is gone (and with it the "your time is worth"
   setting); trips and settings saved with it open as Fastest, now the default.
 - **No gradients.** Buttons, the Home header, the drive banner, the launch animation and the app

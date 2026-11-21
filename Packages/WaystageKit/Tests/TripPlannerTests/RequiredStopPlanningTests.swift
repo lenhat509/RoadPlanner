@@ -164,18 +164,4 @@ struct RequiredStopPlanningTests {
         _ = try await service2.plan(SampleTrips.request(from: "la", to: "lv"))
         #expect(fresh.sent == 2 * first, "with no memory, every plan searches")
     }
-
-    @Test("Each overnight stop offers other nearby hotels, not itself")
-    func hotelChoices() async throws {
-        let result = try await SampleTrips.planningService().plan(SampleTrips.request(from: "sf", to: "den"))
-        let route = try #require(result.routes.first)
-        let hotels = route.options.flatMap(\.stops).filter { $0.kind == .lodging }
-        #expect(!hotels.isEmpty)
-        for hotel in hotels {
-            let choices = route.hotelChoices[hotel.place.id] ?? []
-            #expect(!choices.isEmpty && choices.count <= 5)
-            #expect(!choices.contains { $0.place.id == hotel.place.id })
-            #expect(choices.allSatisfy { abs($0.timeFromPlanned) <= 3_600 })
-        }
-    }
 }

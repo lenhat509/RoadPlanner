@@ -17,6 +17,19 @@ final class ScreenshotTests: XCTestCase {
         app.launch()
     }
 
+    /// Taps a plan button, at the end of its scrolling page.
+    private func tapPlanButton(_ identifier: String) {
+        let button = app.buttons[identifier]
+        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        let page = app.scrollViews.containing(.any, identifier: AccessibilityID.Results.timeline).firstMatch
+        var swipes = 0
+        while !button.isHittable && swipes < 10 {
+            page.swipeUp()
+            swipes += 1
+        }
+        button.tap()
+    }
+
     /// Gives map tiles a moment to load before a capture.
     private func settle(_ seconds: TimeInterval = 4) {
         Thread.sleep(forTimeInterval: seconds)
@@ -26,9 +39,7 @@ final class ScreenshotTests: XCTestCase {
     /// or (the simulated car is fast, and a slow simulator may load directions late) already the
     /// arrival card at the first stop.
     private func startDriving(file: StaticString = #filePath, line: UInt = #line) {
-        let start = app.buttons[AccessibilityID.Results.start]
-        XCTAssertTrue(start.waitForExistence(timeout: 5), file: file, line: line)
-        start.tap()
+        tapPlanButton(AccessibilityID.Results.start)
         XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.preview].firstMatch.waitForExistence(timeout: 20),
                       "Start driving previews the first leg", file: file, line: line)
         settle(3) // the zoom from the whole trip into the leg
@@ -145,7 +156,7 @@ final class ScreenshotTests: XCTestCase {
         planCrossCountry(from: ("San", "San Francisco"), captureForm: "11-Plan-Dark")
         settle()
         capture("12-Options-Dark")
-        app.buttons[AccessibilityID.Results.start].tap()
+        tapPlanButton(AccessibilityID.Results.start)
         XCTAssertTrue(app.descendants(matching: .any)[AccessibilityID.Drive.preview].firstMatch.waitForExistence(timeout: 20))
         settle(4) // the whole trip, then the zoom into the way to the start
         capture("13-ToStart-Dark")

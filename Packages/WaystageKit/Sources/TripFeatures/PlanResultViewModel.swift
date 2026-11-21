@@ -80,29 +80,6 @@ public struct RouteChoice: Equatable, Identifiable, Sendable {
     }
 }
 
-/// What the traveler can change about one stop of the selected plan.
-public struct StopEditState: Equatable, Sendable {
-    /// The plan must include it (a visit, a kept stop, a chosen hotel).
-    public var isKept: Bool
-    /// Real places can be kept; generated breaks and lodging search areas can't.
-    public var canKeep: Bool
-    public var canRemove: Bool
-    /// Other hotels nearby (an overnight stop of a plan just made).
-    public var hotelChoices: [HotelChoice]
-}
-
-/// A change to the selected plan; the plan is made again with it at once.
-public enum PlanEdit: Sendable {
-    /// Leave the stop out (a visit or kept stop is dropped; another place isn't planned again).
-    case remove(stopID: String)
-    /// Keep the stop in the plan, or stop keeping it.
-    case toggleKeep(stopID: String)
-    /// Stay at another hotel that night.
-    case chooseHotel(stopID: String, HotelChoice)
-    /// Visit a place after this stop, for `stay`.
-    case addStop(after: String, place: Place, stay: TimeInterval)
-}
-
 /// Compare routes and plans, inspect the timeline, save or start the trip.
 ///
 /// A search can find a few different routes; the best is selected first. The user picks one
@@ -110,15 +87,12 @@ public enum PlanEdit: Sendable {
 @MainActor
 @Observable
 public final class PlanResultViewModel {
-    /// The plans shown; replaced when the traveler plans again with changes.
+    /// The plans shown; replaced when visits are adjusted.
     public private(set) var result: PlanResult
     public var selectedGoal: OptimizationGoal
     public private(set) var selectedRouteID: String
     public private(set) var isSaved = false
 
-    /// The plan is being made again after a change.
-    public private(set) var isUpdating = false
-    public private(set) var updateError: String?
     /// Plans before each change, for Undo.
     private var history: [(result: PlanResult, routeID: String, goal: OptimizationGoal)] = []
 
@@ -151,48 +125,14 @@ public final class PlanResultViewModel {
         isSaved = false
     }
 
-    // MARK: Editing the plan
+    // MARK: Changing the plan
 
-    public func editState(for stopID: String) -> StopEditState? {
-        guard let plan = selected, let stop = plan.stops.first(where: { $0.id == stopID }),
-              stop.kind != .origin, stop.kind != .destination else { return nil }
-        let isReal = !stop.isRoadsidePullOff && !stop.place.id.hasPrefix("lodging-area-")
-        return StopEditState(
-            isKept: stop.isRequiredStop,
-            canKeep: isReal && stop.kind != .visit,
-            canRemove: isReal || stop.kind == .visit,
-            hotelChoices: stop.kind == .lodging ? (selectedRoute?.hotelChoices[stop.place.id] ?? []) : []
-        )
-    }
-
-    public var canUndo: Bool { !history.isEmpty && !isUpdating }
-
-    /// Another place to visit can be added (up to `RequiredStop.maximumCount`).
-    public var canAddStop: Bool {
-        (selected?.stops.count { $0.kind == .visit } ?? 0) < RequiredStop.maximumCount
-    }
-
-    /// Makes the plan again with the change. Your own stops, kept stops and chosen hotels stay;
-    /// Waystage re-chooses the rest. The previous plan can be brought back with `undo()`.
-    public func apply(_ edit: PlanEdit) async {
-        guard let plan = selected, !isUpdating, let request = Self.request(for: plan, applying: edit, now: dependencies.now()) else { return }
-        isUpdating = true
-        defer { isUpdating = false }
-        do {
-            let planned = try await dependencies.planner.plan(request) { _ in }
-            history.append((result, selectedRouteID, selectedGoal))
-            show(planned, goal: selectedGoal)
-        } catch let error as PlanningError {
-            updateError = error.message
-        } catch {
-            updateError = "The plan couldn't be updated. Check your connection and try again."
-        }
-    }
+    public var canUndo: Bool { !history.isEmpty }
 
     /// The selected plan's places to visit, to add or remove ("Adjust visits"): changes are planned
     /// together, for the whole trip.
     public func visitsEditor() -> AdjustVisitsViewModel? {
-        guard let plan = selected, !isUpdating else { return nil }
+        guard let plan = selected else { return nil }
         var request = plan.request
         Self.movePastDeparture(of: &request, now: dependencies.now())
         return AdjustVisitsViewModel(plan: plan, request: request, firstShown: 1, dependencies: dependencies)
@@ -200,69 +140,25 @@ public final class PlanResultViewModel {
 
     /// Shows the plans made in "Adjust visits"; Undo brings the previous ones back.
     public func use(_ visits: AdjustVisitsViewModel) {
-        guard let planned = visits.updatedResult, !isUpdating else { return }
+        guard let planned = visits.updatedResult else { return }
         history.append((result, selectedRouteID, selectedGoal))
         show(planned, goal: selectedGoal)
     }
 
     /// Brings back the plan before the last change.
     public func undo() {
-        guard let previous = history.popLast(), !isUpdating else { return }
+        guard let previous = history.popLast() else { return }
         result = previous.result
         selectedRouteID = previous.routeID
         selectedGoal = previous.goal
         isSaved = false
     }
 
-    public func dismissUpdateError() { updateError = nil }
-
     private func show(_ planned: PlanResult, goal: OptimizationGoal) {
         result = planned
         selectedRouteID = planned.routes.first?.id ?? ""
         selectedGoal = planned.itineraries[goal] != nil ? goal : planned.recommendedGoal
         isSaved = false
-    }
-
-    /// The plan's request with the change: the stops the plan must include (visits, kept stops,
-    /// chosen hotels, in route order) and the places left out. A departure that has passed moves to
-    /// the next hour (with the deadline, as when a saved trip is planned again).
-    static func request(for plan: Itinerary, applying edit: PlanEdit, now: Date) -> TripRequest? {
-        var request = plan.request
-        let body = Array(plan.stops.dropFirst().dropLast())
-        // (position in the plan, stop) for each stop the next plan must include.
-        var required: [(Double, RequiredStop)] = body.enumerated()
-            .filter { $0.element.isRequiredStop }
-            .map { (Double($0.offset), requiredStop(keeping: $0.element)) }
-        var avoided = request.avoidedPlaceIDs ?? []
-        func position(of stopID: String) -> Double? { body.firstIndex { $0.id == stopID }.map(Double.init) }
-        switch edit {
-        case let .remove(stopID):
-            guard let index = position(of: stopID) else { return nil }
-            let stop = body[Int(index)]
-            required.removeAll { $0.0 == index }
-            if stop.kind != .visit, !avoided.contains(stop.place.id) { avoided.append(stop.place.id) }
-        case let .toggleKeep(stopID):
-            guard let index = position(of: stopID) else { return nil }
-            let stop = body[Int(index)]
-            if stop.isRequiredStop {
-                required.removeAll { $0.0 == index }
-            } else {
-                required.append((index, requiredStop(keeping: stop)))
-            }
-        case let .chooseHotel(stopID, hotel):
-            guard let index = position(of: stopID) else { return nil }
-            required.removeAll { $0.0 == index }
-            required.append((index, hotel.requiredStop))
-        case let .addStop(after, place, stay):
-            let index = after == "origin" ? -1 : position(of: after)
-            guard let index else { return nil }
-            required.append((index + 0.5, .visit(place, stay: stay)))
-        }
-        request.stops = required.sorted { $0.0 < $1.0 }.map(\.1)
-        if request.stops?.isEmpty == true { request.stops = nil }
-        request.avoidedPlaceIDs = avoided.isEmpty ? nil : avoided
-        movePastDeparture(of: &request, now: now)
-        return request
     }
 
     /// A departure that has passed moves to the next hour (with the deadline).

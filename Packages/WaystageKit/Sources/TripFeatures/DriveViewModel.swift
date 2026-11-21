@@ -698,8 +698,6 @@ public final class DriveViewModel: Identifiable {
         public var changes: [String]
         /// Tonight's hotel is now reached after the end of the driving day.
         public var isLateTonight: Bool
-        /// Other hotels near tonight's stop, to stop somewhere else.
-        public var hotelChoices: [HotelChoice]
         /// The planner chose tonight's hotel (stopping earlier), rather than keeping the planned one.
         public var stopsEarlierTonight: Bool
     }
@@ -712,18 +710,6 @@ public final class DriveViewModel: Identifiable {
     /// Adjusts the rest, letting Waystage choose a hotel where today's driving now ends.
     public func stopEarlierTonight() async -> Adjustment? {
         await adjustment(for: restOfTripRequest(releasingTonight: true), stopsEarlierTonight: true)
-    }
-
-    /// The adjustment with another of tonight's hotels.
-    public func adjust(_ adjustment: Adjustment, stayingAt hotel: HotelChoice) async -> Adjustment? {
-        guard var request = restOfTripRequest(releasingTonight: true),
-              let tonight = adjustment.plan.stops.firstIndex(where: { $0.kind == .lodging }) else { return nil }
-        // Tonight's hotel goes where the plan's was, among the stops the plan keeps.
-        let before = adjustment.plan.stops[..<tonight].filter(\.isRequiredStop).count
-        var stops = request.stops ?? []
-        stops.insert(hotel.requiredStop, at: min(before, stops.count))
-        request.stops = stops
-        return await self.adjustment(for: request, stopsEarlierTonight: true)
     }
 
     private func adjustment(for request: TripRequest?, stopsEarlierTonight: Bool) async -> Adjustment? {
@@ -744,10 +730,6 @@ public final class DriveViewModel: Identifiable {
                 plan: plan,
                 changes: changes(to: plan),
                 isLateTonight: tonight.map { isLate($0, policy: plan.appliedPolicy) } ?? false,
-                // Stopping earlier: only hotels this side of where today's driving ends (one much
-                // farther on would need another night before it).
-                hotelChoices: (tonight.flatMap { result.routes.first?.hotelChoices[$0.place.id] } ?? [])
-                    .filter { $0.timeFromPlanned <= 15 * 60 },
                 stopsEarlierTonight: stopsEarlierTonight
             )
         } catch let error as PlanningError {

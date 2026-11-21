@@ -199,7 +199,7 @@ once.
 | Navigation SDK routes, road names, speed limits | No | No: in memory during the drive only |
 | Station fuel prices | No | No: a saved plan shows the national estimate instead (marked as an estimate) |
 | Stops on the way (places to visit, kept stops) | Place IDs indefinitely, coordinates 30 days | Like the start and destination: place IDs, coordinates for 30 days, no names, addresses or station prices |
-| Place searches during the session | Not stored | In memory only, up to 30 minutes, never written to disk: planning again (an edited plan, the rest of a trip) reuses them for road already searched instead of paying for the same searches again. Other hotels offered for a night are kept with the plan just made, in memory |
+| Place searches during the session | Not stored | In memory only, up to 30 minutes, never written to disk: planning again (adjusted visits, the rest of a trip) reuses them for road already searched instead of paying for the same searches again. |
 | Your own data (dates, times, plan structure, progress, vehicle) | Yours | Yes |
 
 ## Privacy: what the Navigation SDK collects

@@ -74,7 +74,8 @@ struct AdjustVisitsTests {
 
         editor.add(SampleTrips.city("la"), stay: 3_600)
         editor.toggle(lasVegas.id)
-        #expect(editor.visits.map(\.status) == [.toBeRemoved, .toBeAdded])
+        #expect(editor.visits.map(\.name) == ["Los Angeles", "Las Vegas"], "Los Angeles goes first: the least driving")
+        #expect(editor.visits.map(\.status) == [.toBeAdded, .toBeRemoved])
         #expect(editor.plan.id == itinerary.id && planner.plans == 0, "nothing is planned before Update plan")
 
         await editor.updatePlan()
@@ -154,6 +155,37 @@ struct AdjustVisitsTests {
         #expect(editor.visits.count == 10)
         editor.toggle(try #require(editor.visits.first).id)
         #expect(editor.canAddVisit, "Las Vegas is to be removed")
+    }
+
+    @Test("Visits can be moved: the plan follows the list's order, and moving alone is a change to plan")
+    func reorder() async throws {
+        let harness = FeatureHarness(), clock = Clock()
+        let planner = CountingPlanner(harness.dependencies.planner)
+        let itinerary = try await itinerary(harness)
+        let drive = DriveViewModel(trip: ActiveTrip(itinerary: itinerary), dependencies: dependencies(harness, clock, planner: planner))
+        let editor = drive.visitsEditor()
+        editor.add(SampleTrips.city("la"), stay: 3_600)
+        #expect(editor.visits.map(\.name) == ["Los Angeles", "Las Vegas"])
+        editor.move(fromOffsets: [0], toOffset: 2)
+        #expect(editor.visits.map(\.name) == ["Las Vegas", "Los Angeles"])
+        #expect(planner.plans == 0)
+        await editor.updatePlan()
+        #expect(editor.errorMessage == nil)
+        #expect(editor.plan.stops.filter { $0.kind == .visit }.map(\.place.id) == ["lv", "la"], "the traveler's order")
+        #expect(!editor.hasPendingChanges)
+
+        editor.move(fromOffsets: [1], toOffset: 0)
+        #expect(editor.visits.map(\.name) == ["Los Angeles", "Las Vegas"] && editor.hasPendingChanges, "moving alone is a change")
+        editor.move(fromOffsets: [0], toOffset: 2)
+        #expect(!editor.hasPendingChanges, "back in the plan's order")
+    }
+
+    @Test("From the plan screen, a departure that has passed moves to the next hour")
+    func pastDeparture() {
+        var request = SampleTrips.request(from: "sf", to: "den")
+        let later = request.departure.addingTimeInterval(5 * 3_600 + 600)
+        PlanResultViewModel.movePastDeparture(of: &request, now: later)
+        #expect(request.departure > later && request.departure.timeIntervalSince(later) <= 3_600)
     }
 
     @Test("A new visit goes where it adds the least driving")

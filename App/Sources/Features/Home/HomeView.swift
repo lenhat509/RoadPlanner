@@ -171,20 +171,24 @@ struct HomeView: View {
                 marks: TripRibbon.marks(for: trip.itinerary),
                 progress: TripRibbon.progress(of: trip, legProgress: nil)
             )
-            Button { onResume(trip) } label: {
-                Label("Resume", systemImage: "play.fill")
+            HStack(spacing: Theme.Spacing.xs) {
+                Button {
+                    let drive = DriveViewModel(trip: trip, dependencies: environment.dependencies)
+                    visits = VisitsEditing(drive: drive, editor: drive.visitsEditor())
+                } label: {
+                    Label("Adjust visits", systemImage: "mappin.and.ellipse")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+                .buttonStyle(.secondary)
+                .accessibilityIdentifier(AccessibilityID.Home.adjustVisits)
+                Button { onResume(trip) } label: {
+                    Label("Resume", systemImage: "play.fill")
+                        .lineLimit(1)
+                }
+                .buttonStyle(.primary)
+                .accessibilityIdentifier(AccessibilityID.Home.resume)
             }
-            .buttonStyle(.primary)
-            .accessibilityIdentifier(AccessibilityID.Home.resume)
-            Button {
-                let drive = DriveViewModel(trip: trip, dependencies: environment.dependencies)
-                visits = VisitsEditing(drive: drive, editor: drive.visitsEditor())
-            } label: {
-                Label("Adjust visits", systemImage: "mappin.and.ellipse")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.secondary)
-            .accessibilityIdentifier(AccessibilityID.Home.adjustVisits)
         }
         .card()
     }

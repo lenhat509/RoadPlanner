@@ -9,44 +9,6 @@ public enum PlanningPhase: Equatable, Sendable {
     case finalizing
 }
 
-/// Another hotel near one of a plan's overnight stops, for swapping it.
-public struct HotelChoice: Hashable, Sendable, Identifiable {
-    public var place: Place
-    public var nightlyRate: Double?
-    public var isRateEstimated: Bool
-    public var provider: String?
-    public var bookingURL: URL?
-    public var rating: Double?
-    /// Extra driving to reach it from the route and back.
-    public var detourDuration: TimeInterval
-    /// Driving time compared with the planned hotel: negative is earlier on the route.
-    public var timeFromPlanned: TimeInterval
-
-    public var id: String { place.id }
-
-    public init(
-        place: Place, nightlyRate: Double?, isRateEstimated: Bool, provider: String?, bookingURL: URL?, rating: Double?,
-        detourDuration: TimeInterval, timeFromPlanned: TimeInterval
-    ) {
-        self.place = place
-        self.nightlyRate = nightlyRate
-        self.isRateEstimated = isRateEstimated
-        self.provider = provider
-        self.bookingURL = bookingURL
-        self.rating = rating
-        self.detourDuration = detourDuration
-        self.timeFromPlanned = timeFromPlanned
-    }
-
-    /// The hotel as a stop the next plan must include.
-    public var requiredStop: RequiredStop {
-        RequiredStop(
-            place: place, purpose: .lodging,
-            lodging: nightlyRate.map { LodgingStay(nightlyRate: $0, isRateEstimated: isRateEstimated, provider: provider, bookingURL: bookingURL) }
-        )
-    }
-}
-
 /// One way to drive the trip, planned for every optimization goal.
 public struct RoutePlan: Sendable, Identifiable {
     public var id: String
@@ -57,20 +19,13 @@ public struct RoutePlan: Sendable, Identifiable {
     /// Where to label the route on a map: clear of its stops and of the other routes.
     public var labelCoordinate: GeoCoordinate
     public var itineraries: [OptimizationGoal: Itinerary]
-    /// Other hotels near each planned overnight stop (by the planned hotel's place ID). Kept in
-    /// memory with the plan just made, never saved; empty for a reopened saved plan.
-    public var hotelChoices: [String: [HotelChoice]]
 
-    public init(
-        id: String, name: String?, summary: String, labelCoordinate: GeoCoordinate,
-        itineraries: [OptimizationGoal: Itinerary], hotelChoices: [String: [HotelChoice]] = [:]
-    ) {
+    public init(id: String, name: String?, summary: String, labelCoordinate: GeoCoordinate, itineraries: [OptimizationGoal: Itinerary]) {
         self.id = id
         self.name = name
         self.summary = summary
         self.labelCoordinate = labelCoordinate
         self.itineraries = itineraries
-        self.hotelChoices = hotelChoices
     }
 
     /// Plans in display order (fastest, cheapest).
@@ -151,10 +106,6 @@ public struct TripPlanningConfiguration: Sendable {
     /// the rest of a trip) reuses them for road already searched. In memory only; 0 turns it off.
     public var searchMemoryLifetime: TimeInterval = 30 * 60
     public var searchMemoryCapacity = 400
-    /// Other hotels offered for each overnight stop.
-    public var hotelChoicesPerStop = 5
-    /// How far along the route (driving time either way) another hotel may be.
-    public var hotelChoiceWindow: TimeInterval = 3_600
 
     public init() {}
 }
@@ -255,17 +206,16 @@ public final class TripPlanningService: TripPlanning, Sendable {
             places: configuration.alternatives.names(for: shapes), summaries: corridors.map(\.primary.summary)
         )
         // Labels stay clear of each route's stops, whichever plan style is shown.
-        let stops = planned.map { plan in plan.itineraries.values.flatMap { $0.stops.map(\.place.coordinate) } }
+        let stops = planned.map { plan in plan.values.flatMap { $0.stops.map(\.place.coordinate) } }
         let labels = configuration.alternatives.labelPoints(for: shapes, avoiding: stops)
         let routes = planned.enumerated().compactMap { index, plan -> RoutePlan? in
-            guard !plan.itineraries.isEmpty else { return nil }
+            guard !plan.isEmpty else { return nil }
             return RoutePlan(
                 id: "route-\(index + 1)",
                 name: names[index],
                 summary: corridors[index].primary.summary,
                 labelCoordinate: labels.indices.contains(index) ? labels[index] : (shapes[index].first ?? request.origin.coordinate),
-                itineraries: plan.itineraries,
-                hotelChoices: plan.hotelChoices
+                itineraries: plan
             )
         }
         guard !routes.isEmpty else { throw PlanningError.noRoute }
@@ -300,11 +250,8 @@ public final class TripPlanningService: TripPlanning, Sendable {
         }
     }
 
-    /// Every goal's plan along one corridor (its route, or its toll-free version where cheaper), and
-    /// other hotels near each plan's overnight stops.
-    private func plans(
-        along analyses: [RouteAnalysis], request: TripRequest
-    ) async -> (itineraries: [OptimizationGoal: Itinerary], hotelChoices: [String: [HotelChoice]]) {
+    /// Every goal's plan along one corridor (its route, or its toll-free version where cheaper).
+    private func plans(along analyses: [RouteAnalysis], request: TripRequest) async -> [OptimizationGoal: Itinerary] {
         var drafts: [OptimizationGoal: (Itinerary, RouteAnalysis)] = [:]
         for goal in OptimizationGoal.allCases {
             drafts[goal] = bestDraft(for: goal, request: request, analyses: analyses)
@@ -325,39 +272,7 @@ public final class TripPlanningService: TripPlanning, Sendable {
             cache[signature] = itinerary
             finalized[goal] = itinerary
         }
-        var choices: [String: [HotelChoice]] = [:]
-        for goal in OptimizationGoal.allCases {
-            guard let (_, analysis) = drafts[goal], let itinerary = finalized[goal] else { continue }
-            choices.merge(hotelChoices(for: itinerary, in: analysis, request: request)) { current, _ in current }
-        }
-        return (Self.consistentOptions(finalized, valueOfTimePerHour: request.policy.valueOfTimePerHour), choices)
-    }
-
-    /// Other known hotels within `hotelChoiceWindow` of each planned overnight stop, best value first.
-    private func hotelChoices(for itinerary: Itinerary, in analysis: RouteAnalysis, request: TripRequest) -> [String: [HotelChoice]] {
-        let valueOfTime = max(0, request.policy.valueOfTimePerHour)
-        var result: [String: [HotelChoice]] = [:]
-        for stop in itinerary.stops where stop.kind == .lodging {
-            let id = Self.candidateID(of: stop)
-            guard let planned = analysis.candidates.first(where: { $0.id == id })
-                ?? analysis.candidates.first(where: { $0.place.id == stop.place.id }) else { continue }
-            let nearby = analysis.candidates.filter {
-                $0.capabilities.contains(.lodging) && !$0.isSynthetic && $0.place.id != planned.place.id
-                    && abs($0.timeAlong - planned.timeAlong) <= configuration.hotelChoiceWindow
-            }
-            let value = { (candidate: StopCandidate) in
-                (candidate.nightlyRate ?? self.configuration.pricing.unknownNightlyRate)
-                    + candidate.detourDuration / Units.secondsPerHour * valueOfTime
-            }
-            result[stop.place.id] = nearby.sorted { value($0) < value($1) }.prefix(configuration.hotelChoicesPerStop).map {
-                HotelChoice(
-                    place: $0.place, nightlyRate: $0.nightlyRate, isRateEstimated: $0.isLodgingRateEstimated,
-                    provider: $0.lodgingProvider, bookingURL: $0.bookingURL, rating: $0.rating,
-                    detourDuration: $0.detourDuration, timeFromPlanned: $0.timeAlong - planned.timeAlong
-                )
-            }
-        }
-        return result
+        return Self.consistentOptions(finalized, valueOfTimePerHour: request.policy.valueOfTimePerHour)
     }
 
     /// How good a plan is for `goal`: a met deadline first, then fewer relaxed preferences, then

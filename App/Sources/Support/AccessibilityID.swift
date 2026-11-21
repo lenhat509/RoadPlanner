@@ -51,12 +51,7 @@ enum AccessibilityID {
         /// The routes found, best first.
         static func route(_ index: Int) -> String { "results.route.\(index)" }
         static func day(_ index: Int) -> String { "results.day.\(index)" }
-        static let keepStop = "results.keepStop"
-        static let removeStop = "results.removeStop"
-        static func hotelChoice(_ index: Int) -> String { "results.hotelChoice.\(index)" }
         static let undo = "results.undo"
-        static let updating = "results.updating"
-        static let addStopHere = "results.addStopHere"
         static let addStopSearch = "results.addStopSearch"
         static let addStopConfirm = "results.addStopConfirm"
     }
@@ -92,6 +87,8 @@ enum AccessibilityID {
         /// Takes a place added off the "Your visits" list.
         static let discard = "visits.discard"
         static let update = "visits.update"
+        /// Turns moving visits on and off.
+        static let reorder = "visits.reorder"
         static let use = "visits.use"
     }
 

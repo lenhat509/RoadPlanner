@@ -29,7 +29,7 @@ struct SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .frame(maxWidth: .infinity, minHeight: 50)
+            .frame(maxWidth: .infinity, minHeight: 56)
             .foregroundStyle(Theme.accent)
             .background(Theme.accent.opacity(0.12), in: Capsule(style: .continuous))
             .opacity(configuration.isPressed ? 0.7 : 1)
@@ -46,8 +46,7 @@ extension ButtonStyle where Self == SecondaryButtonStyle {
 
 // MARK: - Bars
 
-/// The bar holding a screen's primary action: opaque, with a soft fade so scrolled content
-/// slides under it cleanly.
+/// The bar holding a screen's primary action: opaque, with a divider along its top.
 struct BottomActionBar<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
