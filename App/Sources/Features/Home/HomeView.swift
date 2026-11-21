@@ -13,6 +13,8 @@ struct HomeView: View {
     let onPlanTrip: () -> Void
     let onOpenSettings: () -> Void
     let onResume: (ActiveTrip) -> Void
+    /// Opens the trip in progress: its whole plan, like a plan just made.
+    let onOpenTrip: (ActiveTrip) -> Void
     let onOpenItinerary: (Itinerary) -> Void
     /// A plan made again from an outlined saved trip.
     let onOpenPlan: (PlanResult) -> Void
@@ -24,6 +26,7 @@ struct HomeView: View {
         onPlanTrip: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void,
         onResume: @escaping (ActiveTrip) -> Void,
+        onOpenTrip: @escaping (ActiveTrip) -> Void,
         onOpenItinerary: @escaping (Itinerary) -> Void,
         onOpenPlan: @escaping (PlanResult) -> Void
     ) {
@@ -33,6 +36,7 @@ struct HomeView: View {
         self.onPlanTrip = onPlanTrip
         self.onOpenSettings = onOpenSettings
         self.onResume = onResume
+        self.onOpenTrip = onOpenTrip
         self.onOpenItinerary = onOpenItinerary
         self.onOpenPlan = onOpenPlan
     }
@@ -65,6 +69,8 @@ struct HomeView: View {
             }
         }
         .task(id: environment.drive?.id) { await model.load() }
+        // Back from the trip's plan, where its visits may have changed.
+        .onAppear { Task { await model.load() } }
         .sheet(item: $visits) { visits in
             AdjustVisitsSheet(
                 model: visits.editor,
@@ -164,13 +170,29 @@ struct HomeView: View {
                 .accessibilityLabel("More options")
                 .accessibilityIdentifier(AccessibilityID.Home.discard)
             }
-            Text(model.resumeSummary(for: trip))
-                .font(.headline)
-                .fixedSize(horizontal: false, vertical: true)
-            TripRibbonView(
-                marks: TripRibbon.marks(for: trip.itinerary),
-                progress: TripRibbon.progress(of: trip, legProgress: nil)
-            )
+            Button { onOpenTrip(trip) } label: {
+                VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(model.resumeSummary(for: trip))
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: Theme.Spacing.xs)
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    TripRibbonView(
+                        marks: TripRibbon.marks(for: trip.itinerary),
+                        progress: TripRibbon.progress(of: trip, legProgress: nil)
+                    )
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Shows the whole trip")
+            .accessibilityIdentifier(AccessibilityID.Home.tripOverview)
             HStack(spacing: Theme.Spacing.xs) {
                 Button {
                     let drive = DriveViewModel(trip: trip, dependencies: environment.dependencies)

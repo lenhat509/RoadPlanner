@@ -69,6 +69,7 @@ struct AdjustVisitsTests {
         editor.add(SampleTrips.city("chi"), stay: 1_800)
         let chicago = try #require(editor.visits.last)
         #expect(chicago.status == .toBeAdded && chicago.name == "Chicago" && chicago.detail == "30 min there")
+        #expect(chicago.coordinate == SampleTrips.city("chi").coordinate && lasVegas.coordinate == SampleTrips.city("lv").coordinate)
         editor.toggle(chicago.id)
         #expect(editor.visits.map(\.name) == ["Las Vegas"])
 

@@ -28,6 +28,29 @@ enum MarkerIconFactory {
         }
     }
 
+    /// A visit's number in a coloured circle with a white ring ("Adjust visits").
+    static func numberedIcon(_ number: Int, color: UIColor, key style: String) -> UIImage {
+        let key = "number-\(number)-\(style)"
+        if let cached = cache[key] { return cached }
+        let diameter: CGFloat = 26
+        let size = CGSize(width: diameter, height: diameter)
+        let image = UIGraphicsImageRenderer(size: size).image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            UIColor.white.setFill()
+            UIBezierPath(ovalIn: rect).fill()
+            color.setFill()
+            UIBezierPath(ovalIn: rect.insetBy(dx: 2.5, dy: 2.5)).fill()
+            let text = "\(number)" as NSString
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: diameter * 0.5, weight: .bold), .foregroundColor: UIColor.white,
+            ]
+            let textSize = text.size(withAttributes: attributes)
+            text.draw(at: CGPoint(x: (diameter - textSize.width) / 2, y: (diameter - textSize.height) / 2), withAttributes: attributes)
+        }
+        cache[key] = image
+        return image
+    }
+
     /// Heading arrow for the car's position in drive mode.
     static func vehicleIcon() -> UIImage {
         if let cached = cache["vehicle"] { return cached }

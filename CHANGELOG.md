@@ -30,6 +30,12 @@ wasn't released on its own.
   drag visits into another order. **Update plan** plans once with all of them, and **Use this
   plan** shows the new plan (Undo goes back) or, from Home, makes it the trip. Before the trip
   starts the whole plan is made again; once it has, the rest of the trip from where you are.
+- **The trip in progress, at a glance.** Tapping the trip on Home opens its whole plan like a plan
+  just made: the map, the summary, the day-by-day stops and their details, with **Adjust visits**
+  (the rest of the trip from where you are, saved as the trip) and **Resume**.
+- **The route in Adjust visits.** A map of the whole route sits above the list, with the visits
+  numbered in the list's order (green: to be added, red: to be removed); the list shows the same
+  numbers.
 - **Up to 10 places to visit.** The limit counts only places you add; kept stops and hotels don't
   count toward it (a trip can keep up to 25 stops, the most one route can go through).
 - **Your own stop is the break.** To reach a stop you chose (or the destination), driving may run

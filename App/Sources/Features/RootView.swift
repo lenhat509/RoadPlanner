@@ -7,7 +7,18 @@ import TripPlanner
 enum AppRoute: Hashable {
     case plan
     case results(PlanResultRoute)
+    /// The trip in progress, opened from Home.
+    case trip(TripRoute)
     case settings
+}
+
+/// Wraps the trip in progress so it can travel through a `NavigationPath`.
+struct TripRoute: Hashable {
+    let id = UUID()
+    let trip: ActiveTrip
+
+    static func == (lhs: TripRoute, rhs: TripRoute) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
 /// Wraps a plan result so it can travel through a `NavigationPath`.
@@ -35,6 +46,7 @@ struct RootView: View {
                 onPlanTrip: { path.append(.plan) },
                 onOpenSettings: { path.append(.settings) },
                 onResume: { trip in Task { await environment.beginDrive(trip) } },
+                onOpenTrip: { trip in path.append(.trip(TripRoute(trip: trip))) },
                 onOpenItinerary: { itinerary in
                     let result = PlanResult(itineraries: [itinerary.goal: itinerary], recommendedGoal: itinerary.goal)
                     path.append(.results(PlanResultRoute(result: result)))
@@ -49,6 +61,14 @@ struct RootView: View {
                     }
                 case let .results(route):
                     PlanResultScreen(result: route.result, dependencies: environment.dependencies) { trip in
+                        Task { await environment.beginDrive(trip) }
+                    }
+                case let .trip(route):
+                    let plan = route.trip.itinerary
+                    PlanResultScreen(
+                        result: PlanResult(itineraries: [plan.goal: plan], recommendedGoal: plan.goal),
+                        dependencies: environment.dependencies, trip: route.trip
+                    ) { trip in
                         Task { await environment.beginDrive(trip) }
                     }
                 case .settings:

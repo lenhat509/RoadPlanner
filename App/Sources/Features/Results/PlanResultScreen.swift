@@ -5,6 +5,9 @@ import TripPlanner
 
 /// Compare plans, explore the route on the map, review the day-by-day timeline and start driving.
 /// The map sits above the scrolling content (not inside it) so pinch and pan gestures go to the map.
+///
+/// With `trip`, it shows the trip in progress (from Home): its whole plan, Adjust visits (the rest of
+/// the trip from where you are, saved as the trip with Use this plan) and Resume.
 struct PlanResultScreen: View {
     @State private var model: PlanResultViewModel
     @State private var selectedStop: ItineraryStop?
@@ -13,6 +16,9 @@ struct PlanResultScreen: View {
     @State private var mapCommand: MapCommand?
     /// "Adjust visits", while open.
     @State private var visitsEditor: AdjustVisitsViewModel?
+    /// The trip in progress shown (from Home), and the drive model its visits are adjusted with.
+    @State private var trip: ActiveTrip?
+    @State private var tripDrive: DriveViewModel?
     @Environment(\.openURL) private var openURL
     private let dependencies: AppDependencies
     private let formatters: TripFormatters
@@ -20,10 +26,11 @@ struct PlanResultScreen: View {
     let onStart: (ActiveTrip) -> Void
 
     init(
-        result: PlanResult, dependencies: AppDependencies, startButtonTitle: String? = nil,
+        result: PlanResult, dependencies: AppDependencies, startButtonTitle: String? = nil, trip: ActiveTrip? = nil,
         onStart: @escaping (ActiveTrip) -> Void
     ) {
         _model = State(initialValue: PlanResultViewModel(result: result, dependencies: dependencies))
+        _trip = State(initialValue: trip)
         formatters = dependencies.formatters
         self.dependencies = dependencies
         self.startButtonTitle = startButtonTitle
@@ -50,13 +57,15 @@ struct PlanResultScreen: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button {
-                        Task { await model.save() }
-                    } label: {
-                        Label(model.isSaved ? "Saved" : "Save for later", systemImage: model.isSaved ? "checkmark" : "bookmark")
+                    if trip == nil {
+                        Button {
+                            Task { await model.save() }
+                        } label: {
+                            Label(model.isSaved ? "Saved" : "Save for later", systemImage: model.isSaved ? "checkmark" : "bookmark")
+                        }
+                        .disabled(model.isSaved)
+                        .accessibilityIdentifier(AccessibilityID.Results.save)
                     }
-                    .disabled(model.isSaved)
-                    .accessibilityIdentifier(AccessibilityID.Results.save)
                     if let url = model.googleMapsURL {
                         Button {
                             openURL(url)
@@ -76,10 +85,7 @@ struct PlanResultScreen: View {
                 AdjustVisitsSheet(
                     model: visitsEditor,
                     dependencies: dependencies,
-                    onUse: {
-                        withAnimation(.snappy) { model.use(visitsEditor) }
-                        self.visitsEditor = nil
-                    },
+                    onUse: { use(visitsEditor) },
                     onCancel: { self.visitsEditor = nil }
                 )
             }
@@ -96,7 +102,36 @@ struct PlanResultScreen: View {
     }
 
     /// The bottom button's title: from another screen it says what it does there.
-    private var startTitle: String { startButtonTitle ?? "Start driving" }
+    private var startTitle: String { trip != nil ? "Resume" : (startButtonTitle ?? "Start driving") }
+
+    /// Opens Adjust visits: the plan's, or the rest of the trip in progress.
+    private func adjustVisits() {
+        if let trip {
+            let drive = DriveViewModel(trip: trip, dependencies: dependencies)
+            tripDrive = drive
+            visitsEditor = drive.visitsEditor()
+        } else {
+            visitsEditor = model.visitsEditor()
+        }
+    }
+
+    /// Use this plan: shown here (Undo goes back) or, for the trip in progress, saved as the trip.
+    private func use(_ editor: AdjustVisitsViewModel) {
+        guard trip != nil, let tripDrive else {
+            withAnimation(.snappy) { model.use(editor) }
+            visitsEditor = nil
+            return
+        }
+        Task {
+            guard let next = await tripDrive.use(plan: editor.plan) else { return }
+            trip = next
+            let plan = next.itinerary
+            withAnimation(.snappy) {
+                model = PlanResultViewModel(result: PlanResult(itineraries: [plan.goal: plan], recommendedGoal: plan.goal), dependencies: dependencies)
+            }
+            visitsEditor = nil
+        }
+    }
 
     // MARK: Map
 
@@ -211,7 +246,7 @@ struct PlanResultScreen: View {
     /// The page ends with its buttons, on one line: Undo (after Adjust visits), Adjust visits, Start.
     private var actions: some View {
         VStack(spacing: Theme.Spacing.xs) {
-            if let note = model.startDistanceNote {
+            if trip == nil, let note = model.startDistanceNote {
                 // The plan's start and the user's position are different places: say so before
                 // driving (drive mode then leads to the start first).
                 Label(note, systemImage: "location.circle")
@@ -235,7 +270,7 @@ struct PlanResultScreen: View {
                     .accessibilityIdentifier(AccessibilityID.Results.undo)
                 }
                 Button {
-                    visitsEditor = model.visitsEditor()
+                    adjustVisits()
                 } label: {
                     Label("Adjust visits", systemImage: "mappin.and.ellipse")
                         .lineLimit(1)
@@ -248,10 +283,14 @@ struct PlanResultScreen: View {
                     Task {
                         isStarting = true
                         defer { isStarting = false }
-                        if let trip = await model.startTrip() { onStart(trip) }
+                        if let trip {
+                            onStart(trip)
+                        } else if let trip = await model.startTrip() {
+                            onStart(trip)
+                        }
                     }
                 } label: {
-                    Label(startTitle, systemImage: "car.fill")
+                    Label(startTitle, systemImage: trip != nil ? "play.fill" : "car.fill")
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                 }

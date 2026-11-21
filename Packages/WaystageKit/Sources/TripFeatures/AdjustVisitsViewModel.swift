@@ -41,6 +41,8 @@ public final class AdjustVisitsViewModel {
         public var id: String
         public var name: String
         public var address: String?
+        /// Where it is (numbered on the map in the list's order).
+        public var coordinate: GeoCoordinate
         /// "1 h 30 min there · Arrive Thu, Nov 20, 3:10 PM"; for a place to add, "1 h there".
         public var detail: String
         public var status: Status
@@ -112,17 +114,17 @@ public final class AdjustVisitsViewModel {
         return order.compactMap { entry in
             switch entry {
             case let .planned(id):
-                guard let row = planned[id] else { return nil }
-                let stay = plan.stops.first { $0.id == id }?.dwellDuration.map { "\(formatters.duration($0)) there" }
+                guard let row = planned[id], let stop = plan.stops.first(where: { $0.id == id }) else { return nil }
+                let stay = stop.dwellDuration.map { "\(formatters.duration($0)) there" }
                 return Visit(
-                    id: id, name: row.name, address: row.address,
+                    id: id, name: row.name, address: row.address, coordinate: stop.place.coordinate,
                     detail: [stay, row.eta].compactMap { $0 }.joined(separator: " · "),
                     status: removals.contains(id) ? .toBeRemoved : .inPlan
                 )
             case let .added(id):
                 guard let addition = additions[id] else { return nil }
                 return Visit(
-                    id: id, name: addition.place.name, address: addition.place.address,
+                    id: id, name: addition.place.name, address: addition.place.address, coordinate: addition.place.coordinate,
                     detail: "\(formatters.duration(addition.stay)) there", status: .toBeAdded
                 )
             }

@@ -5,6 +5,8 @@ enum AccessibilityID {
         static let planTrip = "home.planTrip"
         static let resume = "home.resume"
         static let adjustVisits = "home.adjustVisits"
+        /// The trip in progress: opens its whole plan.
+        static let tripOverview = "home.tripOverview"
         static let discard = "home.discard"
         static let settings = "home.settings"
         static let savedTrip = "home.savedTrip"
@@ -89,6 +91,8 @@ enum AccessibilityID {
         static let update = "visits.update"
         /// Turns moving visits on and off.
         static let reorder = "visits.reorder"
+        /// The whole route with the visits numbered.
+        static let map = "visits.map"
         static let use = "visits.use"
     }
 

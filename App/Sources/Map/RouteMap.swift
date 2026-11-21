@@ -206,7 +206,11 @@ struct AppleRouteMap: View {
             }
             ForEach(markers, id: \.id) { marker in
                 Annotation(marker.title, coordinate: marker.coordinate.clCoordinate, anchor: .center) {
-                    StopDot(kind: marker.kind, isPullOff: marker.isPullOff, size: marker.isActive ? 22 : 16)
+                    if let number = marker.number {
+                        NumberedPin(number: number, color: marker.color)
+                    } else {
+                        StopDot(kind: marker.kind, isPullOff: marker.isPullOff, size: marker.isActive ? 22 : 16)
+                    }
                 }
                 .annotationTitles(.hidden)
             }

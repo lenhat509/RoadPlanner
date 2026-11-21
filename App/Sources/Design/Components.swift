@@ -160,6 +160,25 @@ struct StopDot: View {
     }
 }
 
+/// A visit's number in a coloured circle ("Adjust visits": the list and the map).
+struct NumberedPin: View {
+    let number: Int
+    let color: Color
+    var size: CGFloat = 24
+
+    var body: some View {
+        Text("\(number)")
+            .font(.system(size: size * 0.5, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(color, in: Circle())
+            .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+            .shadow(color: .black.opacity(0.2), radius: 1, y: 0.5)
+            .accessibilityHidden(true)
+    }
+}
+
 /// Explains which colour marks which kind of stop.
 struct StopLegend: View {
     struct Entry: Hashable, Identifiable {

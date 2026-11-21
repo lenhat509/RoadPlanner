@@ -6,12 +6,30 @@ import TripModels
 
 /// A stop drawn on the map.
 struct MapStopMarker: Hashable {
+    /// A visit not planned yet ("Adjust visits").
+    enum Change: Hashable {
+        case toBeAdded
+        case toBeRemoved
+    }
+
     let id: String
     let coordinate: GeoCoordinate
     let title: String
     let kind: StopKind
     let isPullOff: Bool
     let isActive: Bool
+    /// A visit's number in the traveler's list ("Adjust visits"): drawn as a numbered pin.
+    var number: Int?
+    var change: Change?
+
+    /// The pin's colour: the stop's, or green (to be added) or red (to be removed).
+    var color: Color {
+        switch change {
+        case .toBeAdded: Theme.success
+        case .toBeRemoved: Theme.danger
+        case nil: Theme.color(for: kind, isPullOff: isPullOff)
+        }
+    }
 }
 
 /// Google's navigation on the drive screen's map (App Store build): the Navigation SDK draws the
@@ -544,10 +562,14 @@ struct TripMapView: UIViewRepresentable {
             stopMarkers.forEach { $0.map = nil }
             stopMarkers = markers.map { stop in
                 let marker = GMSMarker(position: stop.coordinate.clCoordinate)
-                marker.icon = MarkerIconFactory.icon(for: stop.kind, isPullOff: stop.isPullOff, isActive: stop.isActive)
+                if let number = stop.number {
+                    marker.icon = MarkerIconFactory.numberedIcon(number, color: UIColor(stop.color), key: stop.change.map { "\($0)" } ?? "visit")
+                } else {
+                    marker.icon = MarkerIconFactory.icon(for: stop.kind, isPullOff: stop.isPullOff, isActive: stop.isActive)
+                }
                 marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
                 marker.title = stop.title
-                marker.zIndex = stop.isActive ? 10 : 5
+                marker.zIndex = stop.number != nil ? 20 : (stop.isActive ? 10 : 5)
                 marker.map = mapView
                 return marker
             }

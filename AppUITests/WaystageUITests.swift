@@ -267,6 +267,7 @@ final class WaystageUITests: XCTestCase {
         app.buttons[AccessibilityID.Plan.submit].tap()
         XCTAssertTrue(app.buttons[AccessibilityID.Results.start].waitForExistence(timeout: 30))
         tapPlanButton(AccessibilityID.Results.adjustVisits)
+        XCTAssertTrue(app.otherElements[AccessibilityID.Visits.map].waitForExistence(timeout: 5), "the whole route, with the visits numbered")
         let addVisit = app.buttons[AccessibilityID.Visits.add]
         XCTAssertTrue(addVisit.waitForExistence(timeout: 5))
         let update = app.buttons[AccessibilityID.Visits.update]
@@ -317,6 +318,21 @@ final class WaystageUITests: XCTestCase {
         XCTAssertFalse(app.buttons[AccessibilityID.Visits.update].isEnabled, "nothing to plan before a change")
         app.navigationBars.buttons["Cancel"].tap()
         XCTAssertTrue(app.buttons[AccessibilityID.Home.resume].waitForExistence(timeout: 5))
+
+        // The card opens the whole trip, like a plan just made, with Resume.
+        let overview = app.buttons[AccessibilityID.Home.tripOverview]
+        XCTAssertTrue(overview.exists, "the trip on Home opens its plan")
+        overview.tap()
+        XCTAssertTrue(app.otherElements[AccessibilityID.Results.timeline].waitForExistence(timeout: 10), "the day-by-day plan")
+        let resume = app.buttons[AccessibilityID.Results.start]
+        XCTAssertTrue(resume.waitForExistence(timeout: 5))
+        XCTAssertTrue(resume.label.contains("Resume"), resume.label)
+        tapPlanButton(AccessibilityID.Results.adjustVisits)
+        XCTAssertTrue(app.otherElements[AccessibilityID.Visits.map].waitForExistence(timeout: 5), "Adjust visits shows the route")
+        app.navigationBars.buttons["Cancel"].tap()
+        tapPlanButton(AccessibilityID.Results.start)
+        continueIfAtStop()
+        startFromPreview()
     }
 
     private func waitUntilEnabled(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
