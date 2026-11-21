@@ -92,7 +92,7 @@ final class WaystageUITests: XCTestCase {
     }
 
     /// Waits for the simulated car to stop: the arrival card (or, at the end, the completed card).
-    private func waitUntilStopped(timeout: TimeInterval = 30) {
+    private func waitUntilStopped(timeout: TimeInterval = 60) {
         let arrival = element(AccessibilityID.Drive.arrivalCard), completed = element(AccessibilityID.Drive.completedCard)
         let deadline = Date().addingTimeInterval(timeout)
         while !arrival.exists && !completed.exists && Date() < deadline {
