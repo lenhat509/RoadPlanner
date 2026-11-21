@@ -72,8 +72,9 @@ enum AccessibilityID {
         static let replanSuggestion = "drive.replanSuggestion"
         static let adjustVisits = "drive.adjustVisits"
         static let addVisit = "drive.addVisit"
-        static let removeVisit = "drive.removeVisit"
-        static let undoVisits = "drive.undoVisits"
+        /// Takes a place added off the "Your visits" list.
+        static let discardVisit = "drive.discardVisit"
+        static let updateVisits = "drive.updateVisits"
         static let useVisits = "drive.useVisits"
         static let arrived = "drive.arrived"
         static let skip = "drive.skip"

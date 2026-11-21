@@ -2,9 +2,9 @@ import SwiftUI
 import TripFeatures
 import TripModels
 
-/// "Adjust visits": every stop still ahead with its address and arrival time, and the places to
-/// visit to add or remove. Each change updates the list at once; the trip changes only with
-/// "Use this plan".
+/// "Adjust visits": the places to visit, and every stop still ahead with its address and arrival
+/// time. Changes are listed first (green "To be added", red "To be removed") and planned together
+/// with "Update plan"; "Use this plan" then makes the new plan the trip.
 struct AdjustVisitsSheet: View {
     let model: AdjustVisitsViewModel
     let dependencies: AppDependencies
@@ -24,16 +24,37 @@ struct AdjustVisitsSheet: View {
                     .disabled(!model.canAddVisit)
                     .accessibilityIdentifier(AccessibilityID.Drive.addVisit)
                 } footer: {
-                    Text(model.canEdit || model.isUpdating
-                        ? "A new visit goes where it adds the least driving. Breaks, fuel and nights are planned around your visits."
-                        : "Visits can't be changed until your location is known. Try again in a moment.")
+                    if !model.canEdit && !model.isUpdating {
+                        Text("Visits can't be changed until your location is known. Try again in a moment.")
+                    }
                 }
-                Section("Stops ahead") {
+                Section {
+                    if model.visits.isEmpty {
+                        Text("No visits yet. Add the places you want to stop at.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(model.visits) { visit in
+                        VisitEntryRow(visit: visit) { model.toggle(visit.id) }
+                    }
+                } header: {
+                    Text("Your visits")
+                } footer: {
+                    Text("Tap a visit to remove it from the plan, or tap it again to keep it. Nothing changes until you tap Update plan.")
+                }
+                Section {
                     ForEach(model.rows) { row in
-                        VisitStopRow(row: row, onRemove: row.isVisit && model.canEdit ? { remove(row) } : nil)
+                        StopAheadRow(row: row)
+                    }
+                } header: {
+                    Text("Stops ahead")
+                } footer: {
+                    if model.hasPendingChanges {
+                        Text("These are the current plan's stops and times. They change when you tap Update plan.")
                     }
                 }
             }
+            .disabled(model.isUpdating)
             .overlay {
                 if model.isUpdating {
                     ProgressView("Updating the plan…")
@@ -47,22 +68,27 @@ struct AdjustVisitsSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Undo") { model.undo() }
-                        .disabled(!model.canUndo)
-                        .accessibilityIdentifier(AccessibilityID.Drive.undoVisits)
-                }
             }
             .safeAreaInset(edge: .bottom) {
                 BottomActionBar {
-                    Button {
-                        onUse(model.plan)
-                    } label: {
-                        Label("Use this plan", systemImage: "checkmark")
+                    if model.isUpdated && !model.hasPendingChanges {
+                        Button {
+                            onUse(model.plan)
+                        } label: {
+                            Label("Use this plan", systemImage: "checkmark")
+                        }
+                        .buttonStyle(.primary)
+                        .accessibilityIdentifier(AccessibilityID.Drive.useVisits)
+                    } else {
+                        Button {
+                            Task { await model.updatePlan() }
+                        } label: {
+                            Label("Update plan", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .buttonStyle(.primary)
+                        .disabled(!model.hasPendingChanges || !model.canEdit)
+                        .accessibilityIdentifier(AccessibilityID.Drive.updateVisits)
                     }
-                    .buttonStyle(.primary)
-                    .disabled(!model.hasChanges || model.isUpdating)
-                    .accessibilityIdentifier(AccessibilityID.Drive.useVisits)
                 }
             }
             .alert(
@@ -75,22 +101,101 @@ struct AdjustVisitsSheet: View {
             }
             .sheet(isPresented: $addsVisit) {
                 AddStopSheet(dependencies: dependencies, title: "Add a visit") { place, stay in
+                    model.add(place, stay: stay)
                     addsVisit = false
-                    Task { await model.add(place, stay: stay) }
                 }
             }
         }
     }
+}
 
-    private func remove(_ row: AdjustVisitsViewModel.Row) {
-        Task { await model.remove(row.id) }
+/// A place to visit: tap to mark it to be removed (red) or keep it again; a place added (green)
+/// has a button to take it off the list.
+private struct VisitEntryRow: View {
+    let visit: AdjustVisitsViewModel.Visit
+    let onToggle: () -> Void
+
+    var body: some View {
+        Group {
+            if visit.status == .toBeAdded {
+                HStack(alignment: .top, spacing: Theme.Spacing.s) {
+                    content
+                    Button(action: onToggle) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Remove \(visit.name) from the list")
+                    .accessibilityIdentifier(AccessibilityID.Drive.discardVisit)
+                }
+            } else {
+                Button(action: onToggle) {
+                    content
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(visit.status == .toBeRemoved ? "Keeps it in the plan" : "Marks it to be removed")
+            }
+        }
+        .listRowBackground(tint.map { $0.opacity(0.12) })
+    }
+
+    private var content: some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.s) {
+            Image(systemName: symbol)
+                .font(.title3)
+                .foregroundStyle(tint ?? Theme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(visit.name)
+                    .font(.subheadline.weight(.semibold))
+                    .strikethrough(visit.status == .toBeRemoved)
+                if let label {
+                    Text(label)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(tint ?? .secondary)
+                }
+                Text(visit.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let address = visit.address, address != visit.name {
+                    Text(address)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var label: String? {
+        switch visit.status {
+        case .inPlan: nil
+        case .toBeRemoved: "To be removed"
+        case .toBeAdded: "To be added"
+        }
+    }
+
+    private var tint: Color? {
+        switch visit.status {
+        case .inPlan: nil
+        case .toBeRemoved: Theme.danger
+        case .toBeAdded: Theme.success
+        }
+    }
+
+    private var symbol: String {
+        switch visit.status {
+        case .inPlan: "mappin.circle.fill"
+        case .toBeRemoved: "minus.circle.fill"
+        case .toBeAdded: "plus.circle.fill"
+        }
     }
 }
 
 /// One stop ahead: what it is, where, and when the car gets there.
-private struct VisitStopRow: View {
+private struct StopAheadRow: View {
     let row: AdjustVisitsViewModel.Row
-    let onRemove: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.s) {
@@ -113,21 +218,6 @@ private struct VisitStopRow: View {
                 }
             }
             Spacer(minLength: 0)
-            if let onRemove {
-                Button(action: onRemove) {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.red)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Remove \(row.name)")
-                .accessibilityIdentifier(AccessibilityID.Drive.removeVisit)
-            }
-        }
-        .swipeActions {
-            if let onRemove {
-                Button("Remove", role: .destructive, action: onRemove)
-            }
         }
     }
 }

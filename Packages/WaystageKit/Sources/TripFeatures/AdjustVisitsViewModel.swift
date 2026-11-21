@@ -4,13 +4,14 @@ import TripModels
 import TripNavigation
 import TripPlanner
 
-/// "Adjust visits", from drive mode's preview or the trip banner on Home: every stop still ahead
-/// (visits, breaks, fuel stops, hotels, the destination) with its address and arrival time, and
-/// the places to visit to add or remove.
+/// "Adjust visits", from drive mode's preview or the trip banner on Home: the places to visit,
+/// and every stop still ahead (visits, breaks, fuel stops, hotels, the destination) with its
+/// address and arrival time.
 ///
-/// Each change plans the rest of the trip again at once and the list shows the new stops and
-/// times; Undo brings the previous plan back. The trip being driven changes only with "Use this
-/// plan" (`DriveViewModel.use(plan:)`).
+/// Changes are collected first and nothing is planned until "Update plan": a place added is listed
+/// as "To be added" (and can be taken off the list again), and a visit in the plan is marked "To be
+/// removed" (or kept again) with a tap. "Update plan" plans once with all of them; the trip being
+/// driven changes only with "Use this plan" (`DriveViewModel.use(plan:)`).
 @MainActor
 @Observable
 public final class AdjustVisitsViewModel {
@@ -25,18 +26,39 @@ public final class AdjustVisitsViewModel {
         public var address: String?
         /// "Arrive Thu, Nov 20, 3:10 PM"; for hotels, "Check in …".
         public var eta: String?
-        /// A place to visit: it can be removed.
+        /// A place to visit.
         public var isVisit: Bool
     }
 
-    /// The plan shown: the trip's own until the first change.
+    /// A place to visit: in the plan (kept, or marked to be removed), or added and not planned yet.
+    public struct Visit: Identifiable, Hashable, Sendable {
+        public enum Status: Hashable, Sendable {
+            case inPlan
+            case toBeRemoved
+            case toBeAdded
+        }
+
+        public var id: String
+        public var name: String
+        public var address: String?
+        /// "1 h 30 min there · Arrive Thu, Nov 20, 3:10 PM"; for a place to add, "1 h there".
+        public var detail: String
+        public var status: Status
+    }
+
+    /// The plan shown: the trip's own until "Update plan".
     public private(set) var plan: Itinerary
     public private(set) var isUpdating = false
     public private(set) var errorMessage: String?
+    /// The plan was made again ("Use this plan" makes it the trip).
+    public private(set) var isUpdated = false
 
     private let dependencies: AppDependencies
     private var state: State
-    private var history: [(plan: Itinerary, state: State)] = []
+    /// Visits in the plan marked to be removed (row IDs).
+    private var removals: Set<String> = []
+    /// Places added, not planned yet.
+    private var additions: [Addition] = []
 
     private struct State {
         /// The rest of the trip as a request the changes edit; nil when it can't be planned from here.
@@ -48,6 +70,12 @@ public final class AdjustVisitsViewModel {
         var projectedArrivals: [String: Date]
     }
 
+    private struct Addition {
+        var id: String
+        var place: Place
+        var stay: TimeInterval
+    }
+
     init(
         plan: Itinerary, request: TripRequest?, firstShown: Int, skipped: Set<String> = [],
         projectedArrivals: [String: Date] = [:], dependencies: AppDependencies
@@ -57,81 +85,111 @@ public final class AdjustVisitsViewModel {
         state = State(request: request, firstShown: firstShown, skipped: skipped, projectedArrivals: projectedArrivals)
     }
 
-    /// Every stop still ahead, in order, ending with the destination.
+    /// Every stop still ahead in the plan shown, in order, ending with the destination.
     public var rows: [Row] {
         let stops = plan.stops
         guard state.firstShown < stops.count else { return [] }
         return stops[state.firstShown...].filter { !state.skipped.contains($0.id) }.map(row)
     }
 
+    /// The visits ahead in the plan, then the places added.
+    public var visits: [Visit] {
+        let formatters = dependencies.formatters
+        let planned = rows.filter(\.isVisit).map { row in
+            let stay = plan.stops.first { $0.id == row.id }?.dwellDuration.map { "\(formatters.duration($0)) there" }
+            return Visit(
+                id: row.id, name: row.name, address: row.address,
+                detail: [stay, row.eta].compactMap { $0 }.joined(separator: " · "),
+                status: removals.contains(row.id) ? .toBeRemoved : .inPlan
+            )
+        }
+        let added = additions.map {
+            Visit(id: $0.id, name: $0.place.name, address: $0.place.address, detail: "\(formatters.duration($0.stay)) there", status: .toBeAdded)
+        }
+        return planned + added
+    }
+
     /// Visits can be changed from here (the rest of the trip can be planned).
     public var canEdit: Bool { state.request != nil && !isUpdating }
 
+    /// Another place can be added (up to `RequiredStop.maximumCount` visits).
     public var canAddVisit: Bool {
-        canEdit && (state.request?.requiredStops.count { $0.purpose == .visit } ?? 0) < RequiredStop.maximumCount
+        canEdit && visits.count { $0.status != .toBeRemoved } < RequiredStop.maximumCount
     }
 
-    public var hasChanges: Bool { !history.isEmpty }
-    public var canUndo: Bool { !history.isEmpty && !isUpdating }
+    /// Places added or visits marked to be removed, not planned yet.
+    public var hasPendingChanges: Bool { !removals.isEmpty || !additions.isEmpty }
 
-    /// Removes a place to visit (a row with `isVisit`).
-    public func remove(_ rowID: String) async {
-        guard canEdit, var request = state.request, var stops = request.stops else { return }
-        let shown = rows
-        guard let row = shown.first(where: { $0.id == rowID }), row.isVisit,
-              let stop = plan.stops.first(where: { $0.id == rowID }) else { return }
-        // The n-th visit shown is the n-th visit of the request (both in route order).
-        let ordinal = shown.filter(\.isVisit).firstIndex { $0.id == rowID } ?? 0
-        let visits = stops.indices.filter { stops[$0].purpose == .visit }
-        let index = visits.indices.contains(ordinal) && stops[visits[ordinal]].place.id == stop.place.id
-            ? visits[ordinal]
-            : stops.firstIndex { $0.purpose == .visit && $0.place.id == stop.place.id }
-        guard let index else { return }
-        stops.remove(at: index)
-        request.stops = stops.isEmpty ? nil : stops
-        await update(request)
+    /// Adds a place to the list, to be planned with "Update plan".
+    public func add(_ place: Place, stay: TimeInterval) {
+        guard canAddVisit else { return }
+        additions.append(Addition(id: "added-\(UUID().uuidString)", place: place, stay: stay))
     }
 
-    /// Adds a place to visit, for `stay`, where it adds the least driving.
-    public func add(_ place: Place, stay: TimeInterval) async {
-        guard canAddVisit, var request = state.request else { return }
-        var stops = request.stops ?? []
-        let index = Self.insertionIndex(
-            of: place.coordinate, origin: request.origin.coordinate,
-            stops: stops.map(\.place.coordinate), destination: request.destination.coordinate
-        )
-        stops.insert(.visit(place, stay: stay), at: index)
-        request.stops = stops
-        await update(request)
+    /// Marks a visit in the plan to be removed, or keeps it again; takes a place added off the list.
+    public func toggle(_ visitID: String) {
+        guard !isUpdating else { return }
+        if let index = additions.firstIndex(where: { $0.id == visitID }) {
+            additions.remove(at: index)
+        } else if removals.contains(visitID) {
+            removals.remove(visitID)
+        } else if rows.contains(where: { $0.id == visitID && $0.isVisit }) {
+            removals.insert(visitID)
+        }
     }
 
-    public func undo() {
-        guard canUndo, let previous = history.popLast() else { return }
-        plan = previous.plan
-        state = previous.state
-        errorMessage = nil
-    }
-
-    public func dismissError() { errorMessage = nil }
-
-    private func update(_ request: TripRequest) async {
+    /// Plans once with every change: visits marked are removed, places added go where they add the
+    /// least driving.
+    public func updatePlan() async {
+        guard canEdit, hasPendingChanges, let request = changedRequest() else { return }
         isUpdating = true
         defer { isUpdating = false }
         errorMessage = nil
         do {
             let result = try await dependencies.planner.plan(request) { _ in }
             guard let next = result.itineraries[request.goal] ?? result.recommended else {
-                errorMessage = "Waystage couldn't find a plan with this change."
+                errorMessage = "Waystage couldn't find a plan with these visits."
                 return
             }
-            history.append((plan, state))
             plan = next
             state = State(request: request, firstShown: 1, skipped: [], projectedArrivals: [:])
+            removals = []
+            additions = []
+            isUpdated = true
         } catch let error as PlanningError {
             errorMessage = error.message
         } catch {
             errorMessage = "The plan couldn't be updated. Check your connection and try again."
         }
+    }
+
+    public func dismissError() { errorMessage = nil }
+
+    /// The request with the changes: visits marked removed, places added inserted.
+    private func changedRequest() -> TripRequest? {
+        guard var request = state.request else { return nil }
+        var stops = request.stops ?? []
+        // The n-th visit shown is the n-th visit of the request (both in route order).
+        let visitIndices = stops.indices.filter { stops[$0].purpose == .visit }
+        var removed: [Int] = []
+        for (ordinal, row) in rows.filter(\.isVisit).enumerated() where removals.contains(row.id) {
+            let placeID = plan.stops.first { $0.id == row.id }?.place.id
+            if visitIndices.indices.contains(ordinal), stops[visitIndices[ordinal]].place.id == placeID {
+                removed.append(visitIndices[ordinal])
+            } else if let index = visitIndices.first(where: { stops[$0].place.id == placeID && !removed.contains($0) }) {
+                removed.append(index)
+            }
+        }
+        for index in removed.sorted(by: >) { stops.remove(at: index) }
+        for addition in additions {
+            let index = Self.insertionIndex(
+                of: addition.place.coordinate, origin: request.origin.coordinate,
+                stops: stops.map(\.place.coordinate), destination: request.destination.coordinate
+            )
+            stops.insert(.visit(addition.place, stay: addition.stay), at: index)
+        }
+        request.stops = stops.isEmpty ? nil : stops
+        return request
     }
 
     private func row(_ stop: ItineraryStop) -> Row {
