@@ -258,7 +258,11 @@ final class WaystageUITests: XCTestCase {
         let name = rest.label.components(separatedBy: ",").first ?? rest.label
         rest.tap()
         let remove = app.buttons[AccessibilityID.Results.removeStop]
-        XCTAssertTrue(remove.waitForExistence(timeout: 5))
+        // The stop's details open as a sheet; its "Change the plan" section can be below the fold.
+        if !remove.waitForExistence(timeout: 5) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(remove.waitForExistence(timeout: 5), "Remove in the stop's details; on screen: \(app.visibleIdentifiers())")
         remove.tap()
         // The plan updates by itself: Undo appears once it has.
         let undo = app.buttons[AccessibilityID.Results.undo]
