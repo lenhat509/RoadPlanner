@@ -250,12 +250,16 @@ final class WaystageUITests: XCTestCase {
         planLosAngelesToVegas()
         let timeline = element(AccessibilityID.Results.timeline)
         XCTAssertTrue(timeline.waitForExistence(timeout: 5))
-        // A real rest area (generated roadside breaks can't be removed).
-        let rest = timeline.buttons.matching(
+        // A real rest area or fuel stop (generated roadside breaks can't be removed); a plan made
+        // late in the day may have a hotel instead, which can be removed too.
+        let breaks = timeline.buttons.matching(
             NSPredicate(format: "label CONTAINS %@ AND NOT (label CONTAINS %@)", "min stop", "No facility")
-        ).firstMatch
-        XCTAssertTrue(rest.waitForExistence(timeout: 5), "a break in the plan; on screen: \(app.visibleIdentifiers())")
-        let name = rest.label.components(separatedBy: ",").first ?? rest.label
+        )
+        let hotels = timeline.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Check in"))
+        _ = breaks.firstMatch.waitForExistence(timeout: 5)
+        let rest = breaks.firstMatch.exists ? breaks.firstMatch : hotels.firstMatch
+        XCTAssertTrue(rest.exists, "a break or hotel in the plan; on screen: \(app.visibleIdentifiers())")
+        let label = rest.label
         rest.tap()
         let remove = app.buttons[AccessibilityID.Results.removeStop]
         // The stop's details open as a sheet; its "Change the plan" section can be below the fold.
@@ -267,10 +271,10 @@ final class WaystageUITests: XCTestCase {
         // The plan updates by itself: Undo appears once it has.
         let undo = app.buttons[AccessibilityID.Results.undo]
         XCTAssertTrue(undo.waitForExistence(timeout: 30), "the plan updated")
-        let removed = timeline.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name + ",")).firstMatch
-        XCTAssertFalse(removed.exists, "\(name) isn't in the updated plan")
+        let removed = timeline.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
+        XCTAssertFalse(removed.exists, "\(label) isn't in the updated plan")
         undo.tap()
-        XCTAssertTrue(removed.waitForExistence(timeout: 5), "Undo brings \(name) back")
+        XCTAssertTrue(removed.waitForExistence(timeout: 5), "Undo brings \(label) back")
     }
 
     func testAddingAStopAfterTheStart() {
