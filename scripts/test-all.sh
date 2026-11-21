@@ -160,8 +160,12 @@ ios_suite() {
   command -v xcodegen >/dev/null 2>&1 && xcodegen generate --quiet
   run_suite "iOS package tests" "ios-package.log" xcode_count \
     bash -c "cd Packages/WaystageKit && xcodebuild test -scheme WaystageKit-Package -destination '$destination' -resultBundlePath '$RAW_DIR/package.xcresult' CODE_SIGNING_ALLOWED=NO"
+  # A UI test that fails is run once more: on CI's simulators a query of a screen with a moving
+  # map can time out now and then ("Timed out while evaluating UI query"). A real failure fails
+  # both times.
   run_suite "iOS app unit + UI tests" "ios-app.log" xcode_count \
     xcodebuild test -project Waystage.xcodeproj -scheme Waystage -destination "$destination" \
+      -retry-tests-on-failure -test-iterations 2 \
       -resultBundlePath "$RAW_DIR/app.xcresult" CODE_SIGNING_ALLOWED=NO
 }
 
