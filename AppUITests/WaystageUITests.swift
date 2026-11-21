@@ -323,7 +323,9 @@ final class WaystageUITests: XCTestCase {
         XCTAssertTrue(waitUntilEnabled(add), "Los Angeles was chosen")
         add.tap()
         // Listed to be added, not planned yet; it can be taken off the list and added again.
-        XCTAssertTrue(elementWithLabel(containing: "To be added").waitForExistence(timeout: 5), "Los Angeles is listed to be added")
+        // Text labels only: searching every element (the plan's map is behind the sheet) is slow.
+        let toBeAdded = app.staticTexts["To be added"]
+        XCTAssertTrue(toBeAdded.waitForExistence(timeout: 5), "Los Angeles is listed to be added")
         let discard = app.buttons[AccessibilityID.Visits.discard]
         XCTAssertTrue(discard.exists)
         discard.tap()
@@ -336,7 +338,7 @@ final class WaystageUITests: XCTestCase {
         update.tap()
         let use = app.buttons[AccessibilityID.Visits.use]
         XCTAssertTrue(use.waitForExistence(timeout: 30), "the plan was updated")
-        XCTAssertFalse(elementWithLabel(containing: "To be added").exists, "Los Angeles is in the plan now")
+        XCTAssertFalse(toBeAdded.exists, "Los Angeles is in the plan now")
         use.tap()
         XCTAssertTrue(use.waitForNonExistence(timeout: 10))
         let timeline = element(AccessibilityID.Results.timeline)
