@@ -217,7 +217,7 @@ private struct VisitEntryRow: View {
 
     private var content: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.s) {
-            NumberedPin(number: number, color: tint ?? Theme.color(for: .visit), size: 26)
+            NumberedPin(number: number, color: tint ?? Theme.color(for: .visit), size: 22)
             VStack(alignment: .leading, spacing: 2) {
                 Text(visit.name)
                     .font(.subheadline.weight(.semibold))

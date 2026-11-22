@@ -124,19 +124,14 @@ struct HomeView: View {
     private func resumeCard(_ trip: ActiveTrip) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             HStack {
-                Label("On the road", systemImage: "car.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Theme.accent)
-                    .textCase(.uppercase)
+                SectionLabel(title: "On the road")
                 Spacer()
                 Menu {
                     Button("End trip", role: .destructive) {
                         Task { await model.discardActiveTrip() }
                     }
                 } label: {
-                    Image(systemName: "ellipsis")
-                        .frame(width: 32, height: 32)
-                        .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+                    IconButtonLabel(systemImage: "ellipsis")
                 }
                 .accessibilityLabel("More options")
                 .accessibilityIdentifier(AccessibilityID.Home.discard)

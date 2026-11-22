@@ -152,3 +152,63 @@ extension View {
             .listRowBackground(Color.clear)
     }
 }
+
+// MARK: - Controls in box rows
+
+/// A setting chosen from a list, in a box row: its name, the choice and the same up-down mark as
+/// the plan form's option tiles; like them, tapping lists the options at the bottom of the screen.
+struct ChoiceRow<Value: Hashable>: View {
+    let title: String
+    @Binding var selection: Value
+    let options: [Value]
+    let optionTitle: (Value) -> String
+    @State private var isChoosing = false
+
+    var body: some View {
+        Button { isChoosing = true } label: {
+            HStack(spacing: Theme.Spacing.xs) {
+                Text(title).foregroundStyle(.primary)
+                Spacer(minLength: Theme.Spacing.xs)
+                Text(optionTitle(selection)).foregroundStyle(.secondary)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(optionTitle(selection))
+        .confirmationDialog(title, isPresented: $isChoosing, titleVisibility: .visible) {
+            ForEach(options, id: \.self) { option in
+                Button(optionTitle(option)) { selection = option }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+}
+
+/// A number typed in a box row: its name, and the number in a grey input box like the plan form's
+/// number tiles, with its unit.
+struct NumberFieldRow: View {
+    let title: String
+    let unit: String
+    @Binding var value: Double
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.xs) {
+            Text(title)
+            Spacer(minLength: Theme.Spacing.xs)
+            TextField(title, value: $value, format: .number)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .padding(.horizontal, Theme.Spacing.xs)
+                .frame(width: 84, height: 36)
+                .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            Text(unit)
+                .foregroundStyle(.secondary)
+                .frame(width: 34, alignment: .leading)
+        }
+    }
+}

@@ -302,7 +302,7 @@ struct PlanResultScreen: View {
             } icon: {
                 Image(systemName: "info.circle")
             }
-            .font(.caption)
+            .font(.footnote)
             .foregroundStyle(.secondary)
             .accessibilityIdentifier(AccessibilityID.Results.estimateNote)
         }
@@ -310,7 +310,8 @@ struct PlanResultScreen: View {
     }
 }
 
-/// One of the routes found: its name, distance and travel time; the chosen one is outlined.
+/// One of the routes found: its name, distance and travel time; the chosen one has a green
+/// border, like a chosen plan (the bar on the left is the route's colour on the map).
 struct RouteChoiceRow: View {
     let choice: RouteChoice
     let onSelect: () -> Void
@@ -345,11 +346,7 @@ struct RouteChoiceRow: View {
             }
             .padding(.horizontal, Theme.Spacing.s)
             .padding(.vertical, 10)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
-                    .strokeBorder(choice.isSelected ? Theme.routeLine : Theme.cardStroke, lineWidth: choice.isSelected ? 2 : 1)
-            )
+            .selectableBox(isSelected: choice.isSelected)
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)

@@ -60,6 +60,11 @@ wasn't released on its own.
   button instead of a coloured banner. Map pins, the route and stop colours are unchanged.
   Settings, a stop's details, Adjust visits, Add a visit and Adjust the rest use the same boxes
   (the system's grouped list look, whose large rounded sections can't be restyled, is gone).
+  Similar elements now look the same everywhere (docs/DESIGN.md): two corner radii (8 pt boxes,
+  6 pt controls), one icon-button look (map controls, menus, swap, exit), green borders for every
+  selected choice (routes too), the same choice and number inputs in Settings as on the plan form,
+  the same switch colour, Add a stop and Add a visit as the same outlined button, warnings in a
+  box like other notes, one section-title style and one note size.
 - **The plan screen ends with its buttons**, on one line after the day-by-day plan (Undo, Adjust
   visits, Start driving); a stop's details no longer change the plan (no keep, remove, other
   hotels or add-a-stop actions, and no touch-and-hold menu): visits are changed in Adjust visits.

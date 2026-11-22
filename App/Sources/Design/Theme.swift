@@ -95,12 +95,11 @@ enum Theme {
         static let xl: CGFloat = 32
     }
 
-    /// Small radii: boxes and buttons read as rectangles with softened corners.
+    /// Two small radii, so boxes and controls read as rectangles with softened corners.
     enum Radius {
+        /// Every box: cards, selectable choices, notes, panels over the map, maps.
         static let card: CGFloat = 8
+        /// Every control: buttons, icon buttons, inputs and tiles you type into or choose from.
         static let control: CGFloat = 6
-        static let tile: CGFloat = 6
-        /// Panels floating over a map (drive mode) and the map itself.
-        static let panel: CGFloat = 10
     }
 }

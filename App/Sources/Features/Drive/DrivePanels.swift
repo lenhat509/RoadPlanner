@@ -29,7 +29,7 @@ struct ManeuverBannerView: View {
                 Spacer(minLength: 0)
             }
             .padding(Theme.Spacing.m)
-            .background(Theme.hero, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
+            .background(Theme.hero, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             if let then = banner.thenSymbolName, !isRerouting {
                 HStack(spacing: 6) {
                     Text("Then")
@@ -326,11 +326,7 @@ struct ExitNavigationButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "xmark")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 54, height: 54)
-                .background(Theme.danger, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            IconButtonLabel(systemImage: "xmark", size: IconButtonLabel.driveSize, tone: .danger)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Exit navigation")
@@ -344,10 +340,7 @@ struct DriveMenuButton<Content: View>: View {
 
     var body: some View {
         Menu(content: content) {
-            Image(systemName: "ellipsis")
-                .font(.title3.weight(.semibold))
-                .frame(width: 44, height: 44)
-                .background(Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            IconButtonLabel(systemImage: "ellipsis", size: IconButtonLabel.driveSize)
         }
         .accessibilityLabel("Trip options")
         .accessibilityIdentifier(AccessibilityID.Drive.menu)
@@ -374,15 +367,15 @@ struct StatusPill: View {
             }
         }
         .padding(Theme.Spacing.s)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).strokeBorder(Theme.cardStroke, lineWidth: 1))
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).strokeBorder(Theme.cardStroke, lineWidth: 1))
     }
 }
 
 extension View {
     /// Solid panel used for drive-mode sheets: legible over any map (a thin border and a light
     /// shadow set it apart from the map).
-    func driveSheet(cornerRadius: CGFloat = Theme.Radius.panel) -> some View {
+    func driveSheet(cornerRadius: CGFloat = Theme.Radius.card) -> some View {
         background(Theme.card, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).strokeBorder(Theme.cardStroke, lineWidth: 1))
             .shadow(color: .black.opacity(0.12), radius: 4, y: 1)

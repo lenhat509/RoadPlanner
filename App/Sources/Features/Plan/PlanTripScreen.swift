@@ -85,10 +85,7 @@ struct PlanTripScreen: View {
                 Button {
                     withAnimation(.snappy) { model.swapLocations() }
                 } label: {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.footnote.weight(.bold))
-                        .frame(width: 36, height: 36)
-                        .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+                    IconButtonLabel(systemImage: "arrow.up.arrow.down")
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Swap start and destination")
@@ -200,18 +197,16 @@ struct PlanTripScreen: View {
                 Button {
                     if let field = withAnimation(.snappy, { model.addStop() }) { focusedField = field }
                 } label: {
-                    Label("Add a stop", systemImage: "plus.circle.fill")
-                        .font(.body.weight(.medium))
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    Label("Add a stop", systemImage: "plus")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(Theme.accent)
+                .buttonStyle(.secondary)
+                .padding(.vertical, Theme.Spacing.xs)
                 .accessibilityIdentifier(AccessibilityID.Plan.addStop)
             }
             Text(model.stops.isEmpty
                 ? "Places to visit on the way, like a park or a friend's town, with how long to stay."
                 : "With stops on the way, Waystage plans one route through them, in this order.")
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.bottom, Theme.Spacing.xs)
         }
@@ -248,9 +243,7 @@ struct PlanTripScreen: View {
                         .disabled(index == model.stops.count - 1)
                     Button("Remove", systemImage: "trash", role: .destructive) { withAnimation(.snappy) { model.removeStop(stop.id) } }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.title3)
-                        .frame(width: 36, height: 36)
+                    IconButtonLabel(systemImage: "ellipsis")
                 }
                 .accessibilityLabel("Stop \(index + 1) options")
                 .accessibilityIdentifier(AccessibilityID.Plan.stopMenu(index))
@@ -357,7 +350,7 @@ struct PlanTripScreen: View {
                     Text(model.customRestEnabled
                         ? "You'll never drive longer than this without a break."
                         : "Default: a 15-minute break every 2–3 hours.")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }

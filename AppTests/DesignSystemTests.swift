@@ -205,6 +205,12 @@ struct DesignSystemTests {
             AnyView(FuelGauge(reserveFraction: 0.15)),
             AnyView(RhythmStrip(intervalHours: 2.5)),
             AnyView(MapControlButton(systemImage: "plus", label: "Zoom in") {}),
+            AnyView(IconButtonLabel(systemImage: "xmark", size: IconButtonLabel.driveSize, tone: .danger)),
+            AnyView(BoxSection("Your car", footer: "A note.") {
+                BoxRow { NumberFieldRow(title: "Fuel economy", unit: "mpg", value: .constant(28)) }
+                BoxRow { ChoiceRow(title: "Fuel grade", selection: .constant(FuelType.regular), options: FuelType.allCases, optionTitle: \.title) }
+                BoxRow(isLast: true) { BoxRowLabel(title: "Privacy Policy", trailingSymbol: "arrow.up.right") }
+            }),
             AnyView(NumberedPin(number: 2, color: Theme.success)),
             AnyView(Text("Plan").padding().selectableBox(isSelected: true)),
             AnyView(SectionLabel(title: "Your car")),

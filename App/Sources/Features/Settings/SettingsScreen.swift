@@ -15,31 +15,16 @@ struct SettingsScreen: View {
         BoxPage {
             BoxSection("Your car", footer: fuelNote) {
                 BoxRow {
-                    HStack {
-                        Text("Fuel economy")
-                        Spacer()
-                        TextField("MPG", value: $model.preferences.vehicle.milesPerGallon, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: 100)
-                        Text("mpg").foregroundStyle(.secondary)
-                    }
+                    NumberFieldRow(title: "Fuel economy", unit: "mpg", value: $model.preferences.vehicle.milesPerGallon)
                 }
                 BoxRow {
-                    HStack {
-                        Text("Tank size")
-                        Spacer()
-                        TextField("Gallons", value: $model.preferences.vehicle.tankCapacityGallons, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: 100)
-                        Text("gal").foregroundStyle(.secondary)
-                    }
+                    NumberFieldRow(title: "Tank size", unit: "gal", value: $model.preferences.vehicle.tankCapacityGallons)
                 }
                 BoxRow {
-                    choice("Fuel grade", selection: $model.preferences.vehicle.fuelType) {
-                        ForEach(FuelType.allCases) { Text($0.title).tag($0) }
-                    }
+                    ChoiceRow(
+                        title: "Fuel grade", selection: $model.preferences.vehicle.fuelType,
+                        options: FuelType.allCases, optionTitle: \.title
+                    )
                 }
                 BoxRow(isLast: true) {
                     Stepper(value: $model.minimumFuelPercent, in: 5...50, step: 5) {
@@ -72,29 +57,26 @@ struct SettingsScreen: View {
                     }
                 }
                 BoxRow {
-                    choice("Start driving at", selection: $model.dayStartHour) {
-                        ForEach(4...12, id: \.self) { Text(Self.hourText($0)).tag($0) }
-                    }
+                    ChoiceRow(title: "Start driving at", selection: $model.dayStartHour, options: Array(4...12), optionTitle: Self.hourText)
                 }
                 BoxRow(isLast: true) {
-                    choice("Stop for the night by", selection: $model.dayEndHour) {
-                        ForEach(15...23, id: \.self) { Text(Self.hourText($0)).tag($0) }
-                    }
+                    ChoiceRow(title: "Stop for the night by", selection: $model.dayEndHour, options: Array(15...23), optionTitle: Self.hourText)
                 }
             }
 
             BoxSection("Planning") {
                 BoxRow(isLast: true) {
-                    choice("Default goal", selection: $model.preferences.goal) {
-                        ForEach(OptimizationGoal.allCases) { Text($0.displayName).tag($0) }
-                    }
+                    ChoiceRow(
+                        title: "Default goal", selection: $model.preferences.goal,
+                        options: OptimizationGoal.allCases, optionTitle: \.displayName
+                    )
                 }
             }
 
             BoxSection("Guidance") {
                 BoxRow(isLast: true) {
                     Toggle("Voice guidance", isOn: $model.preferences.voiceGuidanceEnabled)
-                        .tint(Theme.brand)
+                        .tint(Theme.accent)
                         .accessibilityIdentifier(AccessibilityID.Settings.voiceGuidance)
                 }
             }
@@ -144,20 +126,6 @@ struct SettingsScreen: View {
     private static let creditsNote = "Maps, directions and places by Google Maps. Hotel rates via Expedia. Regional fuel price averages "
         + "from the U.S. Energy Information Administration. Plans are suggestions and costs are estimates; "
         + "Waystage doesn't book anything."
-
-    /// A setting chosen from a list: its name, and the choice as a menu at the trailing edge.
-    private func choice<Value: Hashable, Options: View>(
-        _ title: String, selection: Binding<Value>, @ViewBuilder options: () -> Options
-    ) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Picker(title, selection: selection, content: options)
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .tint(Theme.accent)
-        }
-    }
 
     /// A website opened in the browser.
     private func link(_ title: String, _ url: URL) -> some View {

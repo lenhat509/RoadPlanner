@@ -129,9 +129,9 @@ extension View {
 
     /// A choice's box: white with a thin border, or a 2-point green border when selected.
     func selectableBox(isSelected: Bool) -> some View {
-        background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous))
+        background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .strokeBorder(isSelected ? Theme.brand : Theme.cardStroke, lineWidth: isSelected ? 2 : 1)
             )
     }
@@ -349,7 +349,7 @@ struct NumberTile: View {
         }
         .padding(Theme.Spacing.s)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous))
+        .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
     }
 }
 
@@ -385,8 +385,8 @@ struct OptionTile<Value: Hashable>: View {
             }
             .padding(Theme.Spacing.s)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous))
+            .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -499,9 +499,39 @@ struct RhythmStrip: View {
     }
 }
 
-// MARK: - Map controls
+// MARK: - Icon buttons
 
-/// Small square buttons floating on the map (zoom, fit, expand).
+/// The look of every icon-only button (map controls, menus, swap, exit): a square with small
+/// corners, white with a thin border, or red to leave drive mode. 40 points; in drive mode as tall
+/// as the buttons beside it (50), since it's tapped in a car.
+struct IconButtonLabel: View {
+    enum Tone {
+        case standard
+        case danger
+    }
+
+    static let standardSize: CGFloat = 40
+    static let driveSize: CGFloat = 50
+
+    let systemImage: String
+    var size = IconButtonLabel.standardSize
+    var tone = Tone.standard
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: size * 0.38, weight: .semibold))
+            .foregroundStyle(tone == .danger ? Color.white : Color.primary)
+            .frame(width: size, height: size)
+            .background(tone == .danger ? Theme.danger : Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .strokeBorder(tone == .danger ? Color.clear : Theme.cardStroke, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+    }
+}
+
+/// Buttons floating on the map (zoom, fit, expand).
 struct MapControlButton: View {
     let systemImage: String
     let label: String
@@ -509,15 +539,7 @@ struct MapControlButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 40, height: 40)
-                .foregroundStyle(.primary)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                        .strokeBorder(Theme.cardStroke, lineWidth: 1)
-                )
+            IconButtonLabel(systemImage: systemImage)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -563,9 +585,7 @@ struct WarningList: View {
                 }
             }
         }
-        .padding(Theme.Spacing.s)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.warning.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+        .card(padding: Theme.Spacing.s)
     }
 
     private func icon(for code: PlanWarning.Code) -> String {

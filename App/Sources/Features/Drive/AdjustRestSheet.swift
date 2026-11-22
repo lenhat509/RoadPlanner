@@ -46,8 +46,8 @@ struct AdjustRestSheet: View {
                     ForEach(Array(nextStops.enumerated()), id: \.element.id) { index, stop in
                         BoxRow(isLast: index == nextStops.count - 1) {
                             HStack(alignment: .top, spacing: Theme.Spacing.s) {
-                                StopDot(kind: stop.kind, isPullOff: stop.isPullOff, size: 14)
-                                    .padding(.top, 4)
+                                StopDot(kind: stop.kind, isPullOff: stop.isPullOff, size: 18)
+                                    .padding(.top, 2)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(stop.title).font(.subheadline.weight(.semibold))
                                     Text(stop.timeText).font(.caption).foregroundStyle(.secondary)
