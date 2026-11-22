@@ -6,10 +6,10 @@ Tell Waystage where you're starting, where you're going, when you leave and how 
 • Fuel stops placed before your tank runs low, only at stations that sell your car's grade (Regular, Midgrade, Premium, E85 or Diesel), favouring cheaper ones
 • Overnight stays near the end of each driving day, with live hotel rates where available
 • An optional "arrive by" time that the plan respects whenever it's possible
-• Stops on the way — a park, a friend's town — for as long as you want to stay
+• Places to visit on the way — a park, a friend's town — for a few hours or a few nights, sleeping there or at a hotel Waystage finds nearby
 
 MAKE IT YOURS
-Adjust visits to add, remove or reorder the places you'll stop at, then update the plan in one go. Running late? Adjust the rest keeps your plan and re-times it from where you are, or finds a hotel earlier tonight.
+Visit places in your own order, or let Waystage find the shortest drive. See them numbered on the map, and add, remove or reorder them any time — even on the road — then update the plan in one go. Running late? Adjust the rest keeps your plan and re-times it from where you are, or finds a hotel earlier tonight.
 
 CHOOSE WHAT MATTERS
 Compare two plans side by side — Fastest and Cheapest — with total time, distance, fuel, lodging and tolls. Pick one and see your trip day by day.

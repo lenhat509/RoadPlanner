@@ -1,1 +1,8 @@
-Add stops on the way, like a park or a friend's town, with how long to stay in hours or nights, and Waystage plans the breaks, fuel and nights around them. Staying nights? Sleep at the place itself, or let Waystage find a hotel nearby. Running late? Adjust the rest keeps your plan and re-times it from where you are, or finds a hotel earlier tonight. Adjust visits, from the plan or the trip on Home: see your numbered visits on the route, add, remove or reorder them, then update the plan once. Tap the trip on Home to see its whole plan. Plans now come as Fastest and Cheapest.
+New in 1.2:
+• Add places to visit on the way, like a park or a friend's town, for a few hours or a few nights.
+• Staying the night? Sleep at the place itself, or let Waystage find a hotel nearby.
+• Visit them in your own order, or let Waystage find the shortest drive.
+• Change your visits any time, even on the road: add, remove or reorder them, then update the plan once.
+• See your whole trip on one map, with your visits numbered. Tap the trip on Home to see its plan.
+• Running late? Adjust the rest keeps your plan and re-times it from where you are, or finds a hotel earlier tonight.
+• Plans now come as Fastest and Cheapest, with a cleaner, simpler look.

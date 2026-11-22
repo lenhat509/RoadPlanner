@@ -11,36 +11,27 @@ SPEC.json lists the parts of the recording to use, each with a speed and a capti
 screen-recording indicator and the AssistiveTouch button are not part of the app. Consecutive parts
 with the same caption keep it on screen through the cut.
 
-The recording is placed on the brand's teal background below the caption, with rounded corners,
-and the parts are joined with short dissolves. The output follows Apple's app-preview format:
+The recording is placed on the app's green "road sign" (store_theme.py) below the caption, with
+small rounded corners and a thin border, and the parts are joined with short dissolves. The output follows Apple's app-preview format:
 886 x 1920 (or the recording's own size), 30 fps, H.264 High, a silent stereo AAC track, 15-30 s.
 Only the app's own screen recording is shown (App Store guideline 2.3.4); captions explain it.
 """
 import json
+import os
 import subprocess
 import sys
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import store_theme as theme  # noqa: E402
 
 FPS = 30
 SIZE = (886, 1920)
-FONT = "/usr/share/fonts/opentype/inter/InterDisplay-Bold.otf"
-TOP, BOTTOM = 440, 56  # caption band above the recording, margin below it
+SCALE = SIZE[0] / 1320  # store_theme sizes are for a 1320-pixel-wide image
+TOP, BOTTOM = 400, 60  # caption band above the recording, margin below it
 DISSOLVE = 4  # frames
-STOP_COLOURS = [(0, 158, 115), (230, 159, 0), (204, 121, 167)]
-
-
-def background():
-    w, h = SIZE
-    t = np.linspace(0, 1, h, dtype=np.float32)[:, None, None]
-    top, bottom = np.array((17, 112, 120), np.float32), np.array((7, 36, 46), np.float32)
-    canvas = top * (1 - t) + bottom * t
-    # A soft light behind the caption.
-    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
-    glow = np.clip(1 - np.hypot((xx - w / 2) / (w * 0.75), (yy - 200) / 520), 0, 1) ** 2 * 0.22
-    canvas = canvas * (1 - glow[..., None]) + np.array((120, 210, 200), np.float32) * glow[..., None]
-    return np.broadcast_to(canvas, (h, w, 3)).copy()
 
 
 def screen_geometry(src_w, src_h):
@@ -50,54 +41,26 @@ def screen_geometry(src_w, src_h):
 
 
 def rounded_mask(width, height, radius):
-    scale = 4
-    layer = Image.new("L", (width * scale, height * scale), 0)
-    ImageDraw.Draw(layer).rounded_rectangle([0, 0, width * scale - 1, height * scale - 1], radius=radius * scale, fill=255)
-    return np.asarray(layer.resize((width, height), Image.LANCZOS), dtype=np.float32)[..., None] / 255
+    return np.asarray(theme.rounded_mask((width, height), radius), dtype=np.float32)[..., None] / 255
 
 
 def framed_background(width, height, x, y, radius):
-    canvas = background()
-    # Drop shadow and a faint rim around the recording.
-    shadow = Image.new("L", SIZE, 0)
-    ImageDraw.Draw(shadow).rounded_rectangle([x, y + 18, x + width, y + height + 18], radius=radius, fill=150)
-    shadow = np.asarray(shadow.filter(ImageFilter.GaussianBlur(28)), dtype=np.float32)[..., None] / 255
-    canvas = canvas * (1 - shadow * 0.7)
-    rim = Image.new("L", SIZE, 0)
-    ImageDraw.Draw(rim).rounded_rectangle([x - 3, y - 3, x + width + 3, y + height + 3], radius=radius + 3, fill=255)
-    rim = np.asarray(rim, dtype=np.float32)[..., None] / 255 * 0.14
-    return canvas * (1 - rim) + 255 * rim
+    """The green road sign with a thin dark-green border where the recording goes."""
+    canvas = theme.sign(SIZE, SCALE)
+    theme.screen_frame(canvas, (x, y, width, height), radius, max(2, round(5 * SCALE)))
+    return np.asarray(canvas, dtype=np.float32)
 
 
-def caption_size(captions, largest=68, smallest=40):
+def caption_size(captions):
     """One text size for every caption in a preview: the largest at which each line fits."""
-    draw = ImageDraw.Draw(Image.new("L", (1, 1)))
     lines = [line for caption in captions for line in caption.split("\n")]
-    for size in range(largest, smallest - 1, -2):
-        font = ImageFont.truetype(FONT, size)
-        if max(draw.textlength(line, font=font) for line in lines) <= SIZE[0] - 110:
-            return size
-    return smallest
+    return theme.fitting_size(lines, SIZE[0] - round(220 * SCALE), round(104 * SCALE), round(60 * SCALE))
 
 
 def caption_layer(text, size):
-    """The caption (and the three stop-colour dots under it) as an RGBA band of height TOP."""
-    w = SIZE[0]
-    layer = Image.new("RGBA", (w, TOP), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(layer)
-    lines = text.split("\n")
-    font = ImageFont.truetype(FONT, size)
-    widths = [draw.textlength(line, font=font) for line in lines]
-    line_height = round(size * 1.14)
-    block = line_height * len(lines)
-    y = (TOP - 70 - block) // 2 + 20
-    for line, lw in zip(lines, widths):
-        draw.text(((w - lw) / 2, y), line, font=font, fill=(255, 255, 255, 255))
-        y += line_height
-    dots_y = TOP - 62
-    for i, colour in enumerate(STOP_COLOURS):
-        cx = w / 2 + (i - 1) * 34
-        draw.ellipse([cx - 9, dots_y - 9, cx + 9, dots_y + 9], fill=colour + (255,))
+    """The caption as an RGBA band of height TOP (over the sign's green)."""
+    layer = Image.new("RGBA", (SIZE[0], TOP), (0, 0, 0, 0))
+    theme.draw_caption(layer, text, (round(80 * SCALE), round(70 * SCALE), SIZE[0] - round(80 * SCALE), TOP - 20), size)
     rgba = np.asarray(layer, dtype=np.float32)
     return rgba[..., :3], rgba[..., 3:] / 255
 
@@ -128,7 +91,7 @@ def main(spec_path, source, output):
     src_w, src_h = (int(v) for v in probe.stdout.strip().split(","))
     crop_top = int(spec.get("crop_top", 0))
     width, height, x, y = screen_geometry(src_w, src_h - crop_top)
-    radius = 46
+    radius = round(40 * SCALE)
     base = framed_background(width, height, x, y, radius)
     mask = rounded_mask(width, height, radius)
 
