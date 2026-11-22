@@ -5,7 +5,7 @@
     {"name": "01-plan", "screenshot": "01-form-top.png", "caption": "Plan a road trip with\nthe places you want to see"},
     {"name": "02-trip", "screenshot": "02-plan-top.png", "caption": "Get every break, gas stop\nand hotel planned for you"},
     {"name": "03-preview", "screenshot": "03-preview.png", "caption": "Look over each drive\nbefore you go"},
-    {"name": "04-directions", "screenshot": "04-drive.png", "caption": "Follow turn-by-turn\ndirections to every stop"},
+    {"name": "04-directions", "screenshot": "04-drive-2.png", "caption": "Follow turn-by-turn\ndirections to every stop"},
     {"name": "05-visits", "screenshot": "05-visits-list.png", "caption": "Add or remove places\nany time, even on the road"}
   ]
 }

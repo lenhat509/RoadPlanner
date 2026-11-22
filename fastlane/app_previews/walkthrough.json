@@ -1,0 +1,15 @@
+{
+  "about": "App preview (about 28 s): the walkthrough recorded by the Promo workflow (run 45004771256, promo-captures branch, recording-720.mp4): Denver to San Jose by Salt Lake City and Las Vegas, then Adjust visits and the drive. Times are in the recording (its marks minus 26.8 s: the recorder's clock starts late).",
+  "crop_top": 0,
+  "segments": [
+    {"from": 64.5, "to": 86.0, "speed": 7.0, "caption": "Enter where you start\nand where you're going"},
+    {"from": 86.0, "to": 120.6, "speed": 10.0, "caption": "Add the places\nyou want to see"},
+    {"from": 120.6, "to": 134.4, "speed": 4.6, "caption": "Stay a few hours\nor a few nights"},
+    {"from": 142.4, "to": 151.0, "speed": 5.0, "caption": "Get every break, gas stop\nand hotel planned for you"},
+    {"from": 151.0, "to": 166.0, "speed": 4.0, "caption": "Get every break, gas stop\nand hotel planned for you"},
+    {"from": 168.0, "to": 208.0, "speed": 12.0, "caption": "Add or remove places\nany time, even on the road"},
+    {"from": 208.0, "to": 232.0, "speed": 9.0, "caption": "Add or remove places\nany time, even on the road"},
+    {"from": 236.0, "to": 247.0, "speed": 3.5, "caption": "Look over each drive\nbefore you go"},
+    {"from": 263.0, "to": 291.0, "speed": 7.0, "caption": "Follow turn-by-turn\ndirections to every stop"}
+  ]
+}

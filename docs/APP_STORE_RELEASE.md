@@ -131,9 +131,25 @@ The version is released automatically once approved.
 
 ## Screenshots
 
-Taken by hand on a real iPhone, with real data: the offline UI-test sandbox (made-up places,
-simplified routes) is for checking the design, not for the store (guideline 2.3.3: screenshots
-show the app in use).
+From the real app with real data: the offline UI-test sandbox (made-up places, simplified routes)
+is for checking the design, not for the store (guideline 2.3.3: screenshots show the app in use).
+
+**The Promo workflow** (`.github/workflows/promo.yml`, run it from Actions) does it on an iPhone
+Pro Max simulator with live Google data: `PromoCaptureTests` plans Denver → Salt Lake City → Las
+Vegas → San Jose, adjusts its visits and starts the drive (at 8:30 AM Denver time, so the maps are
+in their day look), while the simulator's screen is recorded. The screenshots, the recording and
+the step times go to the `promo-captures` branch. Then:
+
+```bash
+git fetch origin promo-captures && mkdir -p /tmp/promo && git archive origin/promo-captures | tar -x -C /tmp/promo
+python3 scripts/make_promo_images.py fastlane/promo/images.json /tmp/promo/screenshots fastlane/app_store/screenshots/en-US
+python3 scripts/make_app_preview.py fastlane/app_previews/walkthrough.json /tmp/promo/recording-720.mp4 fastlane/app_store/previews/en-US/01-walkthrough_IPHONE_67.mp4
+```
+
+`fastlane/promo/images.json` picks a screenshot and a caption for each image (start with a verb,
+plain words); `walkthrough.json` cuts the clip (recording times are the step times minus the
+recorder's late start, about 27 s: match a screenshot to the video to check). Both use the app's
+look (`scripts/store_theme.py`). By hand on an iPhone also works:
 
 * Up to 10; the first 2–3 matter most. A good set: the plan form, the route choices on the map,
   a plan's timeline with its stops, a stop's details, and the drive screen.

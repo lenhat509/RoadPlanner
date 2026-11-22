@@ -7,9 +7,6 @@ name: Promo media
 
 on:
   workflow_dispatch:
-  # A dispatch needs the workflow on main; pushing to the promo branch runs it before then.
-  push:
-    branches: [promo]
 
 concurrency:
   group: promo
