@@ -50,10 +50,11 @@ enum Theme {
     /// Exit navigation.
     static let danger = Color(red: 0.86, green: 0.20, blue: 0.18)
 
-    /// Stop colours from the Okabe–Ito palette, distinguishable with common colour-vision
-    /// deficiencies. Stops are drawn as plain dots; the legend explains the colours.
+    /// Stop colours: deep, saturated versions of the Okabe–Ito hues (distinguishable with common
+    /// colour-vision deficiencies), each at least 4:1 against white so small dots stand out on cards
+    /// and maps. Stops are drawn as plain dots; the legend explains the colours.
     static func color(for kind: StopKind, isPullOff: Bool = false) -> Color {
-        if isPullOff { return Color(uiColor: .systemGray) }
+        if isPullOff { return Color(red: 0.43, green: 0.43, blue: 0.45) } // grey
         switch kind {
         case .origin:
             return Color(uiColor: UIColor { traits in
@@ -61,11 +62,11 @@ enum Theme {
                     ? UIColor(white: 0.85, alpha: 1)
                     : UIColor(red: 0.17, green: 0.17, blue: 0.18, alpha: 1)
             })
-        case .rest: return Color(red: 0.0, green: 0.62, blue: 0.45) // bluish green
-        case .fuel: return Color(red: 0.90, green: 0.62, blue: 0.0) // orange
-        case .lodging: return Color(red: 0.80, green: 0.47, blue: 0.65) // reddish purple
-        case .visit: return Color(red: 0.0, green: 0.45, blue: 0.70) // blue
-        case .destination: return Color(red: 0.84, green: 0.37, blue: 0.0) // vermillion
+        case .rest: return Color(red: 0.0, green: 0.50, blue: 0.50) // teal
+        case .fuel: return Color(red: 0.72, green: 0.45, blue: 0.0) // amber
+        case .lodging: return Color(red: 0.61, green: 0.24, blue: 0.53) // deep reddish purple
+        case .visit: return Color(red: 0.0, green: 0.37, blue: 0.68) // blue
+        case .destination: return Color(red: 0.78, green: 0.16, blue: 0.16) // red
         }
     }
 

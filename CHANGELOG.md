@@ -65,6 +65,9 @@ wasn't released on its own.
   selected choice (routes too), the same choice and number inputs in Settings as on the plan form,
   the same switch colour, Add a stop and Add a visit as the same outlined button, warnings in a
   box like other notes, one section-title style and one note size.
+  Stop markers use deeper, higher-contrast colours (teal rest, amber fuel, purple night, blue
+  visit, red destination), and their white ring is gone except on maps (thinner there): the dots
+  in a trip's timeline (saved trips, the trip on Home, plans) are bigger and all colour.
 - **The plan screen ends with its buttons**, on one line after the day-by-day plan (Undo, Adjust
   visits, Start driving); a stop's details no longer change the plan (no keep, remove, other
   hotels or add-a-stop actions, and no touch-and-hold menu): visits are changed in Adjust visits.

@@ -501,7 +501,7 @@ struct PlanningProgressView: View {
                             .fill(Theme.brand)
                             .frame(width: max(4, (geometry.size.width - 30) * fraction + 15), height: 4)
                         ForEach([0.25, 0.5, 0.75], id: \.self) { mark in
-                            StopDot(kind: mark == 0.5 ? .fuel : (mark == 0.25 ? .rest : .lodging), size: 10)
+                            StopDot(kind: mark == 0.5 ? .fuel : (mark == 0.25 ? .rest : .lodging), size: 12, ring: Theme.card)
                                 .offset(x: (geometry.size.width - 30) * mark + 10)
                         }
                         VehicleArrow(rotation: 90)

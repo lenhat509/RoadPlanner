@@ -24,7 +24,7 @@ enum MarkerIconFactory {
             UIColor.white.setFill()
             UIBezierPath(ovalIn: rect).fill()
             color.setFill()
-            UIBezierPath(ovalIn: rect.insetBy(dx: max(2.5, diameter * 0.14), dy: max(2.5, diameter * 0.14))).fill()
+            UIBezierPath(ovalIn: rect.insetBy(dx: 1.5, dy: 1.5)).fill()
         }
     }
 
@@ -39,7 +39,7 @@ enum MarkerIconFactory {
             UIColor.white.setFill()
             UIBezierPath(ovalIn: rect).fill()
             color.setFill()
-            UIBezierPath(ovalIn: rect.insetBy(dx: 2.5, dy: 2.5)).fill()
+            UIBezierPath(ovalIn: rect.insetBy(dx: 1.5, dy: 1.5)).fill()
             let text = "\(number)" as NSString
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: diameter * 0.5, weight: .bold), .foregroundColor: UIColor.white,

@@ -67,7 +67,7 @@ struct NextStopPanel<MenuContent: View>: View {
 
     var body: some View {
         VStack(spacing: Theme.Spacing.s) {
-            TripRibbonView(marks: ribbon, progress: progress, height: 12)
+            TripRibbonView(marks: ribbon, progress: progress, height: 14)
                 .padding(.horizontal, Theme.Spacing.xxs)
             HStack(spacing: Theme.Spacing.s) {
                 ExitNavigationButton(action: onExit)

@@ -155,19 +155,29 @@ struct SectionLabel: View {
 
 // MARK: - Stops
 
-/// A stop marker: a plain coloured dot with a white ring (colours are explained by `StopLegend`).
+/// A stop marker: a plain coloured dot (colours are explained by `StopLegend`). The whole dot is
+/// colour: a ring only where something is behind it, white on a map, or a thin cutout in the box's
+/// colour over a line.
 struct StopDot: View {
     let kind: StopKind
     var isPullOff = false
     var size: CGFloat = 16
+    var ring: Color?
 
     var body: some View {
         Circle()
             .fill(Theme.color(for: kind, isPullOff: isPullOff))
             .frame(width: size, height: size)
-            .overlay(Circle().strokeBorder(.white, lineWidth: max(2, size * 0.14)))
+            .overlay {
+                if let ring {
+                    Circle().strokeBorder(ring, lineWidth: Self.ringWidth(for: size))
+                }
+            }
             .accessibilityHidden(true)
     }
+
+    /// Thin rings: 1 point on small dots, 1.5 from 16 points (maps).
+    static func ringWidth(for size: CGFloat) -> CGFloat { size < 16 ? 1 : 1.5 }
 }
 
 /// A visit's number in a coloured circle ("Adjust visits": the list and the map).
@@ -175,6 +185,8 @@ struct NumberedPin: View {
     let number: Int
     let color: Color
     var size: CGFloat = 24
+    /// White on a map; none in a list.
+    var ring: Color?
 
     var body: some View {
         Text("\(number)")
@@ -183,7 +195,11 @@ struct NumberedPin: View {
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(color, in: Circle())
-            .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+            .overlay {
+                if let ring {
+                    Circle().strokeBorder(ring, lineWidth: StopDot.ringWidth(for: size))
+                }
+            }
             .accessibilityHidden(true)
     }
 }
@@ -253,8 +269,8 @@ struct TripRibbonView: View {
                 }
                 ForEach(marks) { mark in
                     let isEnd = mark.kind == .origin || mark.kind == .destination
-                    let size = isEnd ? height * 0.75 : height * 0.56
-                    StopDot(kind: mark.kind, isPullOff: mark.isPullOff, size: size)
+                    let size = isEnd ? height : height * 0.8
+                    StopDot(kind: mark.kind, isPullOff: mark.isPullOff, size: size, ring: Theme.card)
                         .offset(x: inset + width * mark.fraction - size / 2)
                 }
             }
@@ -486,7 +502,7 @@ struct RhythmStrip: View {
                         .fill(Theme.brand)
                         .frame(width: max(4, blockWidth), height: 6)
                     if index < blocks - 1 {
-                        StopDot(kind: .rest, size: 10)
+                        StopDot(kind: .rest, size: 12)
                             .frame(width: gap)
                     }
                 }

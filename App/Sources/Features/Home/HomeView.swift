@@ -231,7 +231,7 @@ struct HomeView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             } else {
-                TripRibbonView(marks: TripRibbon.marks(for: itinerary), height: 14)
+                TripRibbonView(marks: TripRibbon.marks(for: itinerary), height: 16)
             }
             Text([
                 formatters.dayTitle(itinerary.request.departure, utcOffsetSeconds: itinerary.request.origin.utcOffsetSeconds),
