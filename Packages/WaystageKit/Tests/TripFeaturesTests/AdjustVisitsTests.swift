@@ -202,6 +202,57 @@ struct AdjustVisitsTests {
         #expect(request.departure > later && request.departure.timeIntervalSince(later) <= 3_600)
     }
 
+    @Test("Changing visits plans the nights again: a hotel from the old route isn't kept")
+    func oldHotelsArentKept() async throws {
+        let harness = FeatureHarness(), clock = Clock()
+        let itinerary = try await itinerary(harness)
+        var trip = ActiveTrip(itinerary: itinerary)
+        trip.progress.phase = .atStop
+        trip.progress.targetStopIndex = 1
+        clock.now = try #require(itinerary.stops[1].arrival).addingTimeInterval(600)
+        let drive = DriveViewModel(trip: trip, dependencies: dependencies(harness, clock, planner: harness.dependencies.planner))
+        let kept = try #require(drive.restOfTripRequest()).requiredStops
+        #expect(kept.contains { $0.purpose == .lodging }, "Adjust the rest keeps tonight's hotel")
+        let editor = drive.visitsEditor()
+        editor.toggle(try #require(editor.visits.first).id)
+        await editor.updatePlan()
+        #expect(editor.errorMessage == nil)
+        #expect(editor.plan.request.requiredStops.isEmpty, "only visits are kept, and the visit was removed")
+    }
+
+    @Test("Waystage orders the visits for the least driving when one is added")
+    func leastDrivingOrder() async throws {
+        let harness = FeatureHarness(), clock = Clock()
+        let planner = CountingPlanner(harness.dependencies.planner)
+        var request = SampleTrips.request(from: "sf", to: "nyc")
+        // Entered in a zigzag: Chicago, then back west to Denver.
+        request.stops = [.visit(SampleTrips.city("chi"), stay: 1_800), .visit(SampleTrips.city("den"), stay: 1_800)]
+        let itinerary = try #require(try await harness.dependencies.planner.plan(request) { _ in }.recommended)
+        let drive = DriveViewModel(trip: ActiveTrip(itinerary: itinerary), dependencies: dependencies(harness, clock, planner: planner))
+        let editor = drive.visitsEditor()
+        #expect(editor.visits.map(\.name) == ["Chicago", "Denver"], "the plan's order until something changes")
+        editor.add(SampleTrips.city("lv"), stay: 1_800)
+        #expect(editor.visits.map(\.name) == ["Las Vegas", "Denver", "Chicago"])
+        #expect(planner.plans == 0)
+        await editor.updatePlan()
+        #expect(editor.plan.stops.filter { $0.kind == .visit }.map(\.place.id) == ["lv", "den", "chi"])
+
+        // Once moved by hand, the order is the traveler's: a new visit only goes where it fits.
+        editor.move(fromOffsets: [2], toOffset: 0)
+        #expect(editor.visits.map(\.name) == ["Chicago", "Las Vegas", "Denver"])
+        editor.add(SampleTrips.city("la"), stay: 1_800)
+        #expect(editor.visits.map(\.name).filter { $0 != "Los Angeles" } == ["Chicago", "Las Vegas", "Denver"])
+    }
+
+    @Test("The shortest order through every visit, from the start to the destination")
+    func bestOrder() {
+        let start = GeoCoordinate(latitude: 0, longitude: 0)
+        let end = GeoCoordinate(latitude: 0, longitude: 10)
+        let points = [8.0, 2.0, 5.0].map { GeoCoordinate(latitude: 0.1, longitude: $0) }
+        #expect(AdjustVisitsViewModel.bestOrder(origin: start, through: points, destination: end) == [1, 2, 0])
+        #expect(AdjustVisitsViewModel.bestOrder(origin: start, through: [], destination: end).isEmpty)
+    }
+
     @Test("A new visit goes where it adds the least driving")
     func insertion() {
         let origin = GeoCoordinate(latitude: 0, longitude: 0)

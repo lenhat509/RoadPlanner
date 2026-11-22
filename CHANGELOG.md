@@ -25,9 +25,12 @@ wasn't released on its own.
 - **Adjust visits.** From the plan screen (next to Start driving, after the day-by-day plan) or
   the trip on Home (next to Resume): your visits, in the order they'll be visited, with their
   addresses and arrival times. Changes are listed first and planned together: a place added shows
-  **To be added** (green, with a button to take it off the list) where it adds the least driving,
-  tapping a visit marks it **To be removed** (red; tap again to keep it), and **Reorder** lets you
-  drag visits into another order. **Update plan** plans once with all of them, and **Use this
+  **To be added** (green, with a button to take it off the list), tapping a visit marks it **To be
+  removed** (red; tap again to keep it), and **Reorder** lets you drag visits into another order.
+  Whenever a visit is added or removed, Waystage puts all of them in the order with the least
+  driving (the shortest path through them, straight lines), until you move them by hand. Only
+  the visits are kept: the nights, fuel and breaks are chosen again for the new route (a hotel kept
+  from the old route pulled it back there). **Update plan** plans once with all of them, and **Use this
   plan** shows the new plan (Undo goes back) or, from Home, makes it the trip. Before the trip
   starts the whole plan is made again; once it has, the rest of the trip from where you are.
 - **The trip in progress, at a glance.** Tapping the trip on Home opens its whole plan like a plan

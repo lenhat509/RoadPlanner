@@ -68,6 +68,8 @@ public final class AdjustVisitsViewModel {
     private var order: [Entry] = []
     /// The plan's own order of its visits (row IDs), to tell whether they were moved.
     private var plannedOrder: [String] = []
+    /// The traveler moved visits by hand: Waystage stops re-sorting them.
+    private var isOrderedByHand = false
 
     private struct State {
         /// The rest of the trip as a request the changes edit; nil when it can't be planned from here.
@@ -157,7 +159,9 @@ public final class AdjustVisitsViewModel {
         order.compactMap { if case let .planned(id) = $0 { id } else { nil } } != plannedOrder
     }
 
-    /// Adds a place to the list where it adds the least driving, to be planned with "Update plan".
+    /// Adds a place to the list, to be planned with "Update plan". Waystage puts every visit in the
+    /// order with the least driving (once the traveler has moved visits by hand, the new one only
+    /// goes where it adds the least driving).
     public func add(_ place: Place, stay: TimeInterval) {
         guard canAddVisit, let request = state.request else { return }
         let id = "added-\(UUID().uuidString)"
@@ -167,11 +171,14 @@ public final class AdjustVisitsViewModel {
             stops: order.map { coordinate(of: $0) ?? request.origin.coordinate }, destination: request.destination.coordinate
         )
         order.insert(.added(id), at: index)
+        orderForLeastDriving()
     }
 
-    /// Moves visits in the list (the order they'll be planned in).
+    /// Moves visits in the list (the order they'll be planned in). From then on Waystage leaves
+    /// the order to the traveler.
     public func move(fromOffsets source: IndexSet, toOffset destination: Int) {
         guard !isUpdating else { return }
+        isOrderedByHand = true
         let moving = source.sorted().filter { order.indices.contains($0) }.map { order[$0] }
         var rest = order.enumerated().filter { !source.contains($0.offset) }.map(\.element)
         let index = destination - source.count { $0 < destination }
@@ -189,6 +196,29 @@ public final class AdjustVisitsViewModel {
         } else if plannedOrder.contains(visitID) {
             removals.insert(visitID)
         }
+        orderForLeastDriving()
+    }
+
+    /// Puts the visits to be planned in the order with the least driving (straight lines from the
+    /// start, through every visit, to the destination), unless the traveler ordered them by hand.
+    /// Visits marked to be removed keep their places in the list.
+    private func orderForLeastDriving() {
+        guard !isOrderedByHand, let request = state.request else { return }
+        let planned = order.filter { !isRemoved($0) }
+        let best = Self.bestOrder(
+            origin: request.origin.coordinate,
+            through: planned.map { coordinate(of: $0) ?? request.origin.coordinate },
+            destination: request.destination.coordinate
+        )
+        var sorted = best.map { planned[$0] }
+        for (index, entry) in order.enumerated() where isRemoved(entry) {
+            sorted.insert(entry, at: min(index, sorted.count))
+        }
+        order = sorted
+    }
+
+    private func isRemoved(_ entry: Entry) -> Bool {
+        if case let .planned(id) = entry { removals.contains(id) } else { false }
     }
 
     /// Plans once with every change: the visits in the list's order, without those marked removed.
@@ -208,6 +238,7 @@ public final class AdjustVisitsViewModel {
             state = State(request: request, firstShown: 1, skipped: [], projectedArrivals: [:])
             removals = []
             additions = [:]
+            isOrderedByHand = false
             resetOrder()
             isUpdated = true
         } catch let error as PlanningError {
@@ -231,9 +262,10 @@ public final class AdjustVisitsViewModel {
         }
     }
 
-    /// The request with the changes: the visits in the list's order (without those marked removed),
-    /// and the other stops the plan keeps (hotels ahead, kept stops) where they add the least
-    /// driving, in their own order.
+    /// The request with the changes: only the visits, in the list's order (without those marked
+    /// removed). The old plan's hotels and other kept stops were chosen for the old route: with other
+    /// visits Waystage chooses the nights, fuel and breaks again (a hotel kept from the old route
+    /// would pull the new one back to it).
     private func changedRequest() -> TripRequest? {
         guard var request = state.request else { return nil }
         let stops = request.stops ?? []
@@ -252,17 +284,7 @@ public final class AdjustVisitsViewModel {
                 return additions[id].map { .visit($0.place, stay: $0.stay) }
             }
         }
-        var merged = visits
-        var earliest = 0
-        for stop in stops where stop.purpose != .visit {
-            let index = Self.insertionIndex(
-                of: stop.place.coordinate, origin: request.origin.coordinate,
-                stops: merged.map(\.place.coordinate), destination: request.destination.coordinate, from: earliest
-            )
-            merged.insert(stop, at: index)
-            earliest = index + 1
-        }
-        request.stops = merged.isEmpty ? nil : merged
+        request.stops = visits.isEmpty ? nil : visits
         return request
     }
 
@@ -287,12 +309,12 @@ public final class AdjustVisitsViewModel {
     /// Where a new place goes among the stops a plan keeps: between the two it adds the least
     /// distance to (straight lines).
     static func insertionIndex(
-        of point: GeoCoordinate, origin: GeoCoordinate, stops: [GeoCoordinate], destination: GeoCoordinate, from minimum: Int = 0
+        of point: GeoCoordinate, origin: GeoCoordinate, stops: [GeoCoordinate], destination: GeoCoordinate
     ) -> Int {
         let path = [origin] + stops + [destination]
         var best = stops.count
         var bestCost = Double.infinity
-        for index in max(0, min(minimum, stops.count))..<(path.count - 1) {
+        for index in 0..<(path.count - 1) {
             let cost = GeoMath.distance(path[index], point) + GeoMath.distance(point, path[index + 1])
                 - GeoMath.distance(path[index], path[index + 1])
             if cost < bestCost {
@@ -301,6 +323,48 @@ public final class AdjustVisitsViewModel {
             }
         }
         return best
+    }
+}
+
+extension AdjustVisitsViewModel {
+    /// The order of `points` (indices) with the shortest straight-line path from `origin` through
+    /// all of them to `destination`. Exact (dynamic programming over subsets) up to 12 points; more
+    /// keep their order.
+    static func bestOrder(origin: GeoCoordinate, through points: [GeoCoordinate], destination: GeoCoordinate) -> [Int] {
+        let count = points.count
+        guard count > 1, count <= 12 else { return Array(0..<count) }
+        let between = points.map { a in points.map { b in GeoMath.distance(a, b) } }
+        let fromStart = points.map { GeoMath.distance(origin, $0) }
+        let toEnd = points.map { GeoMath.distance($0, destination) }
+        let subsets = 1 << count
+        // cost[set][last]: the shortest path from the start through `set`, ending at `last`.
+        var cost = [[Double]](repeating: [Double](repeating: .infinity, count: count), count: subsets)
+        var previous = [[Int]](repeating: [Int](repeating: -1, count: count), count: subsets)
+        for index in 0..<count { cost[1 << index][index] = fromStart[index] }
+        for set in 1..<subsets {
+            for last in 0..<count where set & (1 << last) != 0 && cost[set][last] < .infinity {
+                for next in 0..<count where set & (1 << next) == 0 {
+                    let extended = set | (1 << next)
+                    let candidate = cost[set][last] + between[last][next]
+                    if candidate < cost[extended][next] {
+                        cost[extended][next] = candidate
+                        previous[extended][next] = last
+                    }
+                }
+            }
+        }
+        let all = subsets - 1
+        var last = 0
+        for index in 1..<count where cost[all][index] + toEnd[index] < cost[all][last] + toEnd[last] { last = index }
+        var order: [Int] = []
+        var set = all
+        while last >= 0 {
+            order.append(last)
+            let before = previous[set][last]
+            set &= ~(1 << last)
+            last = before
+        }
+        return order.reversed()
     }
 }
 
