@@ -1,0 +1,105 @@
+name: Promo media
+
+# Captures the promo screenshots and a screen recording of the real app with live Google data
+# (Denver → Salt Lake City → Las Vegas → San Jose) on an iPhone Pro Max simulator: the
+# PromoCaptureTests walkthrough. Download the "promo" artifact; scripts/make_promo_images.py and
+# scripts/make_app_preview.py turn it into the App Store images and preview clip.
+
+on:
+  workflow_dispatch:
+  # A dispatch needs the workflow on main; pushing to the promo branch runs it before then.
+  push:
+    branches: [promo]
+
+concurrency:
+  group: promo
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture promo screens
+    runs-on: xcode-27
+    # The Google key lives with the App Store secrets.
+    environment: app-store
+    timeout-minutes: 60
+    env:
+      WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || secrets.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
+      WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || secrets.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Hand the key and IDs to the build
+        # As in release.yml: Config/Secrets.xcconfig exists only on this temporary machine.
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          WAYSTAGE_GATEWAY_URL: ${{ secrets.WAYSTAGE_GATEWAY_URL }}
+          WAYSTAGE_GATEWAY_TOKEN: ${{ secrets.WAYSTAGE_GATEWAY_TOKEN }}
+          WAYSTAGE_COMPANY_NAME: ${{ vars.WAYSTAGE_COMPANY_NAME }}
+        run: |
+          setting() { [ -n "$2" ] && printf '%s = %s\n' "$1" "$2"; return 0; }
+          {
+            setting WAYSTAGE_BUNDLE_ID "$WAYSTAGE_BUNDLE_ID"
+            setting WAYSTAGE_TEAM_ID "$WAYSTAGE_TEAM_ID"
+            setting GOOGLE_MAPS_API_KEY "$GOOGLE_MAPS_API_KEY"
+            setting WAYSTAGE_GATEWAY_URL "$(printf '%s' "$WAYSTAGE_GATEWAY_URL" | sed 's#//#/$()/#g')"
+            setting WAYSTAGE_GATEWAY_TOKEN "$WAYSTAGE_GATEWAY_TOKEN"
+            setting WAYSTAGE_COMPANY_NAME "$WAYSTAGE_COMPANY_NAME"
+          } > Config/Secrets.xcconfig
+          for name in WAYSTAGE_BUNDLE_ID GOOGLE_MAPS_API_KEY WAYSTAGE_GATEWAY_URL; do
+            if [ -n "${!name}" ]; then echo "set:     $name"; else echo "not set: $name"; fi
+          done
+      - name: Generate Xcode project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build for testing
+        run: |
+          device=$(xcrun simctl list devices available | grep -Eo "iPhone [0-9]+ Pro Max" | sort | tail -1)
+          udid=$(xcrun simctl list devices available | grep "$device (" | head -1 | grep -Eo "[0-9A-F-]{36}")
+          echo "Simulator: $device ($udid)"
+          echo "UDID=$udid" >> "$GITHUB_ENV"
+          set -o pipefail
+          xcodebuild build-for-testing -project Waystage.xcodeproj -scheme Waystage \
+            -destination "id=$udid" CODE_SIGNING_ALLOWED=NO | grep -E "error:|BUILD (SUCCEEDED|FAILED)|TEST BUILD"
+      - name: Ready the simulator
+        # A tidy status bar, and the phone in Denver (the trip's start).
+        run: |
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID"
+          xcrun simctl status_bar "$UDID" override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 \
+            --cellularMode active --cellularBars 4 --operatorName "" --batteryState charged --batteryLevel 100
+          xcrun simctl location "$UDID" set 39.7392,-104.9903
+          xcrun simctl ui "$UDID" appearance light
+      - name: Record the walkthrough
+        timeout-minutes: 25
+        run: |
+          mkdir -p promo
+          xcrun simctl io "$UDID" recordVideo --codec=h264 --force promo/recording.mov 2> promo/recording.log &
+          recorder=$!
+          for _ in $(seq 1 30); do grep -q "Recording started" promo/recording.log && break; sleep 0.5; done
+          python3 -c 'import time; print(f"{time.time():.3f}")' > promo/recording-start.txt
+          cat promo/recording.log
+          set +e
+          TEST_RUNNER_PROMO_CAPTURE=1 xcodebuild test-without-building -project Waystage.xcodeproj -scheme Waystage \
+            -destination "id=$UDID" -only-testing:WaystageUITests/PromoCaptureTests \
+            -resultBundlePath Promo.xcresult CODE_SIGNING_ALLOWED=NO > promo/xcodebuild.log 2>&1
+          status=$?
+          kill -INT "$recorder"; wait "$recorder"
+          grep -E "PROMO-MARK|Test Case|error:|failed|TEST (EXECUTE )?(SUCCEEDED|FAILED)" promo/xcodebuild.log | grep -v "^\s*$" | head -120
+          ls -la promo
+          exit $status
+      - name: Export screenshots
+        if: always()
+        run: |
+          mkdir -p raw
+          xcrun xcresulttool export attachments --path Promo.xcresult --output-path raw
+          python3 scripts/print_screenshots.py raw promo/screenshots
+          cp raw/manifest.json promo/attachments-manifest.json
+          find raw -name "*.json" ! -name manifest.json -exec cp {} promo/ \;
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promo
+          path: promo
+          retention-days: 14
