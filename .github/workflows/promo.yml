@@ -63,6 +63,13 @@ jobs:
           set -o pipefail
           xcodebuild build-for-testing -project Waystage.xcodeproj -scheme Waystage \
             -destination "id=$udid" CODE_SIGNING_ALLOWED=NO | grep -E "error:|BUILD (SUCCEEDED|FAILED)|TEST BUILD"
+      - name: Set the clock to the morning in Denver
+        # Google's driving screens follow the time of day where the car is, and plans start from
+        # now: at 8:30 AM in Denver both look like a real trip. Put back after the recording.
+        run: |
+          sudo systemsetup -setusingnetworktime off >/dev/null 2>&1 || true
+          sudo date -u "$(date -u +%m%d)1530$(date -u +%y)"
+          date -u
       - name: Ready the simulator
         # A tidy status bar, and the phone in Denver (the trip's start).
         run: |
@@ -94,6 +101,12 @@ jobs:
           grep -E "PROMO-|Test Case|error:|failed|TEST (EXECUTE )?(SUCCEEDED|FAILED)" promo/xcodebuild.log | grep -v "^\s*$" | head -120
           ls -la promo
           exit $status
+      - name: Put the clock back
+        if: always()
+        run: |
+          sudo sntp -sS time.apple.com || true
+          sudo systemsetup -setusingnetworktime on >/dev/null 2>&1 || true
+          date -u
       - name: Export screenshots
         if: always()
         run: |
@@ -116,6 +129,7 @@ jobs:
           git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" promo-captures
       - name: Upload
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: promo

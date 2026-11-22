@@ -159,11 +159,11 @@ final class PromoCaptureTests: XCTestCase {
         clearPrompts(for: 15)
     }
 
-    /// Swipes the page up until `target` can be tapped.
-    private func reveal(_ target: XCUIElement, attempts: Int = 8) {
+    /// Swipes the page (or `page`) up until `target` can be tapped.
+    private func reveal(_ target: XCUIElement, in page: XCUIElement? = nil, attempts: Int = 8) {
         var swipes = 0
         while target.exists && !target.isHittable && swipes < attempts {
-            app.swipeUp(velocity: .slow)
+            (page ?? app).swipeUp(velocity: .slow)
             swipes += 1
         }
     }
@@ -315,7 +315,7 @@ final class PromoCaptureTests: XCTestCase {
         mark("visits-order")
         let reorder = app.buttons[AccessibilityID.Visits.reorder].firstMatch
         if reorder.waitForExistence(timeout: 5) {
-            reveal(reorder)
+            reveal(reorder, in: app.collectionViews.firstMatch)
             reorder.tap()
             pause(1.5)
             // Salt Lake City, Las Vegas, Rocky Mountain, Aspen → Rocky Mountain, Aspen, Salt Lake City, Las Vegas.
@@ -328,17 +328,17 @@ final class PromoCaptureTests: XCTestCase {
         }
         mark("visits-remove")
         let saltLake = app.collectionViews.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Salt Lake City")).firstMatch
+        // Only the list scrolls: a swipe on the map above it would move the map.
+        let list = app.collectionViews.firstMatch
         if saltLake.waitForExistence(timeout: 5) {
-            reveal(saltLake)
+            reveal(saltLake, in: list)
             saltLake.tap()
         } else {
             miss("Salt Lake City not in the list")
         }
-        pause(1.5)
-        app.swipeDown(velocity: .slow)
-        pause(1.5)
+        pause(2)
         capture("05-visits-top")
-        app.swipeUp(velocity: .slow)
+        list.swipeUp(velocity: .slow)
         pause(1.5)
         capture("05-visits-list")
         mark("visits-done")
