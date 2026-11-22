@@ -2,12 +2,15 @@ import SwiftUI
 import TripFeatures
 import TripModels
 import TripPlanner
+import UniformTypeIdentifiers
 
 /// The planning form, as a short stack of cards: where, when, the car, breaks and the goal.
 /// Required inputs come first; everything optional is tucked into "More options".
 struct PlanTripScreen: View {
     @State private var model: PlanTripViewModel
     @State private var showsAdvanced = false
+    /// The stop being dragged to another place in the list (as listed).
+    @State private var draggingStop: String?
     @FocusState private var focusedField: PlanTripViewModel.Field?
     let onPlanned: (PlanResult) -> Void
 
@@ -186,6 +189,19 @@ struct PlanTripScreen: View {
 
     private var stopsCard: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if model.stops.count > 1 {
+                StopOrderPicker(selection: Binding(
+                    get: { model.stopOrder },
+                    set: { order in withAnimation(.snappy) { model.stopOrder = order } }
+                ))
+                .accessibilityIdentifier(AccessibilityID.Plan.stopOrder)
+                Text(StopOrderPicker.note(for: model.stopOrder))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, Theme.Spacing.xs)
+                    .padding(.bottom, Theme.Spacing.xs)
+                Divider()
+            }
             ForEach(Array(model.stops.enumerated()), id: \.element.id) { index, stop in
                 stopRow(stop, index: index)
                 if !model.input(for: .stop(stop.id)).suggestions.isEmpty {
@@ -203,28 +219,39 @@ struct PlanTripScreen: View {
                 .padding(.vertical, Theme.Spacing.xs)
                 .accessibilityIdentifier(AccessibilityID.Plan.addStop)
             }
-            if model.stops.count > 1 {
-                StopOrderPicker(selection: $model.stopOrder)
-                    .padding(.vertical, Theme.Spacing.xs)
-                    .accessibilityIdentifier(AccessibilityID.Plan.stopOrder)
+            if model.stops.isEmpty {
+                Text("Places to visit on the way, with how long to stay.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, Theme.Spacing.xs)
             }
-            Text(model.stops.isEmpty
-                ? "Places to visit on the way, like a park or a friend's town, with how long to stay."
-                : (model.stops.count > 1 ? StopOrderPicker.note(for: model.stopOrder) : "Waystage plans one route through it."))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, Theme.Spacing.xs)
         }
         .card(padding: Theme.Spacing.s)
     }
 
     private func stopRow(_ stop: PlanTripViewModel.StopInput, index: Int) -> some View {
         let field = PlanTripViewModel.Field.stop(stop.id)
+        let draggable = model.stopOrder == .asListed && model.stops.count > 1
         return VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
             HStack(spacing: Theme.Spacing.xs) {
-                Image(systemName: "mappin.circle.fill")
-                    .foregroundStyle(Theme.color(for: .visit))
-                    .accessibilityHidden(true)
+                if draggable {
+                    // Drag the handle onto another stop to take its place.
+                    Image(systemName: "line.3.horizontal")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, height: 40)
+                        .contentShape(Rectangle())
+                        .onDrag {
+                            draggingStop = stop.id
+                            return NSItemProvider(object: stop.id as NSString)
+                        }
+                        .accessibilityHidden(true)
+                } else {
+                    Image(systemName: "mappin.circle.fill")
+                        .foregroundStyle(Theme.color(for: .visit))
+                        .frame(width: 24)
+                        .accessibilityHidden(true)
+                }
                 TextField("Stop \(index + 1)", text: Binding(
                     get: { model.input(for: field).text },
                     set: { model.queryChanged($0, for: field) }
@@ -241,20 +268,14 @@ struct PlanTripScreen: View {
                         .foregroundStyle(Theme.success)
                         .accessibilityLabel("Place selected")
                 }
-                Menu {
-                    // With the shortest drive, Google orders them.
-                    if model.stopOrder == .asListed {
-                        Button("Move earlier", systemImage: "arrow.up") { withAnimation(.snappy) { model.moveStop(stop.id, by: -1) } }
-                            .disabled(index == 0)
-                        Button("Move later", systemImage: "arrow.down") { withAnimation(.snappy) { model.moveStop(stop.id, by: 1) } }
-                            .disabled(index == model.stops.count - 1)
-                    }
-                    Button("Remove", systemImage: "trash", role: .destructive) { withAnimation(.snappy) { model.removeStop(stop.id) } }
+                Button {
+                    withAnimation(.snappy) { model.removeStop(stop.id) }
                 } label: {
-                    IconButtonLabel(systemImage: "ellipsis")
+                    IconButtonLabel(systemImage: "trash")
                 }
-                .accessibilityLabel("Stop \(index + 1) options")
-                .accessibilityIdentifier(AccessibilityID.Plan.stopMenu(index))
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove stop \(index + 1)")
+                .accessibilityIdentifier(AccessibilityID.Plan.removeStop(index))
             }
             Stepper(
                 value: Binding(get: { stop.stayMinutes }, set: { model.setStay($0, for: stop.id) }),
@@ -267,6 +288,16 @@ struct PlanTripScreen: View {
             .accessibilityIdentifier(AccessibilityID.Plan.stopStay(index))
         }
         .padding(.vertical, Theme.Spacing.xs)
+        .onDrop(of: [UTType.text], delegate: StopDropDelegate(
+            target: stop.id, isEnabled: draggable, dragging: $draggingStop,
+            move: { dragged, target in model.moveStop(dragged, to: target) }
+        ))
+        .accessibilityAction(named: "Move earlier") {
+            if draggable { withAnimation(.snappy) { model.moveStop(stop.id, by: -1) } }
+        }
+        .accessibilityAction(named: "Move later") {
+            if draggable { withAnimation(.snappy) { model.moveStop(stop.id, by: 1) } }
+        }
     }
 
     // MARK: When
@@ -536,5 +567,27 @@ struct PlanningProgressView: View {
         .animation(.easeInOut, value: fraction)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(AccessibilityID.Plan.progress)
+    }
+}
+
+/// Reorders the stops on the way as one is dragged over another (as listed).
+private struct StopDropDelegate: DropDelegate {
+    let target: String
+    let isEnabled: Bool
+    @Binding var dragging: String?
+    let move: @MainActor (String, String) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool { isEnabled && dragging != nil }
+
+    func dropEntered(info: DropInfo) {
+        guard isEnabled, let dragging, dragging != target else { return }
+        withAnimation(.snappy) { move(dragging, target) }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
     }
 }

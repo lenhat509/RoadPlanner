@@ -146,6 +146,13 @@ public final class PlanTripViewModel {
         stops.removeAll { $0.id == id }
     }
 
+    /// Moves a stop to where another one is (dragging it in the list).
+    public func moveStop(_ id: String, to targetID: String) {
+        guard id != targetID, let from = stops.firstIndex(where: { $0.id == id }),
+              let to = stops.firstIndex(where: { $0.id == targetID }) else { return }
+        stops.insert(stops.remove(at: from), at: to)
+    }
+
     /// Moves a stop earlier or later on the way (`offset` -1 or +1).
     public func moveStop(_ id: String, by offset: Int) {
         guard let index = stops.firstIndex(where: { $0.id == id }) else { return }

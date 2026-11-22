@@ -35,7 +35,7 @@ enum AccessibilityID {
         static let addStop = "plan.addStop"
         static func stop(_ index: Int) -> String { "plan.stop.\(index)" }
         static func stopStay(_ index: Int) -> String { "plan.stopStay.\(index)" }
-        static func stopMenu(_ index: Int) -> String { "plan.stopMenu.\(index)" }
+        static func removeStop(_ index: Int) -> String { "plan.removeStop.\(index)" }
         static func suggestion(_ text: String) -> String { "plan.suggestion.\(text)" }
     }
 

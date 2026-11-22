@@ -138,6 +138,10 @@ struct AdjustVisitsSheet: View {
                     .disabled(model.isUpdating)
                     .accessibilityIdentifier(AccessibilityID.Visits.order)
                     .plainListRow()
+                    Text(StopOrderPicker.note(for: model.stopOrder))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .plainListRow()
                 }
                 if model.visits.isEmpty {
                     Text("No visits yet. Add the places you want to stop at.")
@@ -170,11 +174,7 @@ struct AdjustVisitsSheet: View {
     }
 
     private var footer: String {
-        if editMode.isEditing { return "Drag the visits into the order you want to stop at them." }
-        let order = model.stopOrder == .shortest
-            ? "Google Maps puts your visits in the order with the shortest drive when you tap Update plan."
-            : "Your visits are planned in the order listed; tap Reorder to change it."
-        return order + " Tap a visit to remove it from the plan, or tap it again to keep it. Nothing changes until you tap Update plan."
+        editMode.isEditing ? "Drag visits into the order you want." : "Tap a visit to remove or keep it."
     }
 
     /// Update plan (while there are changes to plan), then Use this plan.

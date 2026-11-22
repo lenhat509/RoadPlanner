@@ -247,6 +247,13 @@ final class WaystageUITests: XCTestCase {
         XCTAssertTrue(addStop.waitForExistence(timeout: 5))
         addStop.tap()
         choosePlace(field: AccessibilityID.Plan.stop(0), typing: "Los", pick: "Los Angeles")
+        // With two stops: the order choice appears, and each stop has a delete icon.
+        addStop.tap()
+        XCTAssertTrue(app.segmentedControls[AccessibilityID.Plan.stopOrder].waitForExistence(timeout: 5), "shortest drive or as listed")
+        let removeSecond = app.buttons[AccessibilityID.Plan.removeStop(1)]
+        XCTAssertTrue(removeSecond.exists)
+        removeSecond.tap()
+        XCTAssertTrue(removeSecond.waitForNonExistence(timeout: 5), "the empty stop is removed")
         let submit = app.buttons[AccessibilityID.Plan.submit]
         XCTAssertTrue(submit.waitForExistence(timeout: 5))
         XCTAssertTrue(submit.isEnabled, "a stop with a place doesn't block planning")

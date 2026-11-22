@@ -632,8 +632,8 @@ struct StopOrderPicker: View {
     /// What the chosen order means, under the control.
     static func note(for order: StopOrder) -> String {
         switch order {
-        case .shortest: "Google Maps puts your visits in the order with the shortest drive."
-        case .asListed: "Your visits are planned in the order listed."
+        case .shortest: "Waystage orders your visits for the shortest drive."
+        case .asListed: "Waystage visits them in the order listed."
         }
     }
 }

@@ -53,6 +53,15 @@ struct PlanTripStopsTests {
         }
         model.moveStop(model.stops[1].id, by: -1)
         #expect(model.stops.map { $0.location.place?.id } == ["den", "la"])
+        // Dragged onto another stop: it takes that stop's place.
+        model.moveStop(model.stops[0].id, to: model.stops[1].id)
+        #expect(model.stops.map { $0.location.place?.id } == ["la", "den"])
+        #expect(model.stopOrder == .shortest, "new trips: the shortest drive")
+        guard case let .valid(request) = model.makeRequest() else { Issue.record("\(model.validationErrors)"); return }
+        #expect(request.stopOrder == .shortest)
+        model.stopOrder = .asListed
+        guard case let .valid(listed) = model.makeRequest() else { Issue.record("\(model.validationErrors)"); return }
+        #expect(listed.stopOrder == .asListed && listed.requiredStops.map(\.place.id) == ["la", "den"])
         model.setStay(1, for: model.stops[0].id)
         #expect(model.stops[0].stayMinutes == 5)
         model.setStay(5_000, for: model.stops[0].id)

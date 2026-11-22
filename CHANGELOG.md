@@ -11,8 +11,9 @@ wasn't released on its own.
 
 ### Added
 - **Stops on the way.** The plan form takes places to visit on the way, like a park or a friend's
-  town, each with how long to stay (5 minutes to 12 hours): with the shortest drive (Google Maps
-  orders them; the default) or in the order listed. The plan stops there for
+  town, each with how long to stay (5 minutes to 12 hours): with the shortest drive (the default)
+  or in the order listed, chosen at the top of the stops; as listed, drag a stop's handle to
+  reorder. Each stop has a delete icon. The plan stops there for
   that long and plans the breaks, fuel and nights around them; it can't skip them. A trip with
   stops on the way has one route through them (Google offers no alternative routes through
   stops), plus its toll-free version.
