@@ -27,7 +27,7 @@ struct AdjustVisitsSheet: View {
                     }
                 }
             }
-            .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+            .background(Theme.canvas.ignoresSafeArea())
             .navigationTitle("Adjust visits")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -97,45 +97,56 @@ struct AdjustVisitsSheet: View {
                 Button {
                     addsVisit = true
                 } label: {
-                    Label("Add a visit", systemImage: "plus.circle.fill")
+                    Label("Add a visit", systemImage: "plus")
                 }
+                .buttonStyle(.secondary)
                 .disabled(!model.canAddVisit)
                 .accessibilityIdentifier(AccessibilityID.Visits.add)
-            } footer: {
+                .plainListRow()
                 if !model.canEdit && !model.isUpdating {
                     Text("Visits can't be changed until your location is known. Try again in a moment.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .plainListRow()
                 }
             }
             Section {
-                if model.visits.isEmpty {
-                    Text("No visits yet. Add the places you want to stop at.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(Array(model.visits.enumerated()), id: \.element.id) { index, visit in
-                    VisitEntryRow(visit: visit, number: index + 1) { model.toggle(visit.id) }
-                }
-                .onMove { model.move(fromOffsets: $0, toOffset: $1) }
-            } header: {
                 HStack {
-                    Text("Your visits")
+                    SectionLabel(title: "Your visits")
                     Spacer()
                     if model.visits.count > 1 {
                         Button(editMode.isEditing ? "Done" : "Reorder") {
                             withAnimation { editMode = editMode.isEditing ? .inactive : .active }
                         }
                         .font(.subheadline.weight(.semibold))
-                        .textCase(nil)
+                        .foregroundStyle(Theme.accent)
+                        .buttonStyle(.plain)
                         .disabled(model.isUpdating)
                         .accessibilityIdentifier(AccessibilityID.Visits.reorder)
                     }
                 }
-            } footer: {
+                .plainListRow()
+                if model.visits.isEmpty {
+                    Text("No visits yet. Add the places you want to stop at.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .boxListRow()
+                }
+                ForEach(Array(model.visits.enumerated()), id: \.element.id) { index, visit in
+                    VisitEntryRow(visit: visit, number: index + 1) { model.toggle(visit.id) }
+                }
+                .onMove { model.move(fromOffsets: $0, toOffset: $1) }
                 Text(editMode.isEditing
                     ? "Drag the visits into the order you want to stop at them."
                     : "Waystage puts your visits in the order that adds the least driving; tap Reorder to change it. Tap a visit to remove it from the plan, or tap it again to keep it. Nothing changes until you tap Update plan.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .plainListRow()
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .environment(\.editMode, $editMode)
         .disabled(model.isUpdating)
         .overlay {
@@ -201,7 +212,7 @@ private struct VisitEntryRow: View {
                 .accessibilityHint(visit.status == .toBeRemoved ? "Keeps it in the plan" : "Marks it to be removed")
             }
         }
-        .listRowBackground(tint.map { $0.opacity(0.12) })
+        .boxListRow(tint: tint)
     }
 
     private var content: some View {

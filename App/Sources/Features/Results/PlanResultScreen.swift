@@ -507,55 +507,76 @@ struct StopDetailSheet: View {
         mapProvider == .google ? "Place information from Google Maps." : "Sample data (demo mode)."
     }
 
+    /// A website about the stop (Google Maps; for hotels, booking and rate searches).
+    private struct OutboundLink: Identifiable {
+        let id: String
+        let title: String
+        let systemImage: String
+        let url: URL
+    }
+
+    private var links: [OutboundLink] {
+        var links = [OutboundLink(id: "maps", title: "Google Maps", systemImage: "map", url: ExternalLinks.googleMapsPlace(stop.place))]
+        guard stop.kind == .lodging else { return links }
+        if let url = stop.lodging?.bookingURL {
+            links.append(OutboundLink(
+                id: "booking", title: "Check availability on \(stop.lodging?.provider ?? "partner site")", systemImage: "bed.double", url: url
+            ))
+        }
+        if let checkIn = stop.arrival, let checkOut = stop.departure {
+            links.append(OutboundLink(
+                id: "expedia", title: "Compare rates on Expedia", systemImage: "magnifyingglass",
+                url: ExternalLinks.expediaHotelSearch(near: stop.place, checkIn: checkIn, checkOut: checkOut, adults: travelers)
+            ))
+        }
+        links.append(OutboundLink(
+            id: "hotels", title: "Hotels nearby on Google", systemImage: "building.2", url: ExternalLinks.googleHotels(near: stop.place.coordinate)
+        ))
+        return links
+    }
+
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    HStack(spacing: Theme.Spacing.s) {
-                        StopDot(kind: stop.kind, isPullOff: stop.isRoadsidePullOff, size: 22)
-                        VStack(alignment: .leading) {
-                            Text(presentation.title).font(.headline)
-                            Text(presentation.subtitle).font(.subheadline).foregroundStyle(.secondary)
+            BoxPage {
+                BoxSection(footer: attribution) {
+                    BoxRow(isLast: presentation.timeText.isEmpty && presentation.detail == nil) {
+                        HStack(spacing: Theme.Spacing.s) {
+                            StopDot(kind: stop.kind, isPullOff: stop.isRoadsidePullOff, size: 22)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(presentation.title).font(.headline)
+                                Text(presentation.subtitle).font(.subheadline).foregroundStyle(.secondary)
+                            }
                         }
                     }
-                    if !presentation.timeText.isEmpty { Label(presentation.timeText, systemImage: "clock") }
-                    if let detail = presentation.detail { Label(detail, systemImage: "info.circle") }
-                } footer: {
-                    Text(attribution)
+                    if !presentation.timeText.isEmpty {
+                        BoxRow(isLast: presentation.detail == nil) {
+                            Label(presentation.timeText, systemImage: "clock")
+                        }
+                    }
+                    if let detail = presentation.detail {
+                        BoxRow(isLast: true) {
+                            Label(detail, systemImage: "info.circle")
+                        }
+                    }
                 }
                 if let notice = Disclosures.notice(for: stop) {
-                    Section {
-                        Label(notice, systemImage: stop.kind == .lodging ? "exclamationmark.circle" : "checkmark.shield")
-                            .font(.footnote)
-                            .foregroundStyle(stop.kind == .lodging ? Theme.warning : .secondary)
-                            .accessibilityIdentifier(AccessibilityID.Results.stopNotice)
+                    BoxSection {
+                        BoxRow(isLast: true) {
+                            Label(notice, systemImage: stop.kind == .lodging ? "exclamationmark.circle" : "checkmark.shield")
+                                .font(.footnote)
+                                .foregroundStyle(stop.kind == .lodging ? Theme.warning : .secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier(AccessibilityID.Results.stopNotice)
+                        }
                     }
                 }
-                Section("Open in") {
-                    Button {
-                        openURL(ExternalLinks.googleMapsPlace(stop.place))
-                    } label: {
-                        Label("Google Maps", systemImage: "map")
-                    }
-                    if stop.kind == .lodging {
-                        if let url = stop.lodging?.bookingURL {
-                            Button {
-                                openURL(url)
-                            } label: {
-                                Label("Check availability on \(stop.lodging?.provider ?? "partner site")", systemImage: "bed.double")
+                BoxSection("Open in") {
+                    ForEach(Array(links.enumerated()), id: \.element.id) { index, link in
+                        BoxRow(isLast: index == links.count - 1) {
+                            Button { openURL(link.url) } label: {
+                                BoxRowLabel(title: link.title, systemImage: link.systemImage, trailingSymbol: "arrow.up.right")
                             }
-                        }
-                        if let checkIn = stop.arrival, let checkOut = stop.departure {
-                            Button {
-                                openURL(ExternalLinks.expediaHotelSearch(near: stop.place, checkIn: checkIn, checkOut: checkOut, adults: travelers))
-                            } label: {
-                                Label("Compare rates on Expedia", systemImage: "magnifyingglass")
-                            }
-                        }
-                        Button {
-                            openURL(ExternalLinks.googleHotels(near: stop.place.coordinate))
-                        } label: {
-                            Label("Hotels nearby on Google", systemImage: "building.2")
+                            .buttonStyle(.plain)
                         }
                     }
                 }

@@ -16,48 +16,69 @@ struct AddStopSheet: View {
         self.onAdd = onAdd
     }
 
+    /// A row under the search: the place being loaded, or the place chosen.
+    private var hasStatus: Bool { model.isResolving || model.place != nil }
+
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    TextField("Search for a place", text: Binding(get: { model.text }, set: { model.queryChanged($0) }))
-                        .focused($isSearching)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled()
-                        .accessibilityIdentifier(AccessibilityID.Results.addStopSearch)
-                    ForEach(model.suggestions) { suggestion in
-                        Button {
-                            isSearching = false
-                            Task { await model.select(suggestion) }
-                        } label: {
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(suggestion.primaryText).foregroundStyle(.primary)
-                                if !suggestion.secondaryText.isEmpty {
-                                    Text(suggestion.secondaryText).font(.caption).foregroundStyle(.secondary)
+            BoxPage {
+                BoxSection("Place") {
+                    BoxRow(isLast: model.suggestions.isEmpty && !hasStatus) {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                            TextField("Search for a place", text: Binding(get: { model.text }, set: { model.queryChanged($0) }))
+                                .focused($isSearching)
+                                .textInputAutocapitalization(.words)
+                                .autocorrectionDisabled()
+                                .accessibilityIdentifier(AccessibilityID.Results.addStopSearch)
+                        }
+                    }
+                    ForEach(Array(model.suggestions.enumerated()), id: \.element.id) { index, suggestion in
+                        BoxRow(isLast: index == model.suggestions.count - 1 && !hasStatus) {
+                            Button {
+                                isSearching = false
+                                Task { await model.select(suggestion) }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(suggestion.primaryText).foregroundStyle(.primary)
+                                    if !suggestion.secondaryText.isEmpty {
+                                        Text(suggestion.secondaryText).font(.caption).foregroundStyle(.secondary)
+                                    }
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier(AccessibilityID.Plan.suggestion(suggestion.primaryText))
+                        }
+                    }
+                    if hasStatus {
+                        BoxRow(isLast: true) {
+                            if model.isResolving {
+                                ProgressView()
+                            } else if let place = model.place {
+                                Label(place.name, systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(Theme.success)
                             }
                         }
-                        .accessibilityIdentifier(AccessibilityID.Plan.suggestion(suggestion.primaryText))
-                    }
-                    if model.isResolving {
-                        ProgressView()
-                    } else if let place = model.place {
-                        Label(place.name, systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(Theme.success)
                     }
                 }
-                Section {
-                    Stepper(
-                        value: Binding(get: { model.stayMinutes }, set: { model.setStay($0) }),
-                        in: PlanTripViewModel.stayRange, step: PlanTripViewModel.stayStep
-                    ) {
-                        Text("Stay \(model.stayText)")
+                BoxSection("Stay", footer: "The plan keeps your other stops and fits breaks, fuel and nights around this one.") {
+                    BoxRow(isLast: true) {
+                        Stepper(
+                            value: Binding(get: { model.stayMinutes }, set: { model.setStay($0) }),
+                            in: PlanTripViewModel.stayRange, step: PlanTripViewModel.stayStep
+                        ) {
+                            Text("Stay \(model.stayText)")
+                        }
                     }
-                } footer: {
-                    Text("The plan keeps your other stops and fits breaks, fuel and nights around this one.")
                 }
                 if let error = model.errorMessage {
-                    Section { Text(error).foregroundStyle(Theme.warning) }
+                    BoxSection {
+                        BoxRow(isLast: true) {
+                            Text(error).foregroundStyle(Theme.warning)
+                        }
+                    }
                 }
             }
             .navigationTitle(title)

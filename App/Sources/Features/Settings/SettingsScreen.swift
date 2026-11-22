@@ -12,99 +12,159 @@ struct SettingsScreen: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                LabeledContent("Fuel economy") {
-                    TextField("MPG", value: $model.preferences.vehicle.milesPerGallon, format: .number)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
+        BoxPage {
+            BoxSection("Your car", footer: fuelNote) {
+                BoxRow {
+                    HStack {
+                        Text("Fuel economy")
+                        Spacer()
+                        TextField("MPG", value: $model.preferences.vehicle.milesPerGallon, format: .number)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 100)
+                        Text("mpg").foregroundStyle(.secondary)
+                    }
                 }
-                LabeledContent("Tank size (gal)") {
-                    TextField("Gallons", value: $model.preferences.vehicle.tankCapacityGallons, format: .number)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
+                BoxRow {
+                    HStack {
+                        Text("Tank size")
+                        Spacer()
+                        TextField("Gallons", value: $model.preferences.vehicle.tankCapacityGallons, format: .number)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 100)
+                        Text("gal").foregroundStyle(.secondary)
+                    }
                 }
-                Picker("Fuel grade", selection: $model.preferences.vehicle.fuelType) {
-                    ForEach(FuelType.allCases) { Text($0.title).tag($0) }
+                BoxRow {
+                    choice("Fuel grade", selection: $model.preferences.vehicle.fuelType) {
+                        ForEach(FuelType.allCases) { Text($0.title).tag($0) }
+                    }
                 }
-                Stepper(value: $model.minimumFuelPercent, in: 5...50, step: 5) {
-                    Text("Refuel before \(Int(model.minimumFuelPercent))% left")
-                }
-            } header: {
-                Text("Your car")
-            } footer: {
-                let grade = model.preferences.vehicle.fuelType
-                Text("\(grade.ethanolDescription) \(grade.planningNote) \(PlanTripScreen.unlistedGradesNote)")
-            }
-
-            Section {
-                Stepper(value: $model.restIntervalHours, in: 0.5...5, step: 0.25) {
-                    Text("Break at least every \(PlanTripScreen.hoursText(model.restIntervalHours))")
-                }
-                .accessibilityIdentifier(AccessibilityID.Settings.restInterval)
-                Stepper(value: $model.restBreakMinutes, in: 10...60, step: 5) {
-                    Text("Breaks last \(Int(model.restBreakMinutes)) min")
-                }
-            } header: {
-                Text("Breaks")
-            } footer: {
-                Text("Waystage never plans more non-stop driving than this. The recommended default is a break every 2–3 hours.")
-            }
-
-            Section("Driving day") {
-                Stepper(value: $model.maxDailyDrivingHours, in: 2...14, step: 0.5) {
-                    Text("Up to \(PlanTripScreen.hoursText(model.maxDailyDrivingHours)) of driving")
-                }
-                Picker("Start driving at", selection: $model.dayStartHour) {
-                    ForEach(4...12, id: \.self) { Text(Self.hourText($0)).tag($0) }
-                }
-                Picker("Stop for the night by", selection: $model.dayEndHour) {
-                    ForEach(15...23, id: \.self) { Text(Self.hourText($0)).tag($0) }
+                BoxRow(isLast: true) {
+                    Stepper(value: $model.minimumFuelPercent, in: 5...50, step: 5) {
+                        Text("Refuel before \(Int(model.minimumFuelPercent))% left")
+                    }
                 }
             }
 
-            Section {
-                Picker("Default goal", selection: $model.preferences.goal) {
-                    ForEach(OptimizationGoal.allCases) { Text($0.displayName).tag($0) }
+            BoxSection(
+                "Breaks",
+                footer: "Waystage never plans more non-stop driving than this. The recommended default is a break every 2–3 hours."
+            ) {
+                BoxRow {
+                    Stepper(value: $model.restIntervalHours, in: 0.5...5, step: 0.25) {
+                        Text("Break at least every \(PlanTripScreen.hoursText(model.restIntervalHours))")
+                    }
+                    .accessibilityIdentifier(AccessibilityID.Settings.restInterval)
                 }
-            } header: {
-                Text("Planning")
+                BoxRow(isLast: true) {
+                    Stepper(value: $model.restBreakMinutes, in: 10...60, step: 5) {
+                        Text("Breaks last \(Int(model.restBreakMinutes)) min")
+                    }
+                }
             }
 
-            Section("Guidance") {
-                Toggle("Voice guidance", isOn: $model.preferences.voiceGuidanceEnabled)
-                    .accessibilityIdentifier(AccessibilityID.Settings.voiceGuidance)
+            BoxSection("Driving day") {
+                BoxRow {
+                    Stepper(value: $model.maxDailyDrivingHours, in: 2...14, step: 0.5) {
+                        Text("Up to \(PlanTripScreen.hoursText(model.maxDailyDrivingHours)) of driving")
+                    }
+                }
+                BoxRow {
+                    choice("Start driving at", selection: $model.dayStartHour) {
+                        ForEach(4...12, id: \.self) { Text(Self.hourText($0)).tag($0) }
+                    }
+                }
+                BoxRow(isLast: true) {
+                    choice("Stop for the night by", selection: $model.dayEndHour) {
+                        ForEach(15...23, id: \.self) { Text(Self.hourText($0)).tag($0) }
+                    }
+                }
             }
 
-            Section {
-                NavigationLink("Terms of Use") { TermsOfUseView() }
+            BoxSection("Planning") {
+                BoxRow(isLast: true) {
+                    choice("Default goal", selection: $model.preferences.goal) {
+                        ForEach(OptimizationGoal.allCases) { Text($0.displayName).tag($0) }
+                    }
+                }
+            }
+
+            BoxSection("Guidance") {
+                BoxRow(isLast: true) {
+                    Toggle("Voice guidance", isOn: $model.preferences.voiceGuidanceEnabled)
+                        .tint(Theme.brand)
+                        .accessibilityIdentifier(AccessibilityID.Settings.voiceGuidance)
+                }
+            }
+
+            BoxSection("About", footer: Self.creditsNote) {
+                BoxRow {
+                    NavigationLink { TermsOfUseView() } label: {
+                        BoxRowLabel(title: "Terms of Use")
+                    }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier(AccessibilityID.Settings.terms)
-                Link("Privacy Policy", destination: AppLinks.privacyPolicy)
-                Link("Google Maps Terms of Service", destination: Disclosures.googleMapsTermsURL)
-                Link("Google Privacy Policy", destination: Disclosures.googlePrivacyURL)
-                Link("Help & Support", destination: AppLinks.support)
-                LabeledContent("Version", value: AppLinks.versionString)
-            } header: {
-                Text("About")
-            } footer: {
-                Text(
-                    "Maps, directions and places by Google Maps. Hotel rates via Expedia. Regional fuel price averages "
-                        + "from the U.S. Energy Information Administration. Plans are suggestions and costs are estimates; "
-                        + "Waystage doesn't book anything."
-                )
+                }
+                BoxRow { link("Privacy Policy", AppLinks.privacyPolicy) }
+                BoxRow { link("Google Maps Terms of Service", Disclosures.googleMapsTermsURL) }
+                BoxRow { link("Google Privacy Policy", Disclosures.googlePrivacyURL) }
+                BoxRow { link("Help & Support", AppLinks.support) }
+                BoxRow(isLast: true) {
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text(AppLinks.versionString).foregroundStyle(.secondary)
+                    }
+                }
             }
 
-            Section {
-                Button("Reset to defaults", role: .destructive) { confirmsReset = true }
+            BoxSection {
+                BoxRow(isLast: true) {
+                    Button { confirmsReset = true } label: {
+                        BoxRowLabel(title: "Reset to defaults", trailingSymbol: nil, tint: Theme.danger)
+                    }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier(AccessibilityID.Settings.reset)
+                }
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Theme.canvas.ignoresSafeArea())
         .navigationTitle("Settings")
         .confirmationDialog("Reset all settings to their defaults?", isPresented: $confirmsReset, titleVisibility: .visible) {
             Button("Reset", role: .destructive) { model.resetToDefaults() }
         }
+    }
+
+    private var fuelNote: String {
+        let grade = model.preferences.vehicle.fuelType
+        return "\(grade.ethanolDescription) \(grade.planningNote) \(PlanTripScreen.unlistedGradesNote)"
+    }
+
+    private static let creditsNote = "Maps, directions and places by Google Maps. Hotel rates via Expedia. Regional fuel price averages "
+        + "from the U.S. Energy Information Administration. Plans are suggestions and costs are estimates; "
+        + "Waystage doesn't book anything."
+
+    /// A setting chosen from a list: its name, and the choice as a menu at the trailing edge.
+    private func choice<Value: Hashable, Options: View>(
+        _ title: String, selection: Binding<Value>, @ViewBuilder options: () -> Options
+    ) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Picker(title, selection: selection, content: options)
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .tint(Theme.accent)
+        }
+    }
+
+    /// A website opened in the browser.
+    private func link(_ title: String, _ url: URL) -> some View {
+        Link(destination: url) {
+            BoxRowLabel(title: title, trailingSymbol: "arrow.up.right")
+        }
+        .buttonStyle(.plain)
     }
 
     static func hourText(_ hour: Int) -> String {

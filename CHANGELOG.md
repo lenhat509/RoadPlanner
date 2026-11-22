@@ -58,6 +58,8 @@ wasn't released on its own.
   replaces the rounded one; the background is neutral grey (not warm paper) and actions use one
   solid highway-sign green (not teal). Home opens on a plain heading and a Plan a road trip
   button instead of a coloured banner. Map pins, the route and stop colours are unchanged.
+  Settings, a stop's details, Adjust visits, Add a visit and Adjust the rest use the same boxes
+  (the system's grouped list look, whose large rounded sections can't be restyled, is gone).
 - **The plan screen ends with its buttons**, on one line after the day-by-day plan (Undo, Adjust
   visits, Start driving); a stop's details no longer change the plan (no keep, remove, other
   hotels or add-a-stop actions, and no touch-and-hold menu): visits are changed in Adjust visits.

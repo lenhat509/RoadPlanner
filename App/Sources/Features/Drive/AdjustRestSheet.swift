@@ -21,30 +21,37 @@ struct AdjustRestSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("What changes") {
-                    ForEach(adjustment.changes, id: \.self) { line in
-                        Text(line)
+            BoxPage {
+                BoxSection("What changes") {
+                    ForEach(Array(adjustment.changes.enumerated()), id: \.offset) { index, line in
+                        BoxRow(isLast: index == adjustment.changes.count - 1) {
+                            Text(line).fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
                 if adjustment.isLateTonight && !adjustment.stopsEarlierTonight {
-                    Section {
-                        Button(action: onStopEarlier) {
-                            Label("Stop earlier tonight", systemImage: "bed.double")
+                    BoxSection(
+                        footer: "Tonight's hotel is now reached after your driving day ends. Stopping earlier finds a hotel near where today's driving ends; your own stops stay."
+                    ) {
+                        BoxRow(isLast: true) {
+                            Button(action: onStopEarlier) {
+                                BoxRowLabel(title: "Stop earlier tonight", systemImage: "bed.double")
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier(AccessibilityID.Drive.stopEarlier)
                         }
-                        .accessibilityIdentifier(AccessibilityID.Drive.stopEarlier)
-                    } footer: {
-                        Text("Tonight's hotel is now reached after your driving day ends. Stopping earlier finds a hotel near where today's driving ends; your own stops stay.")
                     }
                 }
-                Section("Next stops") {
-                    ForEach(nextStops) { stop in
-                        HStack(alignment: .top, spacing: Theme.Spacing.s) {
-                            StopDot(kind: stop.kind, isPullOff: stop.isPullOff, size: 14)
-                                .padding(.top, 4)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(stop.title).font(.subheadline.weight(.semibold))
-                                Text(stop.timeText).font(.caption).foregroundStyle(.secondary)
+                BoxSection("Next stops") {
+                    ForEach(Array(nextStops.enumerated()), id: \.element.id) { index, stop in
+                        BoxRow(isLast: index == nextStops.count - 1) {
+                            HStack(alignment: .top, spacing: Theme.Spacing.s) {
+                                StopDot(kind: stop.kind, isPullOff: stop.isPullOff, size: 14)
+                                    .padding(.top, 4)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(stop.title).font(.subheadline.weight(.semibold))
+                                    Text(stop.timeText).font(.caption).foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
