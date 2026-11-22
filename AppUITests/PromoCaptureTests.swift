@@ -17,6 +17,13 @@ final class PromoCaptureTests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = [LaunchArgument.simulateNavigation]
         app.launchEnvironment["TZ"] = "America/Denver"
+        addUIInterruptionMonitor(withDescription: "System prompts") { alert in
+            for label in ["Allow While Using App", "Allow", "OK"] where alert.buttons[label].exists {
+                alert.buttons[label].tap()
+                return true
+            }
+            return false
+        }
     }
 
     // MARK: Helpers
@@ -51,32 +58,105 @@ final class PromoCaptureTests: XCTestCase {
         app.descendants(matching: .any)[identifier].firstMatch
     }
 
-    /// Accepts first-run prompts (the terms, Google's navigation terms, the driving safety notice,
-    /// the system's notification and location prompts) until one of `targets` shows.
+    /// Records a miss with a screenshot of what was on screen (the run keeps going).
+    private func miss(_ message: String, file: StaticString = #filePath, line: UInt = #line) {
+        misses += 1
+        capture("miss-\(misses)")
+        XCTFail("\(message); on screen: \(app.visibleIdentifiers())", file: file, line: line)
+    }
+
+    private var misses = 0
+
+    /// Whether a button's label accepts a prompt (Google's navigation terms, a system prompt).
+    private static func accepting(_ label: String) -> Bool {
+        ["got it", "i agree", "agree", "accept", "i accept", "continue", "ok", "allow", "allow while using app"]
+            .contains(label.lowercased())
+    }
+
+    /// Taps one prompt's accepting button, if a prompt shows: the system's notification and
+    /// location prompts, an alert, Google's navigation terms, the driving safety notice.
+    private func answerPrompt() -> Bool {
+        for label in ["Allow While Using App", "Allow"] {
+            let button = springboard.alerts.buttons[label].firstMatch
+            if button.exists {
+                button.tap()
+                return true
+            }
+        }
+        if app.alerts.count > 0 {
+            let buttons = app.alerts.firstMatch.buttons.allElementsBoundByIndex
+            if let accept = buttons.first(where: { Self.accepting($0.label) }) ?? buttons.last {
+                print("PROMO-PROMPT alert: \(buttons.map(\.label))")
+                accept.tap()
+                return true
+            }
+        }
+        let safety = app.buttons[AccessibilityID.Drive.safetyAccept].firstMatch
+        if safety.exists && safety.isHittable {
+            safety.tap()
+            return true
+        }
+        let accepting = app.buttons.matching(NSPredicate(
+            format: "label MATCHES[c] %@", "(got it|i agree|agree|accept|i accept|ok)"
+        )).allElementsBoundByIndex.first { $0.isHittable }
+        if let accepting {
+            print("PROMO-PROMPT button: \(accepting.label)")
+            accepting.tap()
+            return true
+        }
+        return false
+    }
+
+    /// Answers prompts for `seconds`, logging the buttons on screen when they change.
+    private func clearPrompts(for seconds: TimeInterval) {
+        let deadline = Date().addingTimeInterval(seconds)
+        var shown = ""
+        while Date() < deadline {
+            if answerPrompt() {
+                pause(1)
+                continue
+            }
+            let labels = app.buttons.allElementsBoundByIndex.prefix(30).map(\.label).joined(separator: " | ")
+            if labels != shown {
+                print("PROMO-BUTTONS \(labels)")
+                shown = labels
+            }
+            pause(1)
+        }
+    }
+
+    /// Answers prompts until one of `targets` shows with no prompt for 3 s.
     @discardableResult
     private func acceptPrompts(until targets: [XCUIElement], timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
-        let systemAnswers = ["Allow While Using App", "Allow"]
-        let appAnswers = ["Got It", "GOT IT", "Got it", "I Agree", "I AGREE", "Agree", "Accept", "ACCEPT"]
+        var quiet = 0
         while Date() < deadline {
-            if targets.contains(where: \.exists) { return true }
-            for label in systemAnswers {
-                let button = springboard.alerts.buttons[label].firstMatch
-                if button.exists { button.tap(); break }
+            if answerPrompt() {
+                quiet = 0
+                pause(1)
+                continue
             }
-            for identifier in [AccessibilityID.Terms.agree, AccessibilityID.Drive.safetyAccept] {
-                let button = app.buttons[identifier].firstMatch
-                if button.exists && button.isHittable { button.tap() }
+            if targets.contains(where: \.exists) {
+                quiet += 1
+                if quiet >= 3 { return true }
             }
-            for label in appAnswers {
-                let button = app.buttons[label].firstMatch
-                if button.exists && button.isHittable { button.tap(); break }
-            }
-            _ = targets.first?.waitForExistence(timeout: 1)
+            pause(1)
         }
-        let found = targets.contains(where: \.exists)
-        if !found { XCTFail("not shown; on screen: \(app.visibleIdentifiers())") }
-        return found
+        miss("not shown")
+        return false
+    }
+
+    /// First launch: "Before you start", then Google's navigation terms and the notification prompt.
+    private func getPastFirstLaunch() {
+        let agree = app.buttons[AccessibilityID.Terms.agree].firstMatch
+        if agree.waitForExistence(timeout: 60) {
+            pause(1)
+            reveal(agree)
+            agree.tap()
+        } else {
+            miss("no Before you start")
+        }
+        clearPrompts(for: 15)
     }
 
     /// Swipes the page up until `target` can be tapped.
@@ -91,7 +171,7 @@ final class PromoCaptureTests: XCTestCase {
     /// Types into a place field and picks Google's suggestion named `pick`.
     private func choose(_ identifier: String, typing text: String, pick: String) {
         let field = app.textFields[identifier]
-        guard field.waitForExistence(timeout: 10) else { return XCTFail("no field \(identifier)") }
+        guard field.waitForExistence(timeout: 10) else { return miss("no field \(identifier)") }
         reveal(field)
         for _ in 0..<5 where !((field.value(forKey: "hasKeyboardFocus") as? Bool) ?? false) {
             field.tap()
@@ -106,7 +186,7 @@ final class PromoCaptureTests: XCTestCase {
         } else if similar.exists {
             similar.tap()
         } else {
-            XCTFail("no suggestion \(pick); on screen: \(app.visibleIdentifiers())")
+            miss("no suggestion \(pick)")
         }
         pause(1)
     }
@@ -114,7 +194,7 @@ final class PromoCaptureTests: XCTestCase {
     /// Taps a stay stepper's + (`label` is the stepper's accessibility label; `index` counts stops).
     private func increment(_ label: String, index: Int) {
         let stepper = app.steppers.matching(NSPredicate(format: "label == %@", label)).element(boundBy: index)
-        guard stepper.waitForExistence(timeout: 5) else { return XCTFail("no stepper \(label) #\(index)") }
+        guard stepper.waitForExistence(timeout: 5) else { return miss("no stepper \(label) #\(index)") }
         reveal(stepper)
         stepper.buttons["Increment"].firstMatch.tap()
         pause(0.8)
@@ -123,7 +203,7 @@ final class PromoCaptureTests: XCTestCase {
     /// Taps a plan button, at the end of its scrolling page.
     private func tapPlanButton(_ identifier: String) {
         let button = app.buttons[identifier].firstMatch
-        guard button.waitForExistence(timeout: 10) else { return XCTFail("no \(identifier)") }
+        guard button.waitForExistence(timeout: 10) else { return miss("no \(identifier)") }
         var swipes = 0
         while !button.isHittable && swipes < 12 {
             app.swipeUp(velocity: .slow)
@@ -135,7 +215,7 @@ final class PromoCaptureTests: XCTestCase {
     /// Adds a visit from Adjust visits' search.
     private func addVisit(typing text: String, pick: String) {
         let add = app.buttons[AccessibilityID.Visits.add].firstMatch
-        guard add.waitForExistence(timeout: 10) else { return XCTFail("no Add a visit") }
+        guard add.waitForExistence(timeout: 10) else { return miss("no Add a visit") }
         add.tap()
         choose(AccessibilityID.Results.addStopSearch, typing: text, pick: pick)
         let confirm = app.buttons[AccessibilityID.Results.addStopConfirm].firstMatch
@@ -158,13 +238,18 @@ final class PromoCaptureTests: XCTestCase {
         app.launch()
         mark("launch")
         let planTrip = app.buttons[AccessibilityID.Home.planTrip].firstMatch
-        acceptPrompts(until: [planTrip], timeout: 90)
-        pause(2)
+        getPastFirstLaunch()
+        acceptPrompts(until: [planTrip], timeout: 30)
+        pause(1)
         capture("00-home")
 
         // The new trip: Denver to San Jose by Salt Lake City (2 h) and Las Vegas (a night).
         mark("form")
         planTrip.tap()
+        if !app.textFields[AccessibilityID.Plan.origin].waitForExistence(timeout: 10) {
+            clearPrompts(for: 5)
+            planTrip.tap()
+        }
         pause(1.5)
         choose(AccessibilityID.Plan.origin, typing: "Denver", pick: "Denver")
         choose(AccessibilityID.Plan.destination, typing: "San Jose", pick: "San Jose")
@@ -203,7 +288,7 @@ final class PromoCaptureTests: XCTestCase {
         submit.tap()
         let fastest = app.buttons[AccessibilityID.Results.option("fastest")].firstMatch
         guard fastest.waitForExistence(timeout: 180) else {
-            return XCTFail("no plan; on screen: \(app.visibleIdentifiers())")
+            return miss("no plan")
         }
         mark("plan")
         pause(7) // map tiles
@@ -220,7 +305,7 @@ final class PromoCaptureTests: XCTestCase {
         mark("visits")
         tapPlanButton(AccessibilityID.Results.adjustVisits)
         guard app.buttons[AccessibilityID.Visits.add].firstMatch.waitForExistence(timeout: 15) else {
-            return XCTFail("no Adjust visits; on screen: \(app.visibleIdentifiers())")
+            return miss("no Adjust visits")
         }
         pause(4)
         addVisit(typing: "Rocky Mountain Nat", pick: "Rocky Mountain National Park")
@@ -245,7 +330,7 @@ final class PromoCaptureTests: XCTestCase {
             reveal(saltLake)
             saltLake.tap()
         } else {
-            XCTFail("Salt Lake City not in the list; on screen: \(app.visibleIdentifiers())")
+            miss("Salt Lake City not in the list")
         }
         pause(1.5)
         app.swipeDown(velocity: .slow)

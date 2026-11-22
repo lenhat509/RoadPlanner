@@ -2,7 +2,7 @@ name: Promo media
 
 # Captures the promo screenshots and a screen recording of the real app with live Google data
 # (Denver → Salt Lake City → Las Vegas → San Jose) on an iPhone Pro Max simulator: the
-# PromoCaptureTests walkthrough. Download the "promo" artifact; scripts/make_promo_images.py and
+# PromoCaptureTests walkthrough. Fetch the promo-captures branch (or the "promo" artifact); scripts/make_promo_images.py and
 # scripts/make_app_preview.py turn it into the App Store images and preview clip.
 
 on:
@@ -22,6 +22,8 @@ jobs:
     # The Google key lives with the App Store secrets.
     environment: app-store
     timeout-minutes: 60
+    permissions:
+      contents: write  # to publish the captures to the promo-captures branch
     env:
       WAYSTAGE_BUNDLE_ID: ${{ vars.WAYSTAGE_BUNDLE_ID || secrets.WAYSTAGE_BUNDLE_ID || vars.CADENCE_BUNDLE_ID }}
       WAYSTAGE_TEAM_ID: ${{ vars.WAYSTAGE_TEAM_ID || secrets.WAYSTAGE_TEAM_ID || vars.CADENCE_TEAM_ID }}
@@ -96,6 +98,18 @@ jobs:
           python3 scripts/print_screenshots.py raw promo/screenshots
           cp raw/manifest.json promo/attachments-manifest.json
           find raw -name "*.json" ! -name manifest.json -exec cp {} promo/ \;
+      - name: Publish the captures to the promo-captures branch
+        # Artifacts can't be downloaded from every machine; a branch can be fetched with git.
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          cd promo
+          git init -q -b promo-captures
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" \
+            commit -q -m "Promo captures from run $GITHUB_RUN_ID"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" promo-captures
       - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
