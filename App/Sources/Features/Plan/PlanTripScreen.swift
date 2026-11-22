@@ -203,9 +203,14 @@ struct PlanTripScreen: View {
                 .padding(.vertical, Theme.Spacing.xs)
                 .accessibilityIdentifier(AccessibilityID.Plan.addStop)
             }
+            if model.stops.count > 1 {
+                StopOrderPicker(selection: $model.stopOrder)
+                    .padding(.vertical, Theme.Spacing.xs)
+                    .accessibilityIdentifier(AccessibilityID.Plan.stopOrder)
+            }
             Text(model.stops.isEmpty
                 ? "Places to visit on the way, like a park or a friend's town, with how long to stay."
-                : "With stops on the way, Waystage plans one route through them, in this order.")
+                : (model.stops.count > 1 ? StopOrderPicker.note(for: model.stopOrder) : "Waystage plans one route through it."))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.bottom, Theme.Spacing.xs)
@@ -237,10 +242,13 @@ struct PlanTripScreen: View {
                         .accessibilityLabel("Place selected")
                 }
                 Menu {
-                    Button("Move earlier", systemImage: "arrow.up") { withAnimation(.snappy) { model.moveStop(stop.id, by: -1) } }
-                        .disabled(index == 0)
-                    Button("Move later", systemImage: "arrow.down") { withAnimation(.snappy) { model.moveStop(stop.id, by: 1) } }
-                        .disabled(index == model.stops.count - 1)
+                    // With the shortest drive, Google orders them.
+                    if model.stopOrder == .asListed {
+                        Button("Move earlier", systemImage: "arrow.up") { withAnimation(.snappy) { model.moveStop(stop.id, by: -1) } }
+                            .disabled(index == 0)
+                        Button("Move later", systemImage: "arrow.down") { withAnimation(.snappy) { model.moveStop(stop.id, by: 1) } }
+                            .disabled(index == model.stops.count - 1)
+                    }
                     Button("Remove", systemImage: "trash", role: .destructive) { withAnimation(.snappy) { model.removeStop(stop.id) } }
                 } label: {
                     IconButtonLabel(systemImage: "ellipsis")

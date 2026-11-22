@@ -105,6 +105,11 @@ block for stops on the way, editing a plan and planning the rest of a trip again
 * **Routing:** the trip is routed through them as intermediate waypoints. Google's Routes API
   returns no alternative routes for such requests, so the trip has one corridor (plus its
   toll-free version), and no via hubs (which would be ordered after the stops).
+* **Order:** places to visit are routed in the order listed (`stopOrder = .asListed`), or with
+  the shortest drive (`.shortest`): the same Routes API request sets `optimizeWaypointOrder`
+  and Google returns its order (`optimizedIntermediateWaypointIndex`); the request's stops are
+  put in that order before anything else is planned. Waystage doesn't order stops itself. Kept
+  hotels and breaks (Adjust the rest) are never reordered.
 * **Candidates:** each required stop sits at the end of its leg (cumulative leg distance, scaled
   to the route's geometry; time from the route profile), with no detour. A search result for the
   same place gives it its live details (price, rate). Removed places (`avoidedPlaceIDs`) are

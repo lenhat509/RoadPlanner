@@ -122,6 +122,15 @@ public struct StartState: Codable, Hashable, Sendable {
     }
 }
 
+/// How a trip's places to visit are ordered.
+public enum StopOrder: String, Codable, CaseIterable, Sendable {
+    /// In the order the traveler listed them.
+    case asListed
+    /// The order with the shortest drive, chosen by the routing provider (Google's waypoint
+    /// optimization) along with the route.
+    case shortest
+}
+
 /// Everything the planner needs to build an itinerary.
 public struct TripRequest: Codable, Hashable, Sendable {
     public var origin: Place
@@ -141,9 +150,17 @@ public struct TripRequest: Codable, Hashable, Sendable {
     public var avoidedPlaceIDs: [String]?
     /// Driving already done today, when the rest of a trip is planned again during a drive.
     public var startState: StartState?
+    /// How the places to visit are ordered (nil: as listed, as before 1.2.0).
+    public var stopOrder: StopOrder?
 
     /// The stops the plan must include, in route order.
     public var requiredStops: [RequiredStop] { stops ?? [] }
+
+    /// The routing provider chooses the order of the stops: the shortest drive was asked for, and
+    /// they are all places to visit (kept hotels and breaks keep their order).
+    public var optimizesStopOrder: Bool {
+        stopOrder == .shortest && requiredStops.count > 1 && requiredStops.allSatisfy { $0.purpose == .visit }
+    }
 
     public init(
         origin: Place,
@@ -156,7 +173,8 @@ public struct TripRequest: Codable, Hashable, Sendable {
         travelers: Int = 2,
         stops: [RequiredStop]? = nil,
         avoidedPlaceIDs: [String]? = nil,
-        startState: StartState? = nil
+        startState: StartState? = nil,
+        stopOrder: StopOrder? = nil
     ) {
         self.origin = origin
         self.destination = destination
@@ -169,6 +187,7 @@ public struct TripRequest: Codable, Hashable, Sendable {
         self.stops = stops.flatMap { $0.isEmpty ? nil : $0 }
         self.avoidedPlaceIDs = avoidedPlaceIDs.flatMap { $0.isEmpty ? nil : $0 }
         self.startState = startState
+        self.stopOrder = stopOrder
     }
 
     /// Validates the request. An empty result means the request can be planned.

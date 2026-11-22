@@ -114,7 +114,7 @@ struct AdjustVisitsSheet: View {
                 HStack {
                     SectionLabel(title: "Your visits")
                     Spacer()
-                    if model.visits.count > 1 {
+                    if model.visits.count > 1 && model.canReorder {
                         Button(editMode.isEditing ? "Done" : "Reorder") {
                             withAnimation { editMode = editMode.isEditing ? .inactive : .active }
                         }
@@ -126,6 +126,19 @@ struct AdjustVisitsSheet: View {
                     }
                 }
                 .plainListRow()
+                if model.visits.count > 1 {
+                    StopOrderPicker(selection: Binding(
+                        get: { model.stopOrder },
+                        set: { order in
+                            model.setStopOrder(order)
+                            // With the shortest drive, Google orders them: nothing to drag.
+                            if order == .shortest { editMode = .inactive }
+                        }
+                    ))
+                    .disabled(model.isUpdating)
+                    .accessibilityIdentifier(AccessibilityID.Visits.order)
+                    .plainListRow()
+                }
                 if model.visits.isEmpty {
                     Text("No visits yet. Add the places you want to stop at.")
                         .font(.subheadline)
@@ -135,10 +148,8 @@ struct AdjustVisitsSheet: View {
                 ForEach(Array(model.visits.enumerated()), id: \.element.id) { index, visit in
                     VisitEntryRow(visit: visit, number: index + 1) { model.toggle(visit.id) }
                 }
-                .onMove { model.move(fromOffsets: $0, toOffset: $1) }
-                Text(editMode.isEditing
-                    ? "Drag the visits into the order you want to stop at them."
-                    : "Waystage puts your visits in the order that adds the least driving; tap Reorder to change it. Tap a visit to remove it from the plan, or tap it again to keep it. Nothing changes until you tap Update plan.")
+                .onMove(perform: model.canReorder ? { (source: IndexSet, destination: Int) in model.move(fromOffsets: source, toOffset: destination) } : nil)
+                Text(footer)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -156,6 +167,14 @@ struct AdjustVisitsSheet: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             }
         }
+    }
+
+    private var footer: String {
+        if editMode.isEditing { return "Drag the visits into the order you want to stop at them." }
+        let order = model.stopOrder == .shortest
+            ? "Google Maps puts your visits in the order with the shortest drive when you tap Update plan."
+            : "Your visits are planned in the order listed; tap Reorder to change it."
+        return order + " Tap a visit to remove it from the plan, or tap it again to keep it. Nothing changes until you tap Update plan."
     }
 
     /// Update plan (while there are changes to plan), then Use this plan.

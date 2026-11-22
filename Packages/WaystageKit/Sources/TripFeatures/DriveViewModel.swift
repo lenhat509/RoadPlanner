@@ -633,6 +633,8 @@ public final class DriveViewModel: Identifiable {
             return true
         }.map { PlanResultViewModel.requiredStop(keeping: $0.element) }
         request.stops = kept.isEmpty ? nil : kept
+        // The plan's order (Google's shortest drive, if it chose it) stays: hotels are kept with it.
+        request.stopOrder = .asListed
         request.vehicle.initialFuelFraction = estimatedFuelFraction()
         let driven = drivenSinceLastNight()
         request.startState = driven > 0 ? StartState(drivenToday: driven) : nil

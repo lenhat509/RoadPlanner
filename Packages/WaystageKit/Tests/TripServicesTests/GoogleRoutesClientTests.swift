@@ -67,6 +67,26 @@ struct GoogleRoutesClientTests {
         #expect((stopoverBody["intermediates"] as? [[String: Any]])?.first?["via"] == nil, "a stop is not a via waypoint")
     }
 
+    @Test("The shortest drive: Google's waypoint optimization is asked for, and its order read back")
+    func waypointOptimization() async throws {
+        let stops = [GeoCoordinate(latitude: 37.9, longitude: -122.1), GeoCoordinate(latitude: 37.95, longitude: -122.0)]
+        let optimizing = try client(StubHTTPTransport()).makeRequest(for: RouteQuery(
+            origin: origin, destination: destination, intermediates: stops, optimizeOrder: true
+        ))
+        let body = try #require(optimizing.body).jsonObject()
+        #expect(body["optimizeWaypointOrder"] as? Bool == true)
+        #expect(optimizing.headers["X-Goog-FieldMask"]?.contains("routes.optimizedIntermediateWaypointIndex") == true)
+
+        let listed = try client(StubHTTPTransport()).makeRequest(for: RouteQuery(origin: origin, destination: destination, intermediates: stops))
+        #expect(try #require(listed.body).jsonObject()["optimizeWaypointOrder"] == nil, "in the order listed: not asked for")
+        #expect(listed.headers["X-Goog-FieldMask"]?.contains("optimizedIntermediateWaypointIndex") == false)
+
+        let transport = StubHTTPTransport()
+        transport.stub("computeRoutes", body: Data(#"{"routes":[{"distanceMeters":1000,"duration":"60s","optimizedIntermediateWaypointIndex":[1,0]}]}"#.utf8))
+        let routes = try await client(transport).computeRoutes(RouteQuery(origin: origin, destination: destination, intermediates: stops, optimizeOrder: true))
+        #expect(routes.first?.optimizedIntermediateOrder == [1, 0])
+    }
+
     @Test("The sandbox backend routes through via waypoints in a single leg")
     func sandboxVia() async throws {
         let hub = GeoCoordinate(latitude: 36.17, longitude: -115.14) // Las Vegas

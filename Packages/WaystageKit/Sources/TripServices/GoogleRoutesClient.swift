@@ -25,6 +25,9 @@ public struct GoogleRoutesClient: RoutingProvider {
         "routes.legs.steps.navigationInstruction",
     ].joined(separator: ",")
 
+    /// With waypoint optimization, also the order Google chose.
+    public static let optimizingFieldMask = fieldMask + ",routes.optimizedIntermediateWaypointIndex"
+
     private let configuration: GoogleMapsConfiguration
     private let transport: any HTTPTransport
     private let now: @Sendable () -> Date
@@ -58,6 +61,8 @@ public struct GoogleRoutesClient: RoutingProvider {
             departureTime: query.departure.flatMap { $0 > now().addingTimeInterval(60) ? Self.timestamp($0) : nil },
             // Alternatives are not supported together with intermediate waypoints.
             computeAlternativeRoutes: query.computeAlternatives && waypoints.isEmpty,
+            // Google orders the stop-overs for the shortest drive (not with pass-through points).
+            optimizeWaypointOrder: optimizes(query) ? true : nil,
             routeModifiers: query.avoidTolls ? .init(avoidTolls: true) : nil,
             extraComputations: ["TOLLS"],
             polylineQuality: "HIGH_QUALITY",
@@ -67,9 +72,13 @@ public struct GoogleRoutesClient: RoutingProvider {
         return HTTPRequest(
             method: .post,
             url: Self.endpoint,
-            headers: configuration.headers(fieldMask: Self.fieldMask),
+            headers: configuration.headers(fieldMask: optimizes(query) ? Self.optimizingFieldMask : Self.fieldMask),
             body: try JSON.encoder.encode(body)
         )
+    }
+
+    private func optimizes(_ query: RouteQuery) -> Bool {
+        query.optimizeOrder && query.intermediates.count > 1 && query.vias.isEmpty
     }
 
     static func timestamp(_ date: Date) -> String {
@@ -102,7 +111,8 @@ public struct GoogleRoutesClient: RoutingProvider {
             duration: GoogleDuration.seconds(route.duration) ?? 0,
             encodedPolyline: route.polyline?.encodedPolyline ?? "",
             legs: legs,
-            tollCostUSD: tolls(route.travelAdvisory)
+            tollCostUSD: tolls(route.travelAdvisory),
+            optimizedIntermediateOrder: route.optimizedIntermediateWaypointIndex
         )
     }
 
@@ -124,6 +134,7 @@ struct ComputeRoutesRequest: Encodable {
     var routingPreference: String
     var departureTime: String?
     var computeAlternativeRoutes: Bool
+    var optimizeWaypointOrder: Bool?
     var routeModifiers: RouteModifiers?
     var extraComputations: [String]
     var polylineQuality: String
@@ -178,6 +189,7 @@ struct ComputeRoutesResponse: Decodable {
         var polyline: Polyline?
         var travelAdvisory: TravelAdvisory?
         var legs: [Leg]?
+        var optimizedIntermediateWaypointIndex: [Int]?
     }
 
     var routes: [Route]?

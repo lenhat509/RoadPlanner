@@ -38,9 +38,40 @@ public struct FakeRoutingProvider: RoutingProvider {
             }
             return routes
         }
-        return [SyntheticRoute.make(
-            through: [query.origin] + query.intermediates + [query.destination], speedMPH: speedMPH, summary: summary
-        )]
+        // Google's waypoint optimization, simulated: the shortest straight-line order.
+        let order = query.optimizeOrder && query.vias.isEmpty
+            ? Self.shortestOrder(from: query.origin, through: query.intermediates, to: query.destination)
+            : Array(query.intermediates.indices)
+        var route = SyntheticRoute.make(
+            through: [query.origin] + order.map { query.intermediates[$0] } + [query.destination], speedMPH: speedMPH, summary: summary
+        )
+        if query.optimizeOrder { route.optimizedIntermediateOrder = order }
+        return [route]
+    }
+
+    /// The order of `points` with the shortest straight-line path (every order tried: up to 8
+    /// points; more keep their order).
+    static func shortestOrder(from origin: GeoCoordinate, through points: [GeoCoordinate], to destination: GeoCoordinate) -> [Int] {
+        guard points.count > 1, points.count <= 8 else { return Array(points.indices) }
+        func length(_ order: [Int]) -> Double {
+            let path = [origin] + order.map { points[$0] } + [destination]
+            return zip(path, path.dropFirst()).reduce(0) { $0 + GeoMath.distance($1.0, $1.1) }
+        }
+        var best = Array(points.indices), bestLength = length(best)
+        func permute(_ prefix: [Int], _ rest: [Int]) {
+            guard !rest.isEmpty else {
+                let candidate = length(prefix)
+                if candidate < bestLength { best = prefix; bestLength = candidate }
+                return
+            }
+            for (index, next) in rest.enumerated() {
+                var remaining = rest
+                remaining.remove(at: index)
+                permute(prefix + [next], remaining)
+            }
+        }
+        permute([], Array(points.indices))
+        return best
     }
 }
 

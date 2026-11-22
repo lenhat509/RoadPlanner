@@ -15,6 +15,7 @@ screen; use the shared pieces below rather than styling a screen's own.
 | Text input | Grey fill (`Theme.mutedFill`), 6 pt corners | `NumberTile`, `NumberFieldRow` |
 | Choice from a list | Value with a green up-down mark; tapping lists the options at the bottom | `OptionTile` (form), `ChoiceRow` (box row) |
 | Switch | Green (`Theme.accent`) | `Toggle(...).tint(Theme.accent)` |
+| Visit order | Segmented: Shortest drive / As listed, with its note | `StopOrderPicker` |
 | Link or action row | Title, trailing chevron (another screen) or ↗ (website); destructive in red | `BoxRowLabel` |
 | Section title | Small grey capitals above a box | `SectionLabel` |
 | Note | Footnote, grey, under its box | `BoxSection(footer:)` or `.font(.footnote).foregroundStyle(.secondary)` |

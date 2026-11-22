@@ -131,6 +131,31 @@ struct RequiredStopPlanningTests {
         #expect(distances == distances.sorted())
     }
 
+    @Test("Visits in the order listed, or in Google's order for the shortest drive")
+    func stopOrder() async throws {
+        var request = SampleTrips.request(from: "sf", to: "nyc")
+        request.stops = [.visit(SampleTrips.city("chi"), stay: 1_800), .visit(SampleTrips.city("den"), stay: 1_800)]
+        request.stopOrder = .asListed
+        let listed = try #require(try await SampleTrips.planningService().plan(request).recommended)
+        #expect(listed.stops.filter { $0.kind == .visit }.map(\.place.id) == ["chi", "den"])
+
+        request.stopOrder = .shortest
+        let shortest = try #require(try await SampleTrips.planningService().plan(request).recommended)
+        #expect(shortest.stops.filter { $0.kind == .visit }.map(\.place.id) == ["den", "chi"])
+        #expect(shortest.request.requiredStops.map(\.place.id) == ["den", "chi"], "the plan's request is in Google's order")
+        #expect(shortest.totals.distanceMeters < listed.totals.distanceMeters)
+    }
+
+    @Test("Kept hotels keep their order: only places to visit are reordered")
+    func onlyVisitsAreReordered() {
+        var request = SampleTrips.request(from: "sf", to: "nyc")
+        request.stopOrder = .shortest
+        request.stops = [.visit(SampleTrips.city("chi"), stay: 1_800), .visit(SampleTrips.city("den"), stay: 1_800)]
+        #expect(request.optimizesStopOrder)
+        request.stops?.append(RequiredStop(place: SampleTrips.city("lv"), purpose: .lodging))
+        #expect(!request.optimizesStopOrder)
+    }
+
     @Test("A removed stop isn't planned again, and a kept hotel stays")
     func avoidAndKeep() async throws {
         let service = SampleTrips.planningService()

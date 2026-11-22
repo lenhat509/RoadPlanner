@@ -90,9 +90,10 @@ public struct SimulatedGoogleBackend: HTTPTransport {
         let vias = waypoints.filter { ($0["via"] as? Bool) == true }.compactMap(coordinate)
         let avoidTolls = ((body["routeModifiers"] as? [String: Any])?["avoidTolls"] as? Bool) ?? false
         let alternatives = (body["computeAlternativeRoutes"] as? Bool) ?? false
+        let optimize = (body["optimizeWaypointOrder"] as? Bool) ?? false
         let routes = try await routing.computeRoutes(RouteQuery(
             origin: origin, destination: destination, intermediates: intermediates, vias: vias,
-            avoidTolls: avoidTolls, computeAlternatives: alternatives
+            avoidTolls: avoidTolls, computeAlternatives: alternatives, optimizeOrder: optimize
         ))
         return Self.json(["routes": routes.map(Self.encode)])
     }
@@ -122,6 +123,7 @@ public struct SimulatedGoogleBackend: HTTPTransport {
             },
         ]
         if let tolls = route.tollCostUSD { json["travelAdvisory"] = tollInfo(tolls) }
+        if let order = route.optimizedIntermediateOrder { json["optimizedIntermediateWaypointIndex"] = order }
         return json
     }
 

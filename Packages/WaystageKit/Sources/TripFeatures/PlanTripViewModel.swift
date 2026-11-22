@@ -53,8 +53,11 @@ public final class PlanTripViewModel {
     // Form state
     public var origin = LocationInput()
     public var destination = LocationInput()
-    /// Stops on the way, in route order.
+    /// Stops on the way, in the order listed.
     public var stops: [StopInput] = []
+    /// Visit them in the order listed, or in the order with the shortest drive (Google chooses it
+    /// along with the route).
+    public var stopOrder = StopOrder.shortest
     public var departure: Date {
         didSet { if !isApplyingDefaultDeparture { departureEditedByUser = true } }
     }
@@ -300,7 +303,8 @@ public final class PlanTripViewModel {
             policy: policy,
             goal: goal,
             travelers: travelers,
-            stops: required
+            stops: required,
+            stopOrder: required.isEmpty ? nil : stopOrder
         )
         errors += request.validationErrors().filter { !errors.contains($0) }
         return errors.isEmpty ? .valid(request) : .invalid(errors)

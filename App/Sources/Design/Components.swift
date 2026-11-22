@@ -613,3 +613,27 @@ struct WarningList: View {
         }
     }
 }
+
+// MARK: - Stop order
+
+/// How the places to visit are ordered: the shortest drive (Google chooses the order along with
+/// the route) or as listed. The same control on the plan form and in Adjust visits.
+struct StopOrderPicker: View {
+    @Binding var selection: StopOrder
+
+    var body: some View {
+        Picker("Visit order", selection: $selection) {
+            Text("Shortest drive").tag(StopOrder.shortest)
+            Text("As listed").tag(StopOrder.asListed)
+        }
+        .pickerStyle(.segmented)
+    }
+
+    /// What the chosen order means, under the control.
+    static func note(for order: StopOrder) -> String {
+        switch order {
+        case .shortest: "Google Maps puts your visits in the order with the shortest drive."
+        case .asListed: "Your visits are planned in the order listed."
+        }
+    }
+}

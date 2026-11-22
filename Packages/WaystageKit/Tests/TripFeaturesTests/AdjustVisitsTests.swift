@@ -76,8 +76,8 @@ struct AdjustVisitsTests {
 
         editor.add(SampleTrips.city("la"), stay: 3_600)
         editor.toggle(lasVegas.id)
-        #expect(editor.visits.map(\.name) == ["Los Angeles", "Las Vegas"], "Los Angeles goes first: the least driving")
-        #expect(editor.visits.map(\.status) == [.toBeAdded, .toBeRemoved])
+        #expect(editor.visits.map(\.name) == ["Las Vegas", "Los Angeles"], "a place added goes to the end of the list")
+        #expect(editor.visits.map(\.status) == [.toBeRemoved, .toBeAdded])
         #expect(editor.plan.id == itinerary.id && planner.plans == 0, "nothing is planned before Update plan")
 
         await editor.updatePlan()
@@ -178,8 +178,10 @@ struct AdjustVisitsTests {
         let itinerary = try await itinerary(harness)
         let drive = DriveViewModel(trip: ActiveTrip(itinerary: itinerary), dependencies: dependencies(harness, clock, planner: planner))
         let editor = drive.visitsEditor()
+        #expect(editor.stopOrder == .asListed && editor.canReorder, "a trip saved without an order: as listed")
         editor.add(SampleTrips.city("la"), stay: 3_600)
-        #expect(editor.visits.map(\.name) == ["Los Angeles", "Las Vegas"])
+        #expect(editor.visits.map(\.name) == ["Las Vegas", "Los Angeles"])
+        editor.move(fromOffsets: [1], toOffset: 0)
         editor.move(fromOffsets: [0], toOffset: 2)
         #expect(editor.visits.map(\.name) == ["Las Vegas", "Los Angeles"])
         #expect(planner.plans == 0)
@@ -220,50 +222,33 @@ struct AdjustVisitsTests {
         #expect(editor.plan.request.requiredStops.isEmpty, "only visits are kept, and the visit was removed")
     }
 
-    @Test("Waystage orders the visits for the least driving when one is added")
-    func leastDrivingOrder() async throws {
+    @Test("Shortest drive: Google orders the visits, at Update plan; as listed: the list's order")
+    func shortestDrive() async throws {
         let harness = FeatureHarness(), clock = Clock()
         let planner = CountingPlanner(harness.dependencies.planner)
         var request = SampleTrips.request(from: "sf", to: "nyc")
-        // Entered in a zigzag: Chicago, then back west to Denver.
+        // Entered in a zigzag, to be visited as listed: Chicago, then back west to Denver.
         request.stops = [.visit(SampleTrips.city("chi"), stay: 1_800), .visit(SampleTrips.city("den"), stay: 1_800)]
+        request.stopOrder = .asListed
         let itinerary = try #require(try await harness.dependencies.planner.plan(request) { _ in }.recommended)
+        #expect(itinerary.stops.filter { $0.kind == .visit }.map(\.place.id) == ["chi", "den"], "as listed")
         let drive = DriveViewModel(trip: ActiveTrip(itinerary: itinerary), dependencies: dependencies(harness, clock, planner: planner))
         let editor = drive.visitsEditor()
-        #expect(editor.visits.map(\.name) == ["Chicago", "Denver"], "the plan's order until something changes")
         editor.add(SampleTrips.city("lv"), stay: 1_800)
-        #expect(editor.visits.map(\.name) == ["Las Vegas", "Denver", "Chicago"])
+        #expect(editor.visits.map(\.name) == ["Chicago", "Denver", "Las Vegas"])
+
+        editor.setStopOrder(.shortest)
+        #expect(!editor.canReorder && editor.hasPendingChanges)
         #expect(planner.plans == 0)
         await editor.updatePlan()
-        #expect(editor.plan.stops.filter { $0.kind == .visit }.map(\.place.id) == ["lv", "den", "chi"])
+        #expect(planner.plans == 1)
+        #expect(editor.plan.stops.filter { $0.kind == .visit }.map(\.place.id) == ["lv", "den", "chi"], "Google's order")
+        #expect(editor.plan.request.stopOrder == .shortest)
+        #expect(editor.visits.map(\.name) == ["Las Vegas", "Denver", "Chicago"], "the list shows the plan's order")
+        #expect(!editor.hasPendingChanges)
 
-        // Once moved by hand, the order is the traveler's: a new visit only goes where it fits.
-        editor.move(fromOffsets: [2], toOffset: 0)
-        #expect(editor.visits.map(\.name) == ["Chicago", "Las Vegas", "Denver"])
-        editor.add(SampleTrips.city("la"), stay: 1_800)
-        #expect(editor.visits.map(\.name).filter { $0 != "Los Angeles" } == ["Chicago", "Las Vegas", "Denver"])
-    }
-
-    @Test("The shortest order through every visit, from the start to the destination")
-    func bestOrder() {
-        let start = GeoCoordinate(latitude: 0, longitude: 0)
-        let end = GeoCoordinate(latitude: 0, longitude: 10)
-        let points = [8.0, 2.0, 5.0].map { GeoCoordinate(latitude: 0.1, longitude: $0) }
-        #expect(AdjustVisitsViewModel.bestOrder(origin: start, through: points, destination: end) == [1, 2, 0])
-        #expect(AdjustVisitsViewModel.bestOrder(origin: start, through: [], destination: end).isEmpty)
-    }
-
-    @Test("A new visit goes where it adds the least driving")
-    func insertion() {
-        let origin = GeoCoordinate(latitude: 0, longitude: 0)
-        let stop = GeoCoordinate(latitude: 0, longitude: 10)
-        let destination = GeoCoordinate(latitude: 0, longitude: 20)
-        func index(_ longitude: Double) -> Int {
-            AdjustVisitsViewModel.insertionIndex(
-                of: GeoCoordinate(latitude: 0.1, longitude: longitude), origin: origin, stops: [stop], destination: destination
-            )
-        }
-        #expect(index(4) == 0)
-        #expect(index(16) == 1)
+        // Back to the order listed: a change to plan, and the visits can be moved again.
+        editor.setStopOrder(.asListed)
+        #expect(editor.hasPendingChanges && editor.canReorder)
     }
 }

@@ -153,7 +153,11 @@ public final class TripPlanningService: TripPlanning, Sendable {
         guard errors.isEmpty else { throw PlanningError.invalidRequest(errors) }
 
         progress(.findingRoute)
-        let corridors = try await candidateCorridors(for: request)
+        // With the shortest drive asked for, Google orders the stops: the rest of planning (and the
+        // plan's request) uses its order.
+        let routed = try await candidateCorridors(for: request)
+        let request = routed.request
+        let corridors = routed.corridors
 
         // Stops along every route (each corridor's route and any toll-free version). Stretches of
         // road the routes share are searched once (`SharedSearches`), as is road already searched
@@ -339,7 +343,7 @@ public final class TripPlanningService: TripPlanning, Sendable {
 
     /// The routes worth planning: the provider's route and alternatives, a toll-free version, and
     /// routes through highway hubs off those, narrowed to a few different, reasonable corridors.
-    private func candidateCorridors(for request: TripRequest) async throws -> [RouteAlternatives.Corridor] {
+    private func candidateCorridors(for request: TripRequest) async throws -> (request: TripRequest, corridors: [RouteAlternatives.Corridor]) {
         let origin = request.origin.coordinate, destination = request.destination.coordinate
         if !request.requiredStops.isEmpty { return try await corridorThroughStops(for: request) }
         var routes: [ComputedRoute]
@@ -371,15 +375,19 @@ public final class TripPlanningService: TripPlanning, Sendable {
         routes += viaRoutes.compactMap { $0 }
 
         let corridors = alternatives.select(routes)
-        return corridors.isEmpty ? [RouteAlternatives.Corridor(primary: routes[0])] : corridors
+        return (request, corridors.isEmpty ? [RouteAlternatives.Corridor(primary: routes[0])] : corridors)
     }
 
     /// With stops on the way: one route through them (Google offers no alternative routes through
-    /// stops), plus a toll-free version where the route has tolls.
-    private func corridorThroughStops(for request: TripRequest) async throws -> [RouteAlternatives.Corridor] {
-        let query = RouteQuery(
+    /// stops), plus a toll-free version where the route has tolls. In the order listed, or, with the
+    /// shortest drive asked for, in the order Google chooses (its waypoint optimization, in the same
+    /// request): the request comes back with its stops in that order.
+    private func corridorThroughStops(for request: TripRequest) async throws -> (request: TripRequest, corridors: [RouteAlternatives.Corridor]) {
+        var request = request
+        var query = RouteQuery(
             origin: request.origin.coordinate, destination: request.destination.coordinate,
-            intermediates: request.requiredStops.map(\.place.coordinate), departure: request.departure
+            intermediates: request.requiredStops.map(\.place.coordinate), departure: request.departure,
+            optimizeOrder: request.optimizesStopOrder
         )
         let primary: ComputedRoute
         do {
@@ -390,6 +398,12 @@ public final class TripPlanningService: TripPlanning, Sendable {
         } catch {
             throw PlanningError.routingFailed(String(describing: error))
         }
+        if query.optimizeOrder, let order = primary.optimizedIntermediateOrder,
+           order.sorted() == Array(request.requiredStops.indices) {
+            request.stops = order.map { request.requiredStops[$0] }
+            query.intermediates = order.map { query.intermediates[$0] }
+        }
+        query.optimizeOrder = false
         var corridor = RouteAlternatives.Corridor(primary: primary)
         if (primary.tollCostUSD ?? 0) > 0 {
             var tollFreeQuery = query
@@ -398,7 +412,7 @@ public final class TripPlanningService: TripPlanning, Sendable {
                 corridor.variants = [tollFree]
             }
         }
-        return [corridor]
+        return (request, [corridor])
     }
 
     /// Where each required stop is on a route through them: at the end of its leg (or, if the

@@ -14,6 +14,8 @@ enum AccessibilityID {
     }
 
     enum Plan {
+        /// Shortest drive or as listed.
+        static let stopOrder = "plan.stopOrder"
         static let origin = "plan.origin"
         static let destination = "plan.destination"
         static let currentLocation = "plan.currentLocation"
@@ -91,6 +93,8 @@ enum AccessibilityID {
         static let update = "visits.update"
         /// Turns moving visits on and off.
         static let reorder = "visits.reorder"
+        /// Shortest drive or as listed.
+        static let order = "visits.order"
         /// The whole route with the visits numbered.
         static let map = "visits.map"
         static let use = "visits.use"

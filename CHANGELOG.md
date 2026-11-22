@@ -11,7 +11,8 @@ wasn't released on its own.
 
 ### Added
 - **Stops on the way.** The plan form takes places to visit on the way, like a park or a friend's
-  town, each with how long to stay (5 minutes to 12 hours), in order. The plan stops there for
+  town, each with how long to stay (5 minutes to 12 hours): with the shortest drive (Google Maps
+  orders them; the default) or in the order listed. The plan stops there for
   that long and plans the breaks, fuel and nights around them; it can't skip them. A trip with
   stops on the way has one route through them (Google offers no alternative routes through
   stops), plus its toll-free version.
@@ -27,10 +28,10 @@ wasn't released on its own.
   addresses and arrival times. Changes are listed first and planned together: a place added shows
   **To be added** (green, with a button to take it off the list), tapping a visit marks it **To be
   removed** (red; tap again to keep it), and **Reorder** lets you drag visits into another order.
-  Whenever a visit is added or removed, Waystage puts all of them in the order with the least
-  driving (the shortest path through them, straight lines), until you move them by hand. Only
-  the visits are kept: the nights, fuel and breaks are chosen again for the new route (a hotel kept
-  from the old route pulled it back there). **Update plan** plans once with all of them, and **Use this
+  Visits are planned **in the order listed** or with the **shortest drive**: then Google Maps
+  chooses the order along with the route (its waypoint optimization, in the same request), and the
+  list shows its order once planned. Only the visits are kept: the nights, fuel and breaks are
+  chosen again for the new route (a hotel kept from the old route pulled it back there). **Update plan** plans once with all of them, and **Use this
   plan** shows the new plan (Undo goes back) or, from Home, makes it the trip. Before the trip
   starts the whole plan is made again; once it has, the rest of the trip from where you are.
 - **The trip in progress, at a glance.** Tapping the trip on Home opens its whole plan like a plan

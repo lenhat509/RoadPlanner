@@ -17,6 +17,9 @@ public struct RouteQuery: Hashable, Sendable {
     public var departure: Date?
     public var avoidTolls: Bool
     public var computeAlternatives: Bool
+    /// Let the provider put `intermediates` in the order with the shortest drive (Google's
+    /// waypoint optimization); the route says the order it chose.
+    public var optimizeOrder: Bool
 
     public init(
         origin: GeoCoordinate,
@@ -25,7 +28,8 @@ public struct RouteQuery: Hashable, Sendable {
         vias: [GeoCoordinate] = [],
         departure: Date? = nil,
         avoidTolls: Bool = false,
-        computeAlternatives: Bool = false
+        computeAlternatives: Bool = false,
+        optimizeOrder: Bool = false
     ) {
         self.origin = origin
         self.destination = destination
@@ -34,6 +38,7 @@ public struct RouteQuery: Hashable, Sendable {
         self.departure = departure
         self.avoidTolls = avoidTolls
         self.computeAlternatives = computeAlternatives
+        self.optimizeOrder = optimizeOrder
     }
 }
 
@@ -45,6 +50,9 @@ public struct ComputedRoute: Hashable, Sendable {
     public var encodedPolyline: String
     public var legs: [RouteLeg]
     public var tollCostUSD: Double?
+    /// With `RouteQuery.optimizeOrder`: the query's intermediates in the order the route visits
+    /// them (indices into them).
+    public var optimizedIntermediateOrder: [Int]?
 
     public init(
         summary: String,
@@ -52,7 +60,8 @@ public struct ComputedRoute: Hashable, Sendable {
         duration: TimeInterval,
         encodedPolyline: String,
         legs: [RouteLeg],
-        tollCostUSD: Double? = nil
+        tollCostUSD: Double? = nil,
+        optimizedIntermediateOrder: [Int]? = nil
     ) {
         self.summary = summary
         self.distanceMeters = distanceMeters
@@ -60,6 +69,7 @@ public struct ComputedRoute: Hashable, Sendable {
         self.encodedPolyline = encodedPolyline
         self.legs = legs
         self.tollCostUSD = tollCostUSD
+        self.optimizedIntermediateOrder = optimizedIntermediateOrder
     }
 
     /// Builds a time/distance profile from the step geometry (falls back to the overview polyline).
