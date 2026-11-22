@@ -124,7 +124,7 @@ struct DriveScreen: View {
             if isAdjusting && !showsAdjustment {
                 ProgressView("Adjusting the rest of the trip…")
                     .padding(Theme.Spacing.l)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             }
         }
         // Google's map and banner switch between their day and night looks with the time of day
@@ -223,7 +223,7 @@ struct DriveScreen: View {
         .background {
             Rectangle()
                 .fill(Theme.card)
-                .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
+                .shadow(color: .black.opacity(0.12), radius: 3, y: -1)
                 .ignoresSafeArea(edges: .bottom)
         }
         .onGeometryChange(for: CGFloat.self) { proxy in
@@ -383,8 +383,8 @@ struct DriveScreen: View {
                 .foregroundStyle(Theme.accent)
                 .padding(.horizontal, 16)
                 .frame(height: 44)
-                .background(Theme.card, in: Capsule())
-                .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).strokeBorder(Theme.cardStroke, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(AccessibilityID.Drive.recenter)
@@ -458,7 +458,8 @@ struct DriveScreen: View {
             .disabled(isAdjusting)
         }
         .padding(Theme.Spacing.s)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).strokeBorder(Theme.cardStroke, lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(AccessibilityID.Drive.replanSuggestion)
     }

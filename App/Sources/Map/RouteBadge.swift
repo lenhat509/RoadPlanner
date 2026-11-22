@@ -37,7 +37,7 @@ struct RouteBadgeLabel: View {
                     .accessibilityHidden(true)
             }
             Text(text)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(size: 13, weight: .bold))
                 .monospacedDigit()
                 .lineLimit(1)
                 .fixedSize()
@@ -70,7 +70,8 @@ struct CalloutShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         let bubble = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: max(0, rect.height - pointerHeight))
-        let radius = min(bubble.height, bubble.width) / 2
+        // Small corners, like the app's other boxes.
+        let radius = min(4, min(bubble.height, bubble.width) / 2)
         var path = Path()
         path.move(to: CGPoint(x: bubble.minX + radius, y: bubble.minY))
         path.addLine(to: CGPoint(x: bubble.maxX - radius, y: bubble.minY))

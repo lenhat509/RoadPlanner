@@ -148,7 +148,8 @@ struct PlanResultScreen: View {
             isExpanded: $mapExpanded,
             collapsedHeight: collapsedHeight
         )
-        .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 28, bottomTrailingRadius: 28, style: .continuous))
+        .clipped()
+        .overlay(alignment: .bottom) { Divider() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(AccessibilityID.Results.map)
     }
@@ -317,9 +318,9 @@ struct RouteChoiceRow: View {
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: Theme.Spacing.s) {
-                Capsule()
+                Rectangle()
                     .fill(choice.isSelected ? Theme.routeLine : Theme.routeAlternative)
-                    .frame(width: 5, height: 34)
+                    .frame(width: 4, height: 34)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(choice.title)
                         .font(.subheadline.weight(.semibold))
@@ -357,8 +358,7 @@ struct RouteChoiceRow: View {
     }
 }
 
-/// A selectable plan: goal, total time, cost and nights. The selected plan is filled with the
-/// brand colour.
+/// A selectable plan: goal, total time, cost and nights. The selected plan has a green border.
 struct PlanOptionCard: View {
     let option: PlanOption
     let isSelected: Bool
@@ -380,7 +380,7 @@ struct PlanOptionCard: View {
                     }
                 }
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(isSelected ? Color.white.opacity(0.85) : Theme.accent)
+                .foregroundStyle(isSelected ? Theme.brand : Color.secondary)
                 Text(option.durationText)
                     .font(.title3.weight(.bold))
                     .monospacedDigit()
@@ -391,20 +391,12 @@ struct PlanOptionCard: View {
                     .monospacedDigit()
                 Text(option.nightsText)
                     .font(.caption)
-                    .opacity(0.75)
+                    .foregroundStyle(.secondary)
             }
-            .foregroundStyle(isSelected ? Color.white : Color.primary)
+            .foregroundStyle(Color.primary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Theme.Spacing.s)
-            .background {
-                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
-                    .fill(isSelected ? AnyShapeStyle(Theme.brand) : AnyShapeStyle(Theme.card))
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
-                    .strokeBorder(isSelected ? Color.clear : Theme.cardStroke, lineWidth: 1)
-            )
-            .shadow(color: isSelected ? Theme.accent.opacity(0.3) : .black.opacity(0.04), radius: isSelected ? 10 : 6, y: 4)
+            .selectableBox(isSelected: isSelected)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])

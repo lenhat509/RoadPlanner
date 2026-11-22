@@ -65,7 +65,8 @@ struct AdjustVisitsSheet: View {
             )]
         } ?? []
         return WholeRouteMap(paths: paths, markers: mapMarkers, badges: badges, isExpanded: $mapExpanded, collapsedHeight: collapsedHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).strokeBorder(Theme.cardStroke, lineWidth: 1))
             .padding(.horizontal, Theme.Spacing.m)
             .padding(.vertical, Theme.Spacing.xs)
             .accessibilityElement(children: .contain)
@@ -141,7 +142,7 @@ struct AdjustVisitsSheet: View {
             if model.isUpdating {
                 ProgressView("Updating the plan…")
                     .padding(Theme.Spacing.l)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             }
         }
     }

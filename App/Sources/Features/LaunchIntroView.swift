@@ -76,10 +76,10 @@ struct LaunchIntroView: View {
                 }
                 VStack(spacing: 6) {
                     Text("Waystage")
-                        .font(.system(size: 46, weight: .heavy, design: .rounded))
+                        .font(.system(size: 44, weight: .heavy))
                         .tracking(-0.5)
                     Text("Long drives, planned end to end")
-                        .font(.system(.subheadline, design: .rounded).weight(.medium))
+                        .font(.subheadline.weight(.medium))
                         .opacity(0.8)
                 }
                 .foregroundStyle(.white)

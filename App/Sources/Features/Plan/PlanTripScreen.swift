@@ -88,7 +88,7 @@ struct PlanTripScreen: View {
                     Image(systemName: "arrow.up.arrow.down")
                         .font(.footnote.weight(.bold))
                         .frame(width: 36, height: 36)
-                        .background(Theme.mutedFill, in: Circle())
+                        .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Swap start and destination")
@@ -501,10 +501,10 @@ struct PlanningProgressView: View {
             VStack(spacing: Theme.Spacing.m) {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.secondary.opacity(0.2))
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.25))
                             .frame(height: 4)
-                        Capsule()
+                        Rectangle()
                             .fill(Theme.brand)
                             .frame(width: max(4, (geometry.size.width - 30) * fraction + 15), height: 4)
                         ForEach([0.25, 0.5, 0.75], id: \.self) { mark in
@@ -528,8 +528,8 @@ struct PlanningProgressView: View {
                     .accessibilityIdentifier(AccessibilityID.Plan.cancel)
             }
             .padding(Theme.Spacing.xl)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .shadow(color: .black.opacity(0.1), radius: 20, y: 8)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).strokeBorder(Theme.cardStroke, lineWidth: 1))
             .padding(Theme.Spacing.xl)
         }
         .animation(.easeInOut, value: fraction)

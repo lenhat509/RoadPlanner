@@ -19,7 +19,7 @@ struct ManeuverBannerView: View {
                     .frame(width: 56)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(isRerouting ? "Rerouting…" : banner.distanceText)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(.system(size: 34, weight: .bold))
                         .monospacedDigit()
                     Text(banner.instruction)
                         .font(.title3.weight(.semibold))
@@ -29,7 +29,7 @@ struct ManeuverBannerView: View {
                 Spacer(minLength: 0)
             }
             .padding(Theme.Spacing.m)
-            .background(Theme.hero, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(Theme.hero, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
             if let then = banner.thenSymbolName, !isRerouting {
                 HStack(spacing: 6) {
                     Text("Then")
@@ -40,15 +40,15 @@ struct ManeuverBannerView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
-                    Theme.brandDeep,
-                    in: UnevenRoundedRectangle(bottomLeadingRadius: 14, bottomTrailingRadius: 14, style: .continuous)
+                    Theme.hero.opacity(0.85),
+                    in: UnevenRoundedRectangle(bottomLeadingRadius: Theme.Radius.control, bottomTrailingRadius: Theme.Radius.control, style: .continuous)
                 )
                 .padding(.leading, 20)
                 .accessibilityLabel("Then \(then)")
             }
         }
         .foregroundStyle(.white)
-        .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
+        .shadow(color: .black.opacity(0.2), radius: 4, y: 1)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(AccessibilityID.Drive.banner)
     }
@@ -74,7 +74,7 @@ struct NextStopPanel<MenuContent: View>: View {
                 VStack(spacing: 2) {
                     if let info {
                         Text(info.durationText.isEmpty ? info.etaText : info.durationText)
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .font(.system(size: 26, weight: .bold))
                             .foregroundStyle(Theme.accent)
                             .monospacedDigit()
                         Text([info.remainingText, info.etaText].filter { !$0.isEmpty }.joined(separator: " · "))
@@ -143,7 +143,7 @@ struct PreviewHeader: View {
         }
         .padding(.horizontal, Theme.Spacing.m)
         .padding(.vertical, Theme.Spacing.s)
-        .driveSheet(cornerRadius: 20)
+        .driveSheet()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Route from your location to \(title)")
     }
@@ -170,7 +170,7 @@ struct PreviewSheet<MenuContent: View>: View {
                     if let info, !info.durationText.isEmpty {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text(info.durationText)
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .font(.system(size: 28, weight: .bold))
                                 .foregroundStyle(Theme.accent)
                                 .contentTransition(.numericText())
                             if !info.remainingText.isEmpty {
@@ -223,7 +223,7 @@ struct PreviewSheet<MenuContent: View>: View {
                 }
                 .padding(Theme.Spacing.s)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             }
             HStack(spacing: Theme.Spacing.s) {
                 ExitNavigationButton(action: onExit)
@@ -330,7 +330,7 @@ struct ExitNavigationButton: View {
                 .font(.title3.weight(.bold))
                 .foregroundStyle(.white)
                 .frame(width: 54, height: 54)
-                .background(Theme.danger, in: Circle())
+                .background(Theme.danger, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Exit navigation")
@@ -347,7 +347,7 @@ struct DriveMenuButton<Content: View>: View {
             Image(systemName: "ellipsis")
                 .font(.title3.weight(.semibold))
                 .frame(width: 44, height: 44)
-                .background(Theme.elevated, in: Circle())
+                .background(Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
         }
         .accessibilityLabel("Trip options")
         .accessibilityIdentifier(AccessibilityID.Drive.menu)
@@ -374,15 +374,18 @@ struct StatusPill: View {
             }
         }
         .padding(Theme.Spacing.s)
-        .background(.regularMaterial, in: Capsule())
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).strokeBorder(Theme.cardStroke, lineWidth: 1))
     }
 }
 
 extension View {
-    /// Solid card used for drive-mode sheets: legible over any map.
-    func driveSheet(cornerRadius: CGFloat = 24) -> some View {
+    /// Solid panel used for drive-mode sheets: legible over any map (a thin border and a light
+    /// shadow set it apart from the map).
+    func driveSheet(cornerRadius: CGFloat = Theme.Radius.panel) -> some View {
         background(Theme.card, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).strokeBorder(Theme.cardStroke, lineWidth: 1))
+            .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
     }
 }
 

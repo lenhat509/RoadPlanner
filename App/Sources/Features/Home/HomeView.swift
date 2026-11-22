@@ -89,53 +89,24 @@ struct HomeView: View {
 
     // MARK: Sections
 
+    /// The app's name, a greeting and the one action: plain type on the page, no banner.
     private var hero: some View {
-        ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Theme.hero)
-            DecorativeRoute()
-                .frame(width: 170, height: 110)
-                .padding(.top, 14)
-                .padding(.trailing, 6)
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("WAYSTAGE")
-                    .font(.caption.weight(.heavy))
-                    .tracking(2.5)
-                    .foregroundStyle(.white.opacity(0.7))
-                    .accessibilityHidden(true)
-                Spacer(minLength: 44)
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(model.greeting)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.75))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 Text("Where to next?")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(.white)
-                Button(action: onPlanTrip) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass")
-                        Text("Plan a road trip")
-                        Spacer()
-                        Image(systemName: "arrow.right.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(Theme.accent)
-                    }
-                    .font(.headline)
-                    .foregroundStyle(Theme.brandDeep)
-                    .padding(.leading, 18)
-                    .padding(.trailing, 10)
-                    .frame(height: 54)
-                    .background(.white, in: Capsule(style: .continuous))
-                    .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, Theme.Spacing.xs)
-                .accessibilityLabel("Plan a road trip")
-                .accessibilityIdentifier(AccessibilityID.Home.planTrip)
+                    .font(.largeTitle.weight(.bold))
             }
-            .padding(Theme.Spacing.l)
+            Button(action: onPlanTrip) {
+                Label("Plan a road trip", systemImage: "magnifyingglass")
+            }
+            .buttonStyle(.primary)
+            .accessibilityLabel("Plan a road trip")
+            .accessibilityIdentifier(AccessibilityID.Home.planTrip)
         }
-        .frame(minHeight: 236)
-        .padding(.top, Theme.Spacing.xs)
+        .padding(.top, Theme.Spacing.m)
     }
 
     private var demoBanner: some View {
@@ -165,7 +136,7 @@ struct HomeView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(width: 32, height: 32)
-                        .background(Theme.mutedFill, in: Circle())
+                        .background(Theme.mutedFill, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                 }
                 .accessibilityLabel("More options")
                 .accessibilityIdentifier(AccessibilityID.Home.discard)

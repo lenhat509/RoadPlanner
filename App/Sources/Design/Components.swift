@@ -4,34 +4,37 @@ import TripModels
 
 // MARK: - Buttons
 
-/// The one primary action on a screen: a full-width capsule in the brand colour.
+/// The one primary action on a screen: a full-width solid rectangle in the brand colour.
 struct PrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .foregroundStyle(.white)
-            .background {
-                Capsule(style: .continuous)
-                    .fill(isEnabled ? AnyShapeStyle(Theme.brand) : AnyShapeStyle(Color.gray.opacity(0.4)))
-            }
-            .shadow(color: isEnabled ? Theme.accent.opacity(0.3) : .clear, radius: 12, y: 6)
-            .opacity(configuration.isPressed ? 0.88 : 1)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .font(.body.weight(.semibold))
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .foregroundStyle(isEnabled ? Color.white : Color.secondary)
+            .background(
+                isEnabled ? Theme.brand : Theme.mutedFill,
+                in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+            )
+            .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
 
-/// Quiet secondary action.
+/// A quieter action next to the primary one: outlined, same size.
 struct SecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .foregroundStyle(Theme.accent)
-            .background(Theme.accent.opacity(0.12), in: Capsule(style: .continuous))
+            .font(.body.weight(.semibold))
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .strokeBorder(Theme.cardStroke, lineWidth: 1)
+            )
             .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
@@ -118,12 +121,20 @@ struct CardModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .strokeBorder(Theme.cardStroke, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
     }
 }
 
 extension View {
     func card(padding: CGFloat = Theme.Spacing.m) -> some View { modifier(CardModifier(padding: padding)) }
+
+    /// A choice's box: white with a thin border, or a 2-point green border when selected.
+    func selectableBox(isSelected: Bool) -> some View {
+        background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
+                    .strokeBorder(isSelected ? Theme.brand : Theme.cardStroke, lineWidth: isSelected ? 2 : 1)
+            )
+    }
 }
 
 /// Small uppercase label above a card.
@@ -155,7 +166,6 @@ struct StopDot: View {
             .fill(Theme.color(for: kind, isPullOff: isPullOff))
             .frame(width: size, height: size)
             .overlay(Circle().strokeBorder(.white, lineWidth: max(2, size * 0.14)))
-            .shadow(color: .black.opacity(0.2), radius: 1, y: 0.5)
             .accessibilityHidden(true)
     }
 }
@@ -168,13 +178,12 @@ struct NumberedPin: View {
 
     var body: some View {
         Text("\(number)")
-            .font(.system(size: size * 0.5, weight: .bold, design: .rounded))
+            .font(.system(size: size * 0.5, weight: .bold))
             .monospacedDigit()
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(color, in: Circle())
             .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-            .shadow(color: .black.opacity(0.2), radius: 1, y: 0.5)
             .accessibilityHidden(true)
     }
 }
@@ -232,12 +241,12 @@ struct TripRibbonView: View {
             let inset = height / 2
             let width = max(0, geometry.size.width - height)
             ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.secondary.opacity(0.2))
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.25))
                     .frame(height: 3)
                     .padding(.horizontal, inset)
                 if let progress {
-                    Capsule()
+                    Rectangle()
                         .fill(Theme.brand)
                         .frame(width: width * min(1, max(0, progress)), height: 3)
                         .padding(.leading, inset)
@@ -405,23 +414,20 @@ struct ChoiceTile: View {
             VStack(alignment: .leading, spacing: 6) {
                 Image(systemName: systemImage)
                     .font(.title3.weight(.semibold))
+                    .foregroundStyle(isSelected ? Theme.brand : Color.secondary)
                 Spacer(minLength: 2)
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                 Text(subtitle)
                     .font(.caption2)
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.8) : Color.secondary)
+                    .foregroundStyle(Color.secondary)
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)
             }
-            .foregroundStyle(isSelected ? Color.white : Color.primary)
-            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+            .foregroundStyle(Color.primary)
+            .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
             .padding(Theme.Spacing.s)
-            .background {
-                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
-                    .fill(isSelected ? AnyShapeStyle(Theme.brand) : AnyShapeStyle(Theme.mutedFill))
-            }
-            .shadow(color: isSelected ? Theme.accent.opacity(0.25) : .clear, radius: 8, y: 4)
+            .selectableBox(isSelected: isSelected)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -436,8 +442,8 @@ struct FuelGauge: View {
         VStack(spacing: 4) {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.mutedFill)
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 2).fill(Theme.mutedFill)
+                    RoundedRectangle(cornerRadius: 2)
                         .fill(Theme.color(for: .fuel).opacity(0.85))
                         .frame(width: max(10, geometry.size.width * min(1, max(0, reserveFraction))))
                     ForEach(1..<4, id: \.self) { quarter in
@@ -476,7 +482,7 @@ struct RhythmStrip: View {
             let blockWidth = (geometry.size.width - gap * CGFloat(blocks - 1)) / CGFloat(blocks)
             HStack(spacing: 0) {
                 ForEach(0..<blocks, id: \.self) { index in
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 1)
                         .fill(Theme.brand)
                         .frame(width: max(4, blockWidth), height: 6)
                     if index < blocks - 1 {
@@ -495,7 +501,7 @@ struct RhythmStrip: View {
 
 // MARK: - Map controls
 
-/// Round floating buttons for the map (zoom, fit, expand).
+/// Small square buttons floating on the map (zoom, fit, expand).
 struct MapControlButton: View {
     let systemImage: String
     let label: String
@@ -507,8 +513,11 @@ struct MapControlButton: View {
                 .font(.system(size: 15, weight: .semibold))
                 .frame(width: 40, height: 40)
                 .foregroundStyle(.primary)
-                .background(.regularMaterial, in: Circle())
-                .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                        .strokeBorder(Theme.cardStroke, lineWidth: 1)
+                )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -517,7 +526,7 @@ struct MapControlButton: View {
 
 // MARK: - Content
 
-/// A big rounded number with a caption.
+/// A big number with a caption.
 struct MetricView: View {
     let value: String
     let label: String
@@ -566,34 +575,5 @@ struct WarningList: View {
         case .nightDriving: "moon.stars"
         default: "info.circle"
         }
-    }
-}
-
-/// The hero illustration: a winding dashed road with three stops (echoes the app icon).
-struct DecorativeRoute: View {
-    private static let stops: [(pointIndex: Int, kind: StopKind)] = [(12, .rest), (22, .fuel), (32, .lodging)]
-
-    var body: some View {
-        GeometryReader { geometry in
-            let size = geometry.size
-            let points = (0...40).map { index -> CGPoint in
-                let t = Double(index) / 40
-                return CGPoint(
-                    x: size.width * (0.05 + 0.9 * t),
-                    y: size.height * (0.85 - 0.7 * t + 0.12 * sin(t * .pi * 2))
-                )
-            }
-            ZStack {
-                Path { path in path.addLines(points) }
-                    .stroke(.white.opacity(0.35), style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
-                Path { path in path.addLines(points) }
-                    .stroke(.white.opacity(0.7), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [4, 7]))
-                ForEach(0..<Self.stops.count, id: \.self) { index in
-                    StopDot(kind: Self.stops[index].kind, size: 14)
-                        .position(points[Self.stops[index].pointIndex])
-                }
-            }
-        }
-        .accessibilityHidden(true)
     }
 }

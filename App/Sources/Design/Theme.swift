@@ -1,28 +1,28 @@
 import SwiftUI
 import TripModels
 
-/// Design tokens for Waystage's look: warm "paper" background, soft white cards, one solid teal
-/// brand colour (no gradients anywhere), rounded type, and colour-blind-safe stop dots. Calm by default; colour is used to
-/// carry meaning (stop types, the primary action), not decoration.
+/// Design tokens for Waystage's look: plain and practical, like a road atlas. Neutral grey
+/// background, white boxes with thin borders (no shadows), small corner radii (boxes and buttons
+/// are nearly rectangular), the system font, one solid highway-sign green for actions (no
+/// gradients anywhere), and colour-blind-safe stop dots. Colour carries meaning (stop types, the
+/// primary action), not decoration.
 enum Theme {
     static let accent = Color.accentColor
 
     // MARK: Brand
-    static let brandDeep = Color(red: 0.04, green: 0.18, blue: 0.21)
-    /// Primary actions and selected states.
-    static let brand = Color(red: 0.06, green: 0.44, blue: 0.49)
-    /// Hero header and the drive-mode banner.
-    static let hero = Color(red: 0.05, green: 0.31, blue: 0.35)
+    /// Primary actions and selected states: highway-sign green (white text on it in both looks).
+    static let brand = Color(red: 0.0, green: 0.42, blue: 0.27)
+    /// The drive-mode turn banner: dark slate, like a road sign's back.
+    static let hero = Color(red: 0.12, green: 0.14, blue: 0.16)
 
     // MARK: Surfaces
-    /// Warm paper in light mode, deep ink in dark mode.
-    static let canvas = dynamic(light: UIColor(red: 0.965, green: 0.957, blue: 0.937, alpha: 1),
-                                dark: UIColor(red: 0.055, green: 0.075, blue: 0.082, alpha: 1))
-    static let card = dynamic(light: .white, dark: UIColor(red: 0.10, green: 0.13, blue: 0.14, alpha: 1))
-    static let cardStroke = dynamic(light: UIColor(white: 0, alpha: 0.05), dark: UIColor(white: 1, alpha: 0.08))
+    /// Neutral light grey, near-black in dark mode.
+    static let canvas = dynamic(light: UIColor(white: 0.95, alpha: 1), dark: UIColor(white: 0.07, alpha: 1))
+    static let card = dynamic(light: .white, dark: UIColor(white: 0.12, alpha: 1))
+    /// The thin border around boxes, buttons and tiles (instead of shadows).
+    static let cardStroke = dynamic(light: UIColor(white: 0, alpha: 0.13), dark: UIColor(white: 1, alpha: 0.15))
     /// Inputs, tiles and unselected chips inside cards.
-    static let mutedFill = dynamic(light: UIColor(red: 0.94, green: 0.93, blue: 0.91, alpha: 1),
-                                   dark: UIColor(red: 0.15, green: 0.18, blue: 0.19, alpha: 1))
+    static let mutedFill = dynamic(light: UIColor(white: 0.93, alpha: 1), dark: UIColor(white: 0.17, alpha: 1))
     static let background = canvas
     static let surface = card
     static let elevated = mutedFill
@@ -95,9 +95,12 @@ enum Theme {
         static let xl: CGFloat = 32
     }
 
+    /// Small radii: boxes and buttons read as rectangles with softened corners.
     enum Radius {
-        static let card: CGFloat = 22
-        static let control: CGFloat = 16
-        static let tile: CGFloat = 18
+        static let card: CGFloat = 8
+        static let control: CGFloat = 6
+        static let tile: CGFloat = 6
+        /// Panels floating over a map (drive mode) and the map itself.
+        static let panel: CGFloat = 10
     }
 }

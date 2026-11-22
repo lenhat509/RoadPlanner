@@ -53,6 +53,11 @@ wasn't released on its own.
   (only drive mode's map and panels follow Google's day and night look).
 
 ### Changed
+- **A plainer look.** Boxes and buttons are nearly rectangular (6–8 point corners instead of
+  pills and 22–28 point cards), with thin borders instead of soft shadows; the system font
+  replaces the rounded one; the background is neutral grey (not warm paper) and actions use one
+  solid highway-sign green (not teal). Home opens on a plain heading and a Plan a road trip
+  button instead of a coloured banner. Map pins, the route and stop colours are unchanged.
 - **The plan screen ends with its buttons**, on one line after the day-by-day plan (Undo, Adjust
   visits, Start driving); a stop's details no longer change the plan (no keep, remove, other
   hotels or add-a-stop actions, and no touch-and-hold menu): visits are changed in Adjust visits.

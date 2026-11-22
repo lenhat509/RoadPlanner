@@ -54,7 +54,7 @@ struct AdjustRestSheet: View {
                 if isWorking {
                     ProgressView()
                         .padding(Theme.Spacing.l)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 }
             }
             .navigationTitle("Adjust the rest")
