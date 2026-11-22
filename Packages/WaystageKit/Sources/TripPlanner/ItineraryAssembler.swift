@@ -44,6 +44,7 @@ public struct ItineraryAssembler: Sendable {
                 stop.kind = .rest
             case .visit:
                 stop.kind = .visit
+                stop.visitNights = candidate.visitNights > 0 ? candidate.visitNights : nil
             case let .refuel(gallons, price):
                 stop.kind = .fuel
                 stop.fuelPurchase = FuelPurchase(

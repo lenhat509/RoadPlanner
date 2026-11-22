@@ -122,6 +122,14 @@ block for stops on the way, editing a plan and planning the rest of a trip again
 * **Planning again during a drive:** `startState.drivenToday` starts the first day with the
   driving already done (keeping an hour to reach tonight's stop); the validator counts it too.
 * **Lodging searches** follow the stays: a long visit ends a driving day earlier along the route.
+* **Nights at a visit:** a visit's stay is 1–23 hours, or 1–14 nights (`RequiredStop.nights`)
+  plus 0–23 hours on the morning after the last night. With nights, the optimizer leaves at
+  `max(arrival + minimumOvernightRest, next dayStart) + (nights − 1) days + hours`, starts a new
+  driving day there and counts those days. The visit is the night's stop: `overnight = .here`
+  (you sleep at the place; no hotel, no lodging cost) or `.nearbyHotel`: the lodging search also
+  looks around the visit (±30 min of route), and the plan picks the best value within 25 km
+  (rate + distance/500 m) as the stop's `hotel`, with its rate × nights in the cost and the
+  booking links; with none found, a warning says to book one.
 * The straight-through fallback keeps the required stops.
 * **Your own stop is the break:** the drive to a required stop or to the destination may run
   `DrivingPolicy.stretchToOwnStop` (30 min) past the break interval, instead of a break just

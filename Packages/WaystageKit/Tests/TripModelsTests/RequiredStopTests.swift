@@ -21,6 +21,12 @@ struct RequiredStopTests {
         #expect(request(stops: [.visit(yellowstone, stay: 2.0 * 60)]).validationErrors() == [.invalidStay])
         #expect(request(stops: [.visit(yellowstone, stay: 2.0 * 86_400 + 3 * 3_600)]).validationErrors().isEmpty)
         #expect(request(stops: [.visit(yellowstone, stay: 15.0 * 86_400)]).validationErrors() == [.invalidStay])
+        // Nights: 1 to 14, with 0 to 23 hours on the last day.
+        #expect(request(stops: [.visit(yellowstone, stay: 3.0 * 3_600, nights: 2, overnight: .nearbyHotel)]).validationErrors().isEmpty)
+        #expect(request(stops: [.visit(yellowstone, stay: 0.0, nights: 1)]).validationErrors().isEmpty)
+        #expect(request(stops: [.visit(yellowstone, stay: 0.0, nights: 15)]).validationErrors() == [.invalidStay])
+        #expect(request(stops: [.visit(yellowstone, stay: 24.0 * 3_600, nights: 1)]).validationErrors() == [.invalidStay])
+        #expect(RequiredStop.visit(yellowstone, stay: 3_600.0, overnight: .nearbyHotel).overnight == nil, "no nights: nowhere to sleep")
     }
 
     @Test("At most 10 places to visit and 25 stops in all, each with a place")

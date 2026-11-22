@@ -78,6 +78,45 @@ struct RequiredStopPlanningTests {
         #expect(ScheduleValidator().violations(in: itinerary).isEmpty, "\(ScheduleValidator().violations(in: itinerary))")
     }
 
+    @Test("Nights at a visit: the traveler leaves the morning after the last night, plus the hours, on a later day")
+    func visitNights() throws {
+        var park = visit("park", atHours: 6, stayHours: 3)
+        park.visitNights = 2
+        let candidates = Fixture.restAreas(everyMinutes: 30, hours: 9) + Fixture.gasStations(everyMinutes: 90, hours: 9)
+            + Fixture.lodging(everyMinutes: 30, from: 1, to: 8.5) + [park]
+        let schedule = try #require(Fixture.optimize(Fixture.problem(hours: 9, candidates: candidates)).value)
+        let stop = try #require(schedule.stops.first { $0.candidate.id == "park" })
+        let policy = DrivingPolicy.standard
+        // Two mornings later, at the start of the driving day, plus 3 hours.
+        let leave = Fixture.localSecondsOfDay(stop.departure)
+        #expect(abs(leave - (policy.dayStart.secondsFromMidnight + 3 * 3_600)) < 60, "\(leave)")
+        let days = (stop.departure.timeIntervalSince(stop.arrival) / 86_400).rounded(.down)
+        #expect(days >= 1 && days <= 2)
+        #expect(!schedule.stops.contains { if case .overnight = $0.action { true } else { false } }, "the nights are at the park")
+        #expect(schedule.finalDayIndex == stop.dayIndex + 2)
+    }
+
+    @Test("Nights in a hotel nearby: Waystage finds one near the visit and counts its nights; staying there: none")
+    func visitHotel() async throws {
+        var request = SampleTrips.request(from: "sf", to: "den")
+        let lasVegas = SampleTrips.city("lv")
+        request.stops = [.visit(lasVegas, stay: 2.0 * 3_600, nights: 2, overnight: .nearbyHotel)]
+        let itinerary = try #require(try await SampleTrips.planningService().plan(request).recommended)
+        let stop = try #require(itinerary.stops.first { $0.kind == .visit })
+        #expect(stop.nightsHere == 2)
+        let hotel = try #require(stop.hotel, "\(itinerary.warnings)")
+        #expect(GeoMath.distance(hotel.coordinate, lasVegas.coordinate) <= 25_000)
+        let rate = try #require(stop.lodging?.nightlyRate)
+        #expect(itinerary.nights >= 2)
+        #expect(ScheduleValidator().violations(in: itinerary).isEmpty, "\(ScheduleValidator().violations(in: itinerary))")
+
+        request.stops = [.visit(lasVegas, stay: 2.0 * 3_600, nights: 2, overnight: .here)]
+        let staying = try #require(try await SampleTrips.planningService().plan(request).recommended)
+        let here = try #require(staying.stops.first { $0.kind == .visit })
+        #expect(here.hotel == nil && here.nightsHere == 2)
+        #expect(itinerary.totals.cost.lodging >= staying.totals.cost.lodging + 2 * rate - 1, "the hotel's two nights are in the cost")
+    }
+
     @Test("A kept hotel is used even when the check-in would be early")
     func keptHotel() throws {
         let hotel = required(Fixture.candidate("inn", atHours: 1, [.lodging], nightlyRate: 90), .overnight)

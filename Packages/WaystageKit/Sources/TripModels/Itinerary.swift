@@ -90,6 +90,10 @@ public struct ItineraryStop: Codable, Hashable, Sendable, Identifiable {
     /// `true` for a stop the traveler asked for (a visit or a kept stop); nil for others and in
     /// plans made before 1.2.0.
     public var isRequired: Bool?
+    /// A visit's nights in a hotel near it: the hotel (its rate is in `lodging`).
+    public var hotel: Place?
+    /// A visit booked by nights (nil: by hours): the traveler leaves the morning after the last one.
+    public var visitNights: Int?
 
     /// A stop the traveler asked for: a place to visit, or a stop kept from an earlier plan.
     public var isRequiredStop: Bool { isRequired == true }
@@ -126,6 +130,15 @@ public struct ItineraryStop: Codable, Hashable, Sendable, Identifiable {
     public var dwellDuration: TimeInterval? {
         guard let arrival, let departure else { return nil }
         return departure.timeIntervalSince(arrival)
+    }
+
+    /// Nights spent at the stop: midnights (local time) between arrival and departure.
+    public var nightsHere: Int {
+        guard let arrival, let departure else { return 0 }
+        let offset = Double(place.utcOffsetSeconds)
+        let arrivalDay = floor((arrival.timeIntervalSince1970 + offset) / 86_400)
+        let departureDay = floor((departure.timeIntervalSince1970 + offset) / 86_400)
+        return max(0, Int(departureDay - arrivalDay))
     }
 }
 
@@ -292,6 +305,8 @@ public struct PlanWarning: Codable, Hashable, Sendable, Identifiable {
         case estimatedDirections
         /// Some stop searches failed; generic breaks are used in those sections.
         case incompleteStopData
+        /// No hotel was found near a visit with nights in a hotel nearby.
+        case noHotelNearVisit
     }
 
     public var code: Code
@@ -363,8 +378,12 @@ public struct Itinerary: Codable, Hashable, Sendable, Identifiable {
         return grouped.keys.sorted().map { ItineraryDay(index: $0, stops: grouped[$0] ?? []) }
     }
 
-    /// Number of overnight stays.
-    public var nights: Int { stops.filter { $0.kind == .lodging }.count }
+    /// Nights in hotels: overnight stops, and nights in hotels near visits.
+    public var nights: Int {
+        stops.reduce(0) { total, stop in
+            total + (stop.kind == .lodging ? 1 : (stop.kind == .visit && stop.hotel != nil ? stop.nightsHere : 0))
+        }
+    }
 
     public var arrival: Date? { stops.last?.arrival }
 

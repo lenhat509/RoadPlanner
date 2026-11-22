@@ -87,6 +87,8 @@ public final class AdjustVisitsViewModel {
     private struct Addition {
         var place: Place
         var stay: TimeInterval
+        var nights: Int
+        var overnight: RequiredStop.Overnight?
     }
 
     private enum Entry: Hashable {
@@ -123,7 +125,8 @@ public final class AdjustVisitsViewModel {
             switch entry {
             case let .planned(id):
                 guard let row = planned[id], let stop = plan.stops.first(where: { $0.id == id }) else { return nil }
-                let stay = stop.dwellDuration.map { "\(formatters.duration($0)) there" }
+                let stay = requiredVisit(for: id).map { Self.lengthText($0.visitNights, $0.stay ?? 0, $0.overnight, formatters) }
+                    ?? stop.dwellDuration.map { "\(formatters.duration($0)) there" }
                 return Visit(
                     id: id, name: row.name, address: row.address, coordinate: stop.place.coordinate,
                     detail: [stay, row.eta].compactMap { $0 }.joined(separator: " · "),
@@ -133,7 +136,7 @@ public final class AdjustVisitsViewModel {
                 guard let addition = additions[id] else { return nil }
                 return Visit(
                     id: id, name: addition.place.name, address: addition.place.address, coordinate: addition.place.coordinate,
-                    detail: "\(formatters.duration(addition.stay)) there", status: .toBeAdded
+                    detail: Self.lengthText(addition.nights, addition.stay, addition.overnight, formatters), status: .toBeAdded
                 )
             }
         }
@@ -180,10 +183,10 @@ public final class AdjustVisitsViewModel {
 
     /// Adds a place to the end of the list, to be planned with "Update plan" (in the order listed,
     /// or where Google's shortest drive puts it).
-    public func add(_ place: Place, stay: TimeInterval) {
+    public func add(_ place: Place, stay: TimeInterval, nights: Int = 0, overnight: RequiredStop.Overnight? = nil) {
         guard canAddVisit else { return }
         let id = "added-\(UUID().uuidString)"
-        additions[id] = Addition(place: place, stay: stay)
+        additions[id] = Addition(place: place, stay: stay, nights: nights, overnight: nights > 0 ? overnight : nil)
         order.append(.added(id))
     }
 
@@ -262,12 +265,29 @@ public final class AdjustVisitsViewModel {
                 }
                 return requestVisits.first { $0.place.id == stop.place.id } ?? .visit(stop.place, stay: stop.dwellDuration ?? 3_600)
             case let .added(id):
-                return additions[id].map { .visit($0.place, stay: $0.stay) }
+                return additions[id].map { .visit($0.place, stay: $0.stay, nights: $0.nights, overnight: $0.overnight) }
             }
         }
         request.stops = visits.isEmpty ? nil : visits
         request.stopOrder = stopOrder
         return request
+    }
+
+    /// "2 h there", "2 nights + 3 h · hotel nearby", "1 night · staying here".
+    static func lengthText(_ nights: Int, _ stay: TimeInterval, _ overnight: RequiredStop.Overnight?, _ formatters: TripFormatters) -> String {
+        guard nights > 0 else { return "\(formatters.duration(stay)) there" }
+        let sleeping = overnight == .nearbyHotel ? "hotel nearby" : "staying there"
+        return "\(formatters.visitLength(nights: nights, stay: stay)) · \(sleeping)"
+    }
+
+    /// The request's visit for a visit in the plan (the n-th visit of each, both in route order).
+    private func requiredVisit(for rowID: String) -> RequiredStop? {
+        guard let stop = plan.stops.first(where: { $0.id == rowID }) else { return nil }
+        let visits = (state.request?.requiredStops ?? plan.request.requiredStops).filter { $0.purpose == .visit }
+        if let ordinal = plannedOrder.firstIndex(of: rowID), visits.indices.contains(ordinal), visits[ordinal].place.id == stop.place.id {
+            return visits[ordinal]
+        }
+        return visits.first { $0.place.id == stop.place.id }
     }
 
     private func row(_ stop: ItineraryStop) -> Row {

@@ -44,7 +44,7 @@ struct PlanTripStopsTests {
         #expect(model.canPlan)
     }
 
-    @Test("Stops can be reordered, the stay is 1 hour to 14 days in whole hours, and at most 10 can be added")
+    @Test("Stops can be reordered, the stay is nights and hours (whole hours), and at most 10 can be added")
     func editing() async throws {
         let model = await filledModel()
         for city in ["la", "den"] {
@@ -62,13 +62,24 @@ struct PlanTripStopsTests {
         model.stopOrder = .asListed
         guard case let .valid(listed) = model.makeRequest() else { Issue.record("\(model.validationErrors)"); return }
         #expect(listed.stopOrder == .asListed && listed.requiredStops.map(\.place.id) == ["la", "den"])
-        model.setStay(1, for: model.stops[0].id)
-        #expect(model.stops[0].stayMinutes == 60)
-        model.setStay(2 * 1_440 + 3 * 60, for: model.stops[0].id)
-        #expect(model.stops[0].stayMinutes == 3_060, "2 days 3 hours")
-        model.setStay(30 * 1_440, for: model.stops[0].id)
-        #expect(model.stops[0].stayMinutes == 14 * 1_440)
+        let first = model.stops[0].id
+        model.setStay(1, for: first)
+        #expect(model.stops[0].stayMinutes == 60, "at least an hour without nights")
+        model.setStay(5_000, for: first)
+        #expect(model.stops[0].stayMinutes == 23 * 60)
         #expect(PlanTripViewModel.stayStep == 60)
+        // 2 nights, leaving the morning after plus 3 hours, in a hotel nearby.
+        model.setNights(2, for: first)
+        model.setStay(0, for: first)
+        #expect(model.stops[0].stayMinutes == 0, "no extra hours is fine with nights")
+        model.setStay(180, for: first)
+        model.setOvernight(.nearbyHotel, for: first)
+        model.setNights(30, for: first)
+        #expect(model.stops[0].nights == 14)
+        model.setNights(2, for: first)
+        guard case let .valid(withNights) = model.makeRequest() else { Issue.record("\(model.validationErrors)"); return }
+        let nightsStop = try #require(withNights.requiredStops.first)
+        #expect(nightsStop.visitNights == 2 && nightsStop.stay == 3 * 3_600 && nightsStop.overnight == .nearbyHotel)
         while model.canAddStop { model.addStop() }
         #expect(model.stops.count == RequiredStop.maximumCount)
         #expect(model.addStop() == nil)

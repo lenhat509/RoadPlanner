@@ -45,8 +45,8 @@ struct AdjustVisitsSheet: View {
                 Text(model.errorMessage ?? "")
             }
             .sheet(isPresented: $addsVisit) {
-                AddStopSheet(dependencies: dependencies, title: "Add a visit") { place, stay in
-                    model.add(place, stay: stay)
+                AddStopSheet(dependencies: dependencies, title: "Add a visit") { visit in
+                    model.add(visit.place, stay: visit.stay, nights: visit.nights, overnight: visit.overnight)
                     addsVisit = false
                 }
             }

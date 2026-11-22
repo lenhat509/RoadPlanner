@@ -631,7 +631,13 @@ public final class DriveViewModel: Identifiable {
             // Stopping earlier tonight: the planner chooses tonight's hotel and the ones after it again.
             if releasingTonight, let tonight, ahead.distance(from: ahead.startIndex, to: tonight) <= offset { return false }
             return true
-        }.map { PlanResultViewModel.requiredStop(keeping: $0.element) }
+        }.map { _, stop in
+            // A visit keeps what the traveler asked for (its nights and where they sleep).
+            stop.kind == .visit
+                ? itinerary.request.requiredStops.first { $0.purpose == .visit && $0.place.id == stop.place.id }
+                    ?? PlanResultViewModel.requiredStop(keeping: stop)
+                : PlanResultViewModel.requiredStop(keeping: stop)
+        }
         request.stops = kept.isEmpty ? nil : kept
         // The plan's order (Google's shortest drive, if it chose it) stays: hotels are kept with it.
         request.stopOrder = .asListed

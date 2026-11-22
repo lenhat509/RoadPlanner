@@ -10,6 +10,13 @@ public struct TripFormatters: Sendable {
     }
 
     /// "45 min", "5 h 20 min", "3 d 4 h".
+    /// A visit's length: "3 h", "2 nights", "2 nights + 3 h".
+    public func visitLength(nights: Int, stay: TimeInterval) -> String {
+        guard nights > 0 else { return duration(stay) }
+        let nightsText = nights == 1 ? "1 night" : "\(nights) nights"
+        return stay >= 60 ? "\(nightsText) + \(duration(stay))" : nightsText
+    }
+
     public func duration(_ seconds: TimeInterval) -> String {
         let totalMinutes = max(0, Int((seconds / 60).rounded()))
         let days = totalMinutes / 1_440, hours = (totalMinutes % 1_440) / 60, minutes = totalMinutes % 60

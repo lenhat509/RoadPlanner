@@ -278,7 +278,10 @@ struct PlanTripScreen: View {
                 .accessibilityIdentifier(AccessibilityID.Plan.removeStop(index))
             }
             StayEditor(
-                minutes: stop.stayMinutes, onChange: { model.setStay($0, for: stop.id) },
+                nights: stop.nights, minutes: stop.stayMinutes, overnight: stop.overnight,
+                onNights: { model.setNights($0, for: stop.id) },
+                onMinutes: { model.setStay($0, for: stop.id) },
+                onOvernight: { model.setOvernight($0, for: stop.id) },
                 font: .subheadline, foreground: .secondary
             )
             .accessibilityElement(children: .contain)

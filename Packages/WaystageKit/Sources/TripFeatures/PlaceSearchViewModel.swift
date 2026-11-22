@@ -13,11 +13,23 @@ public final class PlaceSearchViewModel {
     public private(set) var place: Place?
     public private(set) var isResolving = false
     public private(set) var errorMessage: String?
+    /// Without nights, how long to stay; with nights, the hours on the last day.
     public private(set) var stayMinutes: Double = 60
+    /// Nights there (0: none).
+    public private(set) var nights = 0
+    /// Where the traveler sleeps on those nights.
+    public var overnight = RequiredStop.Overnight.nearbyHotel
 
-    /// Sets the stay, within 5 min to 12 h.
+    /// Sets the hours (1 to 23 without nights, 0 to 23 with them).
     public func setStay(_ minutes: Double) {
-        stayMinutes = min(max(minutes, PlanTripViewModel.stayRange.lowerBound), PlanTripViewModel.stayRange.upperBound)
+        let range = PlanTripViewModel.stayRange(nights: nights)
+        stayMinutes = min(max(minutes, range.lowerBound), range.upperBound)
+    }
+
+    /// Sets the nights (0 to 14).
+    public func setNights(_ newValue: Int) {
+        nights = min(max(newValue, RequiredStop.allowedNights.lowerBound), RequiredStop.allowedNights.upperBound)
+        setStay(stayMinutes)
     }
 
     private let dependencies: AppDependencies

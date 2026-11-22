@@ -514,7 +514,13 @@ struct StopDetailSheet: View {
 
     private var links: [OutboundLink] {
         var links = [OutboundLink(id: "maps", title: "Google Maps", systemImage: "map", url: ExternalLinks.googleMapsPlace(stop.place))]
-        guard stop.kind == .lodging else { return links }
+        // The night's hotel: an overnight stop, or the hotel near a visit with nights.
+        guard let hotel = stop.hotel ?? (stop.kind == .lodging ? stop.place : nil) else { return links }
+        if let nearby = stop.hotel {
+            links.append(OutboundLink(
+                id: "hotelMaps", title: "\(nearby.name) on Google Maps", systemImage: "bed.double", url: ExternalLinks.googleMapsPlace(nearby)
+            ))
+        }
         if let url = stop.lodging?.bookingURL {
             links.append(OutboundLink(
                 id: "booking", title: "Check availability on \(stop.lodging?.provider ?? "partner site")", systemImage: "bed.double", url: url
@@ -523,11 +529,11 @@ struct StopDetailSheet: View {
         if let checkIn = stop.arrival, let checkOut = stop.departure {
             links.append(OutboundLink(
                 id: "expedia", title: "Compare rates on Expedia", systemImage: "magnifyingglass",
-                url: ExternalLinks.expediaHotelSearch(near: stop.place, checkIn: checkIn, checkOut: checkOut, adults: travelers)
+                url: ExternalLinks.expediaHotelSearch(near: hotel, checkIn: checkIn, checkOut: checkOut, adults: travelers)
             ))
         }
         links.append(OutboundLink(
-            id: "hotels", title: "Hotels nearby on Google", systemImage: "building.2", url: ExternalLinks.googleHotels(near: stop.place.coordinate)
+            id: "hotels", title: "Hotels nearby on Google", systemImage: "building.2", url: ExternalLinks.googleHotels(near: hotel.coordinate)
         ))
         return links
     }

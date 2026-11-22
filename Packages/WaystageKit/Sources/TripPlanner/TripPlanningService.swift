@@ -459,7 +459,8 @@ public final class TripPlanningService: TripPlanning, Sendable {
             )
             switch stop.purpose {
             case .visit:
-                candidate.requirement = .visit(stay: stop.stay ?? 3_600)
+                candidate.requirement = .visit(stay: stop.stay ?? (stop.visitNights > 0 ? 0 : 3_600))
+                candidate.visitNights = stop.visitNights
             case .rest:
                 candidate.capabilities = [.rest]
                 candidate.requirement = .rest
@@ -515,14 +516,25 @@ public final class TripPlanningService: TripPlanning, Sendable {
         let profile = route.profile()
         let chunks = profile.chunks(maxDuration: configuration.searchChunkDuration)
         let required = Self.requiredPositions(of: request.requiredStops, on: route, profile: profile)
-        let windows = LodgingWindowEstimator().windows(
+        var windows = LodgingWindowEstimator().windows(
             routeDuration: profile.totalDuration,
             departure: request.departure,
             utcOffset: request.origin.utcOffsetSeconds,
             policy: request.policy,
-            stays: required.compactMap { $0.stop.purpose == .visit ? ($0.time, $0.stop.stay ?? 3_600) : nil },
+            stays: required.compactMap { $0.stop.purpose == .visit && $0.stop.visitNights == 0 ? ($0.time, $0.stop.stay ?? 3_600) : nil },
+            nightStays: required.compactMap { position in
+                position.stop.visitNights > 0 ? (position.time, position.stop.visitNights, position.stop.stay ?? 0) : nil
+            },
             drivenToday: request.startState?.drivenToday ?? 0
         )
+        // Hotels near visits whose nights are spent in a hotel nearby: searched around the visit.
+        for position in required where position.stop.overnight == .nearbyHotel {
+            windows.append(LodgingWindow(
+                dayIndex: -1,
+                routeTimeRange: max(0, position.time - Self.visitHotelWindow)...min(profile.totalDuration, position.time + Self.visitHotelWindow),
+                checkIn: request.departure.addingTimeInterval(position.time)
+            ))
+        }
         var searches: [(AlongRouteSearch, ClosedRange<Double>)] = []
         for chunk in chunks where chunk.coordinates.count >= 2 {
             let polyline = PolylineCodec.encode(GeoMath.simplify(chunk.coordinates, minimumSpacingMeters: 250))
@@ -697,6 +709,54 @@ public final class TripPlanningService: TripPlanning, Sendable {
     // MARK: - Final directions
 
     private func finalize(_ draft: Itinerary, goal: OptimizationGoal, request: TripRequest, analysis: RouteAnalysis) async -> Itinerary {
+        Self.withVisitHotels(await finalizedTimes(draft, goal: goal, request: request, analysis: analysis), request: request, candidates: analysis.candidates)
+    }
+
+    /// Searched around a visit with nights in a hotel nearby (driving time either way along the route).
+    static let visitHotelWindow: TimeInterval = 30 * 60
+    /// How far from a visit its hotel may be.
+    static let visitHotelRadius = 25_000.0
+
+    /// Visits with nights in a hotel nearby get the best value hotel within `visitHotelRadius` of
+    /// them (rate plus $2 a km), its rate for each night, and the cost of those nights; when none
+    /// was found, the plan says so.
+    static func withVisitHotels(_ itinerary: Itinerary, request: TripRequest, candidates: [StopCandidate]) -> Itinerary {
+        let wanted = Set(request.requiredStops.filter { $0.overnight == .nearbyHotel }.map(\.place.id))
+        guard !wanted.isEmpty else { return itinerary }
+        let hotels = candidates.filter { $0.capabilities.contains(.lodging) && !$0.isSynthetic && $0.requirement == nil }
+        var result = itinerary
+        var added = 0.0
+        for index in result.stops.indices where result.stops[index].kind == .visit && wanted.contains(result.stops[index].place.id) {
+            let visit = result.stops[index]
+            let nights = visit.nightsHere
+            guard nights > 0 else { continue }
+            func value(_ hotel: StopCandidate) -> Double {
+                let rate: Double = hotel.nightlyRate ?? 150
+                let meters: Double = GeoMath.distance(hotel.place.coordinate, visit.place.coordinate)
+                return rate + meters / 500
+            }
+            let nearby = hotels.filter { GeoMath.distance($0.place.coordinate, visit.place.coordinate) <= visitHotelRadius }
+            let best = nearby.min { value($0) < value($1) }
+            guard let hotel = best else {
+                result.warnings.append(PlanWarning(
+                    code: .noHotelNearVisit,
+                    message: "No hotel was found near \(visit.place.name) for its nights; look for one nearby."
+                ))
+                continue
+            }
+            let rate = hotel.nightlyRate ?? 150
+            result.stops[index].hotel = hotel.place
+            result.stops[index].lodging = LodgingStay(
+                nightlyRate: rate, isRateEstimated: hotel.nightlyRate == nil || hotel.isLodgingRateEstimated,
+                provider: hotel.lodgingProvider, bookingURL: hotel.bookingURL
+            )
+            added += rate * Double(nights)
+        }
+        result.totals.cost.lodging += added
+        return result
+    }
+
+    private func finalizedTimes(_ draft: Itinerary, goal: OptimizationGoal, request: TripRequest, analysis: RouteAnalysis) async -> Itinerary {
         guard let firstLegs = await directions(for: draft) else {
             var estimated = draft
             estimated.warnings.append(PlanWarning(

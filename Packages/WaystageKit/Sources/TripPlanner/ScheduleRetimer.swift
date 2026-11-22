@@ -46,6 +46,12 @@ public struct ScheduleRetimer: Sendable {
                 lodgingCost += stop.lodging?.nightlyRate ?? 0
             case .destination:
                 stop.departure = nil
+            case .visit where (stop.visitNights ?? 0) > 0:
+                // Nights there: the traveler leaves when planned (the morning after the last night),
+                // unless the drive took so long that the time there would be under an hour.
+                let planned = stop.departure ?? arrival.addingTimeInterval(plannedDwell)
+                stop.departure = max(planned, arrival.addingTimeInterval(3_600))
+                lodgingCost += (stop.hotel == nil ? 0 : stop.lodging?.nightlyRate ?? 0) * Double(stop.nightsHere)
             case .rest, .visit, .origin:
                 // A visit keeps the stay the traveler asked for.
                 stop.departure = arrival.addingTimeInterval(plannedDwell)

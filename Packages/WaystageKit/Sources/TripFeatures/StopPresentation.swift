@@ -46,6 +46,12 @@ public struct StopPresentation: Hashable, Sendable, Identifiable {
             let arrival = stop.arrival.map { "Arrive \(formatters.clockTime($0, utcOffsetSeconds: offset))" }
             let dwell = stop.dwellDuration.map { "\(formatters.duration($0)) stop" }
             timeText = [arrival, dwell].compactMap { $0 }.joined(separator: " · ")
+        case .visit where stop.nightsHere > 0:
+            // Nights there: like a hotel, when they arrive and when they leave.
+            let nights = stop.nightsHere == 1 ? "1 night" : "\(stop.nightsHere) nights"
+            let arrival = stop.arrival.map { "Arrive \(formatters.clockTime($0, utcOffsetSeconds: offset))" }
+            let departure = stop.departure.map { "leave \(formatters.dateTime($0, utcOffsetSeconds: offset))" }
+            timeText = [arrival, nights, departure].compactMap { $0 }.joined(separator: " · ")
         case .visit:
             let arrival = stop.arrival.map { "Arrive \(formatters.clockTime($0, utcOffsetSeconds: offset))" }
             let stay = stop.dwellDuration.map { "\(formatters.duration($0)) there" }
@@ -64,6 +70,11 @@ public struct StopPresentation: Hashable, Sendable, Identifiable {
             detail = arrivalLevel
                 + "Fill about \(formatters.gallons(purchase.gallons))\(grade) at \(price)/gal\(purchase.isPriceEstimated ? " (est.)" : "")"
                 + " · \(formatters.currency(purchase.cost))"
+        } else if stop.kind == .visit, let hotel = stop.hotel, let lodging = stop.lodging {
+            // Nights in a hotel near the visit.
+            isEstimate = lodging.isRateEstimated
+            let rate = formatters.currency(lodging.nightlyRate)
+            detail = "Nights at \(hotel.name) · \(rate)/night\(lodging.isRateEstimated ? " (est.)" : "") · not booked"
         } else if let lodging = stop.lodging {
             isEstimate = lodging.isRateEstimated
             let rate = formatters.currency(lodging.nightlyRate)

@@ -25,6 +25,8 @@ public struct LodgingWindowEstimator: Sendable {
 
     /// - Parameters:
     ///   - stays: visits on the way (time along the route, and how long), which push later days back.
+    ///   - nightStays: visits with nights (time along the route, nights, hours on the last day): the
+    ///     traveler leaves the morning after the last night, plus those hours.
     ///   - drivenToday: driving already done today (a trip planned again during a drive).
     public func windows(
         routeDuration: TimeInterval,
@@ -32,6 +34,7 @@ public struct LodgingWindowEstimator: Sendable {
         utcOffset: Int,
         policy: DrivingPolicy,
         stays: [(at: TimeInterval, duration: TimeInterval)] = [],
+        nightStays: [(at: TimeInterval, nights: Int, hoursAfter: TimeInterval)] = [],
         drivenToday initialDriving: TimeInterval = 0
     ) -> [LodgingWindow] {
         var windows: [LodgingWindow] = []
@@ -40,11 +43,23 @@ public struct LodgingWindowEstimator: Sendable {
         var drivenToday: TimeInterval = min(max(0, initialDriving), max(0, policy.maxDailyDriving - 3_600))
         var cutoff = dayCutoff(startingAt: clock, policy: policy)
         var day = 0
-        var pendingStays = stays.sorted { $0.at < $1.at }
+        var pendingStays = (stays.map { (at: $0.at, duration: $0.duration, nights: 0) }
+            + nightStays.map { (at: $0.at, duration: $0.hoursAfter, nights: $0.nights) }).sorted { $0.at < $1.at }
 
         while along < routeDuration && day < 60 {
             // Reached a visit: the clock moves on by its stay. A night or more there is that
             // night's rest: the next driving day starts after it.
+            if let stay = pendingStays.first, stay.at - along <= 60, stay.nights > 0 {
+                // Nights there: the next driving day starts the morning after the last one.
+                var nextStart = floor(clock / Units.secondsPerDay) * Units.secondsPerDay + policy.dayStart.secondsFromMidnight
+                if nextStart <= clock { nextStart += Units.secondsPerDay }
+                clock = max(clock + policy.minimumOvernightRest, nextStart) + Double(stay.nights - 1) * Units.secondsPerDay + stay.duration
+                pendingStays.removeFirst()
+                drivenToday = 0
+                cutoff = dayCutoff(startingAt: clock, policy: policy)
+                day += stay.nights
+                continue
+            }
             if let stay = pendingStays.first, stay.at - along <= 60 {
                 let nights = Int(floor((clock + stay.duration) / Units.secondsPerDay) - floor(clock / Units.secondsPerDay))
                 clock += stay.duration

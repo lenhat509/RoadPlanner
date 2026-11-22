@@ -229,6 +229,8 @@ private struct Search {
         var fuelPenalty: Double
         var lodgingPenalty: Double
         var requirement: StopRequirement? = nil
+        /// A visit's nights (see `StopCandidate.visitNights`).
+        var visitNights = 0
     }
 
     enum Action {
@@ -299,7 +301,9 @@ private struct Search {
             staysAfter[index] = stays
             if let requirement = nodes[index].requirement {
                 upcoming = index
-                if case let .visit(stay) = requirement { stays += stay }
+                if case let .visit(stay) = requirement {
+                    stays += Self.shortestVisit(stay: stay, nights: nodes[index].visitNights, policy: policy)
+                }
             }
         }
         self.nextRequired = nextRequired
@@ -330,7 +334,8 @@ private struct Search {
                     fuelPrice: candidate.fuelPricePerGallon ?? defaultFuelPrice,
                     nightlyRate: candidate.nightlyRate ?? settings.pricing.unknownNightlyRate,
                     utcOffset: Double(candidate.place.utcOffsetSeconds),
-                    restPenalty: 0, fuelPenalty: 0, lodgingPenalty: 0, requirement: requirement
+                    restPenalty: 0, fuelPenalty: 0, lodgingPenalty: 0, requirement: requirement,
+                    visitNights: candidate.visitNights
                 ))
                 continue
             }
@@ -493,8 +498,23 @@ private struct Search {
             var visit = base
             visit.action = .visit(stay: stay)
             visit.departure = base.arrival + stay
-            // A night or more there (long enough for a night's rest, past midnight): the next
-            // driving day starts after it, with its own daily driving and day end.
+            if node.visitNights > 0 {
+                // Nights there: like a hotel, the traveler leaves the morning after the last one
+                // (after at least the overnight rest), then stays `stay` more.
+                let arrivalLocal = base.arrival + node.utcOffset
+                var nextStart = floor(arrivalLocal / Units.secondsPerDay) * Units.secondsPerDay + policy.dayStart.secondsFromMidnight
+                if nextStart <= arrivalLocal { nextStart += Units.secondsPerDay }
+                let firstMorning = max(arrivalLocal + policy.minimumOvernightRest, nextStart)
+                let departureLocal = firstMorning + Double(node.visitNights - 1) * Units.secondsPerDay + stay
+                visit.departure = departureLocal - node.utcOffset
+                visit.drivenToday = 0
+                visit.dayIndex += max(node.visitNights, Self.midnights(from: arrivalLocal, to: departureLocal))
+                visit.cutoffLocal = cutoff(forDayStartingAtLocal: departureLocal)
+                insert(visit)
+                return
+            }
+            // A long stay past midnight (long enough for a night's rest): the next driving day
+            // starts after it, with its own daily driving and day end.
             let nights = Self.midnights(from: base.arrival + node.utcOffset, to: visit.departure + node.utcOffset)
             if nights > 0 && stay >= policy.minimumOvernightRest {
                 visit.drivenToday = 0
@@ -564,6 +584,12 @@ private struct Search {
             || timeOfDay < policy.dayStart.secondsFromMidnight
     }
 
+    /// The least time a visit can take (for optimistic arrival estimates): its stay, or with
+    /// nights, the overnight rest, the other nights and the stay after them.
+    static func shortestVisit(stay: Double, nights: Int, policy: DrivingPolicy) -> Double {
+        nights > 0 ? policy.minimumOvernightRest + Double(nights - 1) * Units.secondsPerDay + stay : stay
+    }
+
     /// Midnights between two local times.
     static func midnights(from start: Double, to end: Double) -> Int {
         max(0, Int(floor(end / Units.secondsPerDay) - floor(start / Units.secondsPerDay)))
@@ -586,7 +612,11 @@ private struct Search {
         let remaining = problem.routeDuration - node.time + node.halfDetourTime
         let breaksNeeded = max(0, (remaining / policy.maxContinuousDriving).rounded(.up) - 1)
         let minimumDwell = min(policy.restStopDuration, policy.fuelStopDuration)
-        let stayHere: Double = if case let .visit(stay) = node.requirement { stay } else { minimumDwell }
+        let stayHere: Double = if case let .visit(stay) = node.requirement {
+            Self.shortestVisit(stay: stay, nights: node.visitNights, policy: policy)
+        } else {
+            minimumDwell
+        }
         return arrival + stayHere + remaining + breaksNeeded * minimumDwell + staysAfter[index]
     }
 

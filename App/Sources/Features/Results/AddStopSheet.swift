@@ -2,15 +2,23 @@ import SwiftUI
 import TripFeatures
 import TripModels
 
+/// A place to visit and how long: hours, or nights (and where to sleep).
+struct NewVisit {
+    var place: Place
+    var stay: TimeInterval
+    var nights: Int
+    var overnight: RequiredStop.Overnight?
+}
+
 /// Finds a place to stop at, with how long to stay, to add it to a plan.
 struct AddStopSheet: View {
     @State private var model: PlaceSearchViewModel
     @Environment(\.dismiss) private var dismiss
     @FocusState private var isSearching: Bool
     let title: String
-    let onAdd: (Place, TimeInterval) -> Void
+    let onAdd: (NewVisit) -> Void
 
-    init(dependencies: AppDependencies, title: String = "Add a stop", onAdd: @escaping (Place, TimeInterval) -> Void) {
+    init(dependencies: AppDependencies, title: String = "Add a stop", onAdd: @escaping (NewVisit) -> Void) {
         _model = State(initialValue: PlaceSearchViewModel(dependencies: dependencies))
         self.title = title
         self.onAdd = onAdd
@@ -63,9 +71,14 @@ struct AddStopSheet: View {
                         }
                     }
                 }
-                BoxSection("Stay", footer: "A night or more there counts as that night's rest.") {
+                BoxSection("Stay") {
                     BoxRow(isLast: true) {
-                        StayEditor(minutes: model.stayMinutes, onChange: { model.setStay($0) })
+                        StayEditor(
+                            nights: model.nights, minutes: model.stayMinutes, overnight: model.overnight,
+                            onNights: { model.setNights($0) },
+                            onMinutes: { model.setStay($0) },
+                            onOvernight: { model.overnight = $0 }
+                        )
                     }
                 }
                 if let error = model.errorMessage {
@@ -84,7 +97,12 @@ struct AddStopSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        if let place = model.place { onAdd(place, model.stay) }
+                        if let place = model.place {
+                            onAdd(NewVisit(
+                                place: place, stay: model.stay, nights: model.nights,
+                                overnight: model.nights > 0 ? model.overnight : nil
+                            ))
+                        }
                     }
                     .disabled(model.place == nil)
                     .accessibilityIdentifier(AccessibilityID.Results.addStopConfirm)

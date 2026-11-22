@@ -26,7 +26,12 @@ public final class PlanTripViewModel {
     public struct StopInput: Identifiable, Equatable, Sendable {
         public var id: String
         public var location = LocationInput()
+        /// Without nights, how long to stay; with nights, the hours on the last day.
         public var stayMinutes: Double
+        /// Nights there (0: none).
+        public var nights = 0
+        /// Where the traveler sleeps on those nights.
+        public var overnight = RequiredStop.Overnight.nearbyHotel
 
         public init(id: String = UUID().uuidString, stayMinutes: Double = 60) {
             self.id = id
@@ -35,9 +40,14 @@ public final class PlanTripViewModel {
     }
 
     /// Stays offered for a stop on the way, in minutes (5 min to 12 h).
-    /// A visit's stay in minutes: 1 hour to 14 days, in whole hours (days and hours).
-    public static let stayRange: ClosedRange<Double> = 60...(14 * 24 * 60)
+    /// A visit's stay in minutes, in whole hours: 1 to 23 hours without nights.
+    public static let stayRange: ClosedRange<Double> = 60...(23 * 60)
+    /// With nights: 0 to 23 hours on the last day.
+    public static let hoursAfterNightsRange: ClosedRange<Double> = 0...(23 * 60)
     public static let stayStep: Double = 60
+
+    /// The hours allowed for a visit with `nights`.
+    public static func stayRange(nights: Int) -> ClosedRange<Double> { nights > 0 ? hoursAfterNightsRange : stayRange }
 
     /// Outcome of validating the form.
     public enum Validation: Equatable, Sendable {
@@ -162,6 +172,19 @@ public final class PlanTripViewModel {
         stops.swapAt(index, target)
     }
 
+    /// Nights at a stop (0 to 14); the hours stay within what that allows.
+    public func setNights(_ nights: Int, for id: String) {
+        guard let index = stops.firstIndex(where: { $0.id == id }) else { return }
+        stops[index].nights = min(max(nights, RequiredStop.allowedNights.lowerBound), RequiredStop.allowedNights.upperBound)
+        setStay(stops[index].stayMinutes, for: id)
+    }
+
+    /// Where the traveler sleeps on a stop's nights.
+    public func setOvernight(_ overnight: RequiredStop.Overnight, for id: String) {
+        guard let index = stops.firstIndex(where: { $0.id == id }) else { return }
+        stops[index].overnight = overnight
+    }
+
     /// "1 h 30 min" for a stay.
     public func stayText(_ minutes: Double) -> String {
         dependencies.formatters.duration(minutes * 60)
@@ -169,7 +192,8 @@ public final class PlanTripViewModel {
 
     public func setStay(_ minutes: Double, for id: String) {
         guard let index = stops.firstIndex(where: { $0.id == id }) else { return }
-        stops[index].stayMinutes = min(max(minutes, Self.stayRange.lowerBound), Self.stayRange.upperBound)
+        let range = Self.stayRange(nights: stops[index].nights)
+        stops[index].stayMinutes = min(max(minutes, range.lowerBound), range.upperBound)
     }
 
     /// Called as the user types; fetches suggestions after a short pause.
@@ -296,7 +320,11 @@ public final class PlanTripViewModel {
         policy.fuelReserveFraction = minimumFuelPercent / 100
         if stops.contains(where: { $0.location.place == nil }) { errors.append(.invalidStop) }
         guard let origin = origin.place, let destination = destination.place else { return .invalid(errors) }
-        let required = stops.compactMap { stop in stop.location.place.map { RequiredStop.visit($0, stay: stop.stayMinutes * 60) } }
+        let required = stops.compactMap { stop in
+            stop.location.place.map {
+                RequiredStop.visit($0, stay: stop.stayMinutes * 60, nights: stop.nights, overnight: stop.nights > 0 ? stop.overnight : nil)
+            }
+        }
         let request = TripRequest(
             origin: origin,
             destination: destination,

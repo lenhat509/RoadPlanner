@@ -11,8 +11,10 @@ wasn't released on its own.
 
 ### Added
 - **Stops on the way.** The plan form takes places to visit on the way, like a park or a friend's
-  town, each with how long to stay in days and hours (1 hour to 14 days; a night or more there is
-  that night's rest, and the next driving day starts after it): with the shortest drive (the default)
+  town, each with how long to stay: 1 to 23 hours, or 1 to 14 nights (leaving the morning after the
+  last one, plus 0 to 23 hours). With nights, **Stay here** (the place is where you sleep, like a
+  hotel stop) or **Hotel nearby** (Waystage finds one within 25 km, with its rate, the nights in
+  the cost and booking links); the next driving day starts after the visit: with the shortest drive (the default)
   or in the order listed, chosen at the top of the stops; as listed, drag a stop's handle to
   reorder. Each stop has a delete icon. The plan stops there for
   that long and plans the breaks, fuel and nights around them; it can't skip them. A trip with

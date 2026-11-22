@@ -48,6 +48,8 @@ public struct StopCandidate: Hashable, Sendable, Identifiable {
     public var isLodgingSearchArea: Bool
     /// A stop the plan must include (nil: the optimizer may choose it or not).
     public var requirement: StopRequirement?
+    /// A visit's nights: the traveler leaves the morning after the last one, plus the visit's stay.
+    public var visitNights = 0
 
     public init(
         id: String,

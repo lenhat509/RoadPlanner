@@ -640,30 +640,49 @@ struct StopOrderPicker: View {
 
 // MARK: - Stay
 
-/// How long to stay at a visit: days and hours, each with its own stepper (hours in steps of
-/// one), from 1 hour to 14 days. The same control on the plan form and in Add a visit.
+/// How long to stay at a visit: nights and hours, each with its own stepper (hours one at a time).
+/// Without nights, the hours are the visit (1 to 23); with nights, the traveler leaves the morning
+/// after the last one, plus the hours (0 to 23). With nights, where they sleep: at the place, or in
+/// a hotel Waystage finds nearby. The same control on the plan form and in Add a visit.
 struct StayEditor: View {
-    /// The stay in minutes.
+    let nights: Int
+    /// The hours, in minutes.
     let minutes: Double
-    let onChange: (Double) -> Void
+    let overnight: RequiredStop.Overnight
+    let onNights: (Int) -> Void
+    let onMinutes: (Double) -> Void
+    let onOvernight: (RequiredStop.Overnight) -> Void
     var font: Font = .body
     var foreground: Color = .primary
 
-    private var days: Int { Int(minutes) / 1_440 }
-    private var hours: Int { (Int(minutes) % 1_440) / 60 }
+    private var hours: Int { Int(minutes) / 60 }
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.xxs) {
-            Stepper(value: Binding(get: { days }, set: { onChange(Double($0 * 1_440 + hours * 60)) }), in: 0...14) {
-                Text(days == 1 ? "1 day" : "\(days) days")
+        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+            Stepper(value: Binding(get: { nights }, set: onNights), in: RequiredStop.allowedNights) {
+                Text(nights == 0 ? "No nights" : (nights == 1 ? "1 night" : "\(nights) nights"))
             }
-            .accessibilityLabel("Days there")
-            .accessibilityValue("\(days)")
-            Stepper(value: Binding(get: { hours }, set: { onChange(Double(days * 1_440 + $0 * 60)) }), in: 0...23) {
-                Text(hours == 1 ? "1 hour" : "\(hours) hours")
+            .accessibilityLabel("Nights there")
+            .accessibilityValue("\(nights)")
+            Stepper(
+                value: Binding(get: { hours }, set: { onMinutes(Double($0 * 60)) }),
+                in: nights > 0 ? 0...23 : 1...23
+            ) {
+                Text(nights > 0 ? "+ \(hours) h on the last day" : (hours == 1 ? "1 hour there" : "\(hours) hours there"))
             }
-            .accessibilityLabel("Hours there")
+            .accessibilityLabel(nights > 0 ? "Hours on the last day" : "Hours there")
             .accessibilityValue("\(hours)")
+            if nights > 0 {
+                Picker("Where you sleep", selection: Binding(get: { overnight }, set: onOvernight)) {
+                    Text("Stay here").tag(RequiredStop.Overnight.here)
+                    Text("Hotel nearby").tag(RequiredStop.Overnight.nearbyHotel)
+                }
+                .pickerStyle(.segmented)
+                .padding(.top, Theme.Spacing.xxs)
+                Text(overnight == .here ? "You sleep at this place." : "Waystage finds a hotel nearby.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .font(font)
         .foregroundStyle(foreground)

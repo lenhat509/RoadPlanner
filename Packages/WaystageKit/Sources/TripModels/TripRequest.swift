@@ -58,7 +58,7 @@ public enum TripRequestError: String, Error, Codable, CaseIterable, Sendable {
         case .tooManyStops: "You can add up to \(RequiredStop.maximumCount) places to visit on the way."
         case .tooManyKeptStops: "A trip can keep up to \(RequiredStop.maximumRouted) stops. Remove a few, or stop keeping them."
         case .invalidStop: "Choose a place for each stop on the way."
-        case .invalidStay: "A stop on the way can last 1 hour to 14 days."
+        case .invalidStay: "A stop on the way can last 1 to 23 hours, or 1 to 14 nights."
         }
     }
 }
@@ -81,11 +81,28 @@ public struct RequiredStop: Codable, Hashable, Sendable, Identifiable {
     /// traveler arranges where they sleep).
     public static let allowedStay: ClosedRange<TimeInterval> = 5 * 60...14 * 24 * 3_600
 
+    /// Where the traveler sleeps on the nights at a visit.
+    public enum Overnight: String, Codable, Sendable, CaseIterable {
+        /// At the place itself (a friend's home, a cabin they booked): the visit is the night's stop.
+        case here
+        /// In a hotel near it, which Waystage finds (an area to explore for a few nights).
+        case nearbyHotel
+    }
+
+    /// Nights a visit can last.
+    public static let allowedNights: ClosedRange<Int> = 0...14
+
     public var id: String
     public var place: Place
     public var purpose: Purpose
-    /// How long to stay (visits); kept breaks and fuel stops use the driving policy's stop length.
+    /// How long to stay (visits): without nights, the visit's length; with nights, the hours on the
+    /// last day before leaving (after the morning). Kept breaks and fuel stops use the driving
+    /// policy's stop length.
     public var stay: TimeInterval?
+    /// Nights at a visit (nil: none): the traveler leaves the morning after the last one, plus `stay`.
+    public var nights: Int?
+    /// Where the traveler sleeps on those nights (nil: at the place).
+    public var overnight: Overnight?
     /// A kept hotel's rate and booking details, as known when it was chosen.
     public var lodging: LodgingStay?
     /// A kept fuel stop's price, as known when it was chosen (not stored for Google prices).
@@ -97,7 +114,9 @@ public struct RequiredStop: Codable, Hashable, Sendable, Identifiable {
         purpose: Purpose,
         stay: TimeInterval? = nil,
         lodging: LodgingStay? = nil,
-        fuelPricePerGallon: Double? = nil
+        fuelPricePerGallon: Double? = nil,
+        nights: Int? = nil,
+        overnight: Overnight? = nil
     ) {
         self.id = id
         self.place = place
@@ -105,11 +124,25 @@ public struct RequiredStop: Codable, Hashable, Sendable, Identifiable {
         self.stay = stay
         self.lodging = lodging
         self.fuelPricePerGallon = fuelPricePerGallon
+        self.nights = nights.flatMap { $0 > 0 ? $0 : nil }
+        self.overnight = self.nights == nil ? nil : overnight
     }
 
-    /// A place to visit.
-    public static func visit(_ place: Place, stay: TimeInterval) -> RequiredStop {
-        RequiredStop(place: place, purpose: .visit, stay: stay)
+    /// A place to visit: for `stay`, or for `nights` (leaving the morning after the last one, plus
+    /// `stay`), sleeping there or in a hotel nearby.
+    public static func visit(_ place: Place, stay: TimeInterval, nights: Int = 0, overnight: Overnight? = nil) -> RequiredStop {
+        RequiredStop(place: place, purpose: .visit, stay: stay, nights: nights, overnight: overnight)
+    }
+
+    /// Nights at the visit (0: none).
+    public var visitNights: Int { nights ?? 0 }
+
+    /// A visit's stay is valid: 5 minutes to 14 days without nights (saved trips), or 1 to 14
+    /// nights with up to 23 hours more.
+    public var isValidStay: Bool {
+        guard purpose == .visit else { return true }
+        guard visitNights > 0 else { return RequiredStop.allowedStay.contains(stay ?? 0) }
+        return RequiredStop.allowedNights.contains(visitNights) && (0...(23.0 * 3_600)).contains(stay ?? 0)
     }
 }
 
@@ -210,7 +243,7 @@ public struct TripRequest: Codable, Hashable, Sendable {
         if stops.count(where: { $0.purpose == .visit }) > RequiredStop.maximumCount { errors.append(.tooManyStops) }
         if stops.count > RequiredStop.maximumRouted { errors.append(.tooManyKeptStops) }
         if stops.contains(where: { !$0.place.coordinate.isValid }) { errors.append(.invalidStop) }
-        if stops.contains(where: { $0.purpose == .visit && !RequiredStop.allowedStay.contains($0.stay ?? 0) }) {
+        if stops.contains(where: { !$0.isValidStay }) {
             errors.append(.invalidStay)
         }
         return errors
