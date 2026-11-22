@@ -22,8 +22,8 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import store_theme as theme  # noqa: E402
 
-CAPTION_TOP, CAPTION_HEIGHT = 150, 420  # caption band (at 1320 wide)
-BOTTOM = 120  # margin under the screen
+CAPTION_TOP, CAPTION_HEIGHT = 130, 350  # caption band (at 1320 wide)
+BOTTOM = 110  # margin under the screen
 
 
 def make(screenshot, caption, size, text_size):
