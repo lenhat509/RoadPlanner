@@ -637,3 +637,35 @@ struct StopOrderPicker: View {
         }
     }
 }
+
+// MARK: - Stay
+
+/// How long to stay at a visit: days and hours, each with its own stepper (hours in steps of
+/// one), from 1 hour to 14 days. The same control on the plan form and in Add a visit.
+struct StayEditor: View {
+    /// The stay in minutes.
+    let minutes: Double
+    let onChange: (Double) -> Void
+    var font: Font = .body
+    var foreground: Color = .primary
+
+    private var days: Int { Int(minutes) / 1_440 }
+    private var hours: Int { (Int(minutes) % 1_440) / 60 }
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.xxs) {
+            Stepper(value: Binding(get: { days }, set: { onChange(Double($0 * 1_440 + hours * 60)) }), in: 0...14) {
+                Text(days == 1 ? "1 day" : "\(days) days")
+            }
+            .accessibilityLabel("Days there")
+            .accessibilityValue("\(days)")
+            Stepper(value: Binding(get: { hours }, set: { onChange(Double(days * 1_440 + $0 * 60)) }), in: 0...23) {
+                Text(hours == 1 ? "1 hour" : "\(hours) hours")
+            }
+            .accessibilityLabel("Hours there")
+            .accessibilityValue("\(hours)")
+        }
+        .font(font)
+        .foregroundStyle(foreground)
+    }
+}

@@ -55,7 +55,9 @@ public struct ScheduleValidator: Sendable {
                 + (stop.isRequiredStop || stop.kind == .destination ? DrivingPolicy.stretchToOwnStop : 0) {
                 violations.append(.continuousDrivingTooLong(legIndex: index - 1, duration: drive))
             }
-            dailyDriving[stops[index - 1].kind == .lodging ? stops[index - 1].dayIndex + 1 : stops[index - 1].dayIndex, default: 0] += max(0, drive)
+            // The driving day a leg belongs to is the day of the stop it arrives at (after a hotel,
+            // or a visit over nights, that's a later day).
+            dailyDriving[stop.dayIndex, default: 0] += max(0, drive)
         }
         for (day, duration) in dailyDriving.sorted(by: { $0.key < $1.key })
         where duration > policy.maxDailyDriving + timeTolerance {

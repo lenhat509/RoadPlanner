@@ -493,6 +493,14 @@ private struct Search {
             var visit = base
             visit.action = .visit(stay: stay)
             visit.departure = base.arrival + stay
+            // A night or more there (long enough for a night's rest, past midnight): the next
+            // driving day starts after it, with its own daily driving and day end.
+            let nights = Self.midnights(from: base.arrival + node.utcOffset, to: visit.departure + node.utcOffset)
+            if nights > 0 && stay >= policy.minimumOvernightRest {
+                visit.drivenToday = 0
+                visit.dayIndex += nights
+                visit.cutoffLocal = cutoff(forDayStartingAtLocal: visit.departure + node.utcOffset)
+            }
             insert(visit)
         case .rest:
             var rest = base
@@ -554,6 +562,11 @@ private struct Search {
         let timeOfDay = arrivalLocal - floor(arrivalLocal / Units.secondsPerDay) * Units.secondsPerDay
         return timeOfDay >= settings.earliestOvernightArrival.secondsFromMidnight
             || timeOfDay < policy.dayStart.secondsFromMidnight
+    }
+
+    /// Midnights between two local times.
+    static func midnights(from start: Double, to end: Double) -> Int {
+        max(0, Int(floor(end / Units.secondsPerDay) - floor(start / Units.secondsPerDay)))
     }
 
     private func cutoff(forDayStartingAtLocal local: Double) -> Double {

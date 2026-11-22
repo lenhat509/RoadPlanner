@@ -15,11 +15,12 @@ struct RequiredStopTests {
         )
     }
 
-    @Test("A visit of 5 minutes to 12 hours is valid")
+    @Test("A visit of up to 14 days is valid")
     func validVisit() {
         #expect(request(stops: [.visit(yellowstone, stay: 3.0 * 3_600)]).validationErrors().isEmpty)
         #expect(request(stops: [.visit(yellowstone, stay: 2.0 * 60)]).validationErrors() == [.invalidStay])
-        #expect(request(stops: [.visit(yellowstone, stay: 13.0 * 3_600)]).validationErrors() == [.invalidStay])
+        #expect(request(stops: [.visit(yellowstone, stay: 2.0 * 86_400 + 3 * 3_600)]).validationErrors().isEmpty)
+        #expect(request(stops: [.visit(yellowstone, stay: 15.0 * 86_400)]).validationErrors() == [.invalidStay])
     }
 
     @Test("At most 10 places to visit and 25 stops in all, each with a place")

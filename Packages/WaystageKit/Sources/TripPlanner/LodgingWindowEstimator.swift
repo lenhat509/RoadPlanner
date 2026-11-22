@@ -43,10 +43,17 @@ public struct LodgingWindowEstimator: Sendable {
         var pendingStays = stays.sorted { $0.at < $1.at }
 
         while along < routeDuration && day < 60 {
-            // Reached a visit: the clock moves on by its stay.
+            // Reached a visit: the clock moves on by its stay. A night or more there is that
+            // night's rest: the next driving day starts after it.
             if let stay = pendingStays.first, stay.at - along <= 60 {
+                let nights = Int(floor((clock + stay.duration) / Units.secondsPerDay) - floor(clock / Units.secondsPerDay))
                 clock += stay.duration
                 pendingStays.removeFirst()
+                if nights > 0 && stay.duration >= policy.minimumOvernightRest {
+                    drivenToday = 0
+                    cutoff = dayCutoff(startingAt: clock, policy: policy)
+                    day += nights
+                }
                 continue
             }
             let available = min(

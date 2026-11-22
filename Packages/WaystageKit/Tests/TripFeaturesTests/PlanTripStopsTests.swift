@@ -44,7 +44,7 @@ struct PlanTripStopsTests {
         #expect(model.canPlan)
     }
 
-    @Test("Stops can be reordered, the stay stays within 5 min–12 h, and at most 10 can be added")
+    @Test("Stops can be reordered, the stay is 1 hour to 14 days in whole hours, and at most 10 can be added")
     func editing() async throws {
         let model = await filledModel()
         for city in ["la", "den"] {
@@ -63,9 +63,12 @@ struct PlanTripStopsTests {
         guard case let .valid(listed) = model.makeRequest() else { Issue.record("\(model.validationErrors)"); return }
         #expect(listed.stopOrder == .asListed && listed.requiredStops.map(\.place.id) == ["la", "den"])
         model.setStay(1, for: model.stops[0].id)
-        #expect(model.stops[0].stayMinutes == 5)
-        model.setStay(5_000, for: model.stops[0].id)
-        #expect(model.stops[0].stayMinutes == 720)
+        #expect(model.stops[0].stayMinutes == 60)
+        model.setStay(2 * 1_440 + 3 * 60, for: model.stops[0].id)
+        #expect(model.stops[0].stayMinutes == 3_060, "2 days 3 hours")
+        model.setStay(30 * 1_440, for: model.stops[0].id)
+        #expect(model.stops[0].stayMinutes == 14 * 1_440)
+        #expect(PlanTripViewModel.stayStep == 60)
         while model.canAddStop { model.addStop() }
         #expect(model.stops.count == RequiredStop.maximumCount)
         #expect(model.addStop() == nil)

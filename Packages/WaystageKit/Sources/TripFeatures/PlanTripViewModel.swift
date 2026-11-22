@@ -35,8 +35,9 @@ public final class PlanTripViewModel {
     }
 
     /// Stays offered for a stop on the way, in minutes (5 min to 12 h).
-    public static let stayRange: ClosedRange<Double> = 5...720
-    public static let stayStep: Double = 15
+    /// A visit's stay in minutes: 1 hour to 14 days, in whole hours (days and hours).
+    public static let stayRange: ClosedRange<Double> = 60...(14 * 24 * 60)
+    public static let stayStep: Double = 60
 
     /// Outcome of validating the form.
     public enum Validation: Equatable, Sendable {

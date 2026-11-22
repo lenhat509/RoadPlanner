@@ -53,6 +53,31 @@ struct RequiredStopPlanningTests {
                 "the visit ends within the driving day")
     }
 
+    @Test("A visit of a night or more starts a new driving day: today's driving doesn't carry over")
+    func multiDayVisit() throws {
+        // 9 h of driving with a 2-day stop after 6 h: without the nights there, 9 h is within one day,
+        // but the stop must not leave 6 h counted against the day after it.
+        let candidates = Fixture.restAreas(everyMinutes: 30, hours: 9) + Fixture.gasStations(everyMinutes: 90, hours: 9)
+            + Fixture.lodging(everyMinutes: 30, from: 1, to: 8.5) + [visit("park", atHours: 6, stayHours: 51)]
+        let schedule = try #require(Fixture.optimize(Fixture.problem(hours: 9, candidates: candidates)).value)
+        let park = try #require(schedule.stops.first { $0.candidate.id == "park" })
+        #expect(park.departure.timeIntervalSince(park.arrival) == 51 * 3_600)
+        #expect(!schedule.stops.contains { if case .overnight = $0.action { true } else { false } }, "the nights are at the park")
+        let after = schedule.stops.drop { $0.candidate.id != "park" }.dropFirst()
+        #expect(after.allSatisfy { $0.dayIndex > park.dayIndex }, "the drive on is a later day")
+        #expect(schedule.finalDayIndex >= park.dayIndex + 2)
+    }
+
+    @Test("A 2-day visit end to end: planned with its stay, every rule kept")
+    func multiDayVisitPlanned() async throws {
+        var request = SampleTrips.request(from: "sf", to: "den")
+        request.stops = [.visit(SampleTrips.city("lv"), stay: 2.0 * 86_400 + 3 * 3_600)]
+        let itinerary = try #require(try await SampleTrips.planningService().plan(request).recommended)
+        let visit = try #require(itinerary.stops.first { $0.kind == .visit })
+        #expect(visit.dwellDuration == 2.0 * 86_400 + 3 * 3_600)
+        #expect(ScheduleValidator().violations(in: itinerary).isEmpty, "\(ScheduleValidator().violations(in: itinerary))")
+    }
+
     @Test("A kept hotel is used even when the check-in would be early")
     func keptHotel() throws {
         let hotel = required(Fixture.candidate("inn", atHours: 1, [.lodging], nightlyRate: 90), .overnight)

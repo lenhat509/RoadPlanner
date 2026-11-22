@@ -58,7 +58,7 @@ public enum TripRequestError: String, Error, Codable, CaseIterable, Sendable {
         case .tooManyStops: "You can add up to \(RequiredStop.maximumCount) places to visit on the way."
         case .tooManyKeptStops: "A trip can keep up to \(RequiredStop.maximumRouted) stops. Remove a few, or stop keeping them."
         case .invalidStop: "Choose a place for each stop on the way."
-        case .invalidStay: "A stop on the way can last 5 minutes to 12 hours."
+        case .invalidStay: "A stop on the way can last 1 hour to 14 days."
         }
     }
 }
@@ -77,8 +77,9 @@ public struct RequiredStop: Codable, Hashable, Sendable, Identifiable {
     public static let maximumCount = 10
     /// Stops of any kind a trip can keep: one Google route goes through at most 25.
     public static let maximumRouted = 25
-    /// How long a visit can last.
-    public static let allowedStay: ClosedRange<TimeInterval> = 5 * 60...12 * 3_600
+    /// How long a visit can last: up to 14 days (a night or more there is a night's rest; the
+    /// traveler arranges where they sleep).
+    public static let allowedStay: ClosedRange<TimeInterval> = 5 * 60...14 * 24 * 3_600
 
     public var id: String
     public var place: Place

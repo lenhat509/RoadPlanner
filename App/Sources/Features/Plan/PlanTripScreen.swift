@@ -277,14 +277,11 @@ struct PlanTripScreen: View {
                 .accessibilityLabel("Remove stop \(index + 1)")
                 .accessibilityIdentifier(AccessibilityID.Plan.removeStop(index))
             }
-            Stepper(
-                value: Binding(get: { stop.stayMinutes }, set: { model.setStay($0, for: stop.id) }),
-                in: PlanTripViewModel.stayRange, step: PlanTripViewModel.stayStep
-            ) {
-                Text("Stay \(model.stayText(stop.stayMinutes))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+            StayEditor(
+                minutes: stop.stayMinutes, onChange: { model.setStay($0, for: stop.id) },
+                font: .subheadline, foreground: .secondary
+            )
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier(AccessibilityID.Plan.stopStay(index))
         }
         .padding(.vertical, Theme.Spacing.xs)

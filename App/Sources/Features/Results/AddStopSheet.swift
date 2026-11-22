@@ -63,14 +63,9 @@ struct AddStopSheet: View {
                         }
                     }
                 }
-                BoxSection("Stay", footer: "The plan keeps your other stops and fits breaks, fuel and nights around this one.") {
+                BoxSection("Stay", footer: "A night or more there counts as that night's rest.") {
                     BoxRow(isLast: true) {
-                        Stepper(
-                            value: Binding(get: { model.stayMinutes }, set: { model.setStay($0) }),
-                            in: PlanTripViewModel.stayRange, step: PlanTripViewModel.stayStep
-                        ) {
-                            Text("Stay \(model.stayText)")
-                        }
+                        StayEditor(minutes: model.stayMinutes, onChange: { model.setStay($0) })
                     }
                 }
                 if let error = model.errorMessage {
