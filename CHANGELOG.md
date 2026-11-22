@@ -33,9 +33,11 @@ wasn't released on its own.
 - **The trip in progress, at a glance.** Tapping the trip on Home opens its whole plan like a plan
   just made: the map, the summary, the day-by-day stops and their details, with **Adjust visits**
   (the rest of the trip from where you are, saved as the trip) and **Resume**.
-- **The route in Adjust visits.** A map of the whole route sits above the list, with the visits
-  numbered in the list's order (green: to be added, red: to be removed); the list shows the same
-  numbers.
+- **One whole-route map.** The plan screen, the trip in progress and Adjust visits show the same
+  map: about a third of the screen, with full screen, zoom and whole-route buttons, the visits
+  numbered (in Adjust visits, in the list's order: green to be added, red to be removed) and the
+  route labeled with its driving time. For a trip in progress, the label is the time from where
+  you are to the destination.
 - **Up to 10 places to visit.** The limit counts only places you add; kept stops and hotels don't
   count toward it (a trip can keep up to 25 stops, the most one route can go through).
 - **Your own stop is the break.** To reach a stop you chose (or the destination), driving may run

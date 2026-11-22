@@ -14,12 +14,18 @@ struct AdjustVisitsSheet: View {
     @State private var addsVisit = false
     /// Moving visits (drag handles), turned on with Reorder.
     @State private var editMode = EditMode.inactive
+    @State private var mapExpanded = false
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                routeMap
-                visitList
+            GeometryReader { proxy in
+                VStack(spacing: 0) {
+                    routeMap(collapsedHeight: WholeRouteMap.collapsedHeight(in: proxy.size))
+                    if !mapExpanded {
+                        visitList
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
             }
             .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Adjust visits")
@@ -47,21 +53,33 @@ struct AdjustVisitsSheet: View {
         }
     }
 
-    /// The whole route of the plan shown, with the visits numbered in the list's order (green: to be
-    /// added, red: to be removed).
-    private var routeMap: some View {
-        RouteMap(paths: MapContent.paths(for: model.plan), markers: mapMarkers, chrome: UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20))
-            .frame(height: 220)
+    /// The whole route of the plan shown (as on the plan screen), with the visits numbered in the
+    /// list's order (green: to be added, red: to be removed) and the route's driving time: for the
+    /// trip in progress, from where you are to the destination.
+    private func routeMap(collapsedHeight: CGFloat) -> some View {
+        let paths = MapContent.paths(for: model.plan)
+        let badges = MapContent.labelCoordinate(for: paths).map { coordinate in
+            [MapRouteBadge(
+                id: "route", coordinate: coordinate, text: model.routeTimeText,
+                accessibilityLabel: "Route, \(model.routeTimeText)", isSelected: true, isBest: false
+            )]
+        } ?? []
+        return WholeRouteMap(paths: paths, markers: mapMarkers, badges: badges, isExpanded: $mapExpanded, collapsedHeight: collapsedHeight)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .padding(.horizontal, Theme.Spacing.m)
-            .padding(.top, Theme.Spacing.xs)
+            .padding(.vertical, Theme.Spacing.xs)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier(AccessibilityID.Visits.map)
     }
 
     private var mapMarkers: [MapStopMarker] {
         let listed = Set(model.visits.map(\.id))
-        let others = MapContent.markers(for: model.plan.stops.filter { !listed.contains($0.id) })
+        // Other stops (and visits already behind the car) as plain dots: the numbers are the list's.
+        let others = MapContent.markers(for: model.plan.stops.filter { !listed.contains($0.id) }).map { marker in
+            var marker = marker
+            marker.number = nil
+            return marker
+        }
         let visits = model.visits.enumerated().map { index, visit in
             MapStopMarker(
                 id: "visit-\(visit.id)", coordinate: visit.coordinate, title: "\(index + 1). \(visit.name)", kind: .visit,

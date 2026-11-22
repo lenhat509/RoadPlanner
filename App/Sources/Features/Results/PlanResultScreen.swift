@@ -13,7 +13,6 @@ struct PlanResultScreen: View {
     @State private var selectedStop: ItineraryStop?
     @State private var isStarting = false
     @State private var mapExpanded = false
-    @State private var mapCommand: MapCommand?
     /// "Adjust visits", while open.
     @State private var visitsEditor: AdjustVisitsViewModel?
     /// The trip in progress shown (from Home), and the drive model its visits are adjusted with.
@@ -29,7 +28,7 @@ struct PlanResultScreen: View {
         result: PlanResult, dependencies: AppDependencies, startButtonTitle: String? = nil, trip: ActiveTrip? = nil,
         onStart: @escaping (ActiveTrip) -> Void
     ) {
-        _model = State(initialValue: PlanResultViewModel(result: result, dependencies: dependencies))
+        _model = State(initialValue: PlanResultViewModel(result: result, dependencies: dependencies, trip: trip))
         _trip = State(initialValue: trip)
         formatters = dependencies.formatters
         self.dependencies = dependencies
@@ -38,16 +37,18 @@ struct PlanResultScreen: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if let itinerary = model.selected {
-                mapArea(itinerary)
-                StopLegend(entries: StopLegend.entries(for: itinerary.stops))
-                    .padding(.top, Theme.Spacing.s)
-                    .padding(.bottom, Theme.Spacing.xs)
-            }
-            if !mapExpanded {
-                ScrollView { details }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                if let itinerary = model.selected {
+                    mapArea(itinerary, collapsedHeight: WholeRouteMap.collapsedHeight(in: proxy.size))
+                    StopLegend(entries: StopLegend.entries(for: itinerary.stops))
+                        .padding(.top, Theme.Spacing.s)
+                        .padding(.bottom, Theme.Spacing.xs)
+                }
+                if !mapExpanded {
+                    ScrollView { details }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
         }
         .background(Theme.canvas.ignoresSafeArea())
@@ -127,7 +128,9 @@ struct PlanResultScreen: View {
             trip = next
             let plan = next.itinerary
             withAnimation(.snappy) {
-                model = PlanResultViewModel(result: PlanResult(itineraries: [plan.goal: plan], recommendedGoal: plan.goal), dependencies: dependencies)
+                model = PlanResultViewModel(
+                    result: PlanResult(itineraries: [plan.goal: plan], recommendedGoal: plan.goal), dependencies: dependencies, trip: next
+                )
             }
             visitsEditor = nil
         }
@@ -135,32 +138,16 @@ struct PlanResultScreen: View {
 
     // MARK: Map
 
-    private func mapArea(_ itinerary: Itinerary) -> some View {
-        ZStack(alignment: .topTrailing) {
-            RouteMap(
-                paths: routePaths(itinerary),
-                markers: MapContent.markers(for: itinerary.stops),
-                chrome: UIEdgeInsets(top: 24, left: 24, bottom: 24, right: 64),
-                userLocation: model.currentLocation,
-                command: mapCommand,
-                badges: routeBadges,
-                onSelectBadge: chooseRoute,
-                secondaryStyle: .alternatives
-            )
-            VStack(spacing: Theme.Spacing.xs) {
-                MapControlButton(
-                    systemImage: mapExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
-                    label: mapExpanded ? "Show plan details" : "Expand map",
-                    action: toggleExpanded
-                )
-                Spacer().frame(height: Theme.Spacing.xxs)
-                MapControlButton(systemImage: "plus", label: "Zoom in") { mapCommand = MapCommand(action: .zoomIn) }
-                MapControlButton(systemImage: "minus", label: "Zoom out") { mapCommand = MapCommand(action: .zoomOut) }
-                MapControlButton(systemImage: "scope", label: "Show the whole route") { mapCommand = MapCommand(action: .fitRoute) }
-            }
-            .padding(Theme.Spacing.s)
-        }
-        .frame(maxHeight: mapExpanded ? .infinity : 300)
+    private func mapArea(_ itinerary: Itinerary, collapsedHeight: CGFloat) -> some View {
+        WholeRouteMap(
+            paths: routePaths(itinerary),
+            markers: MapContent.markers(for: itinerary.stops),
+            badges: routeBadges,
+            onSelectBadge: chooseRoute,
+            userLocation: model.currentLocation,
+            isExpanded: $mapExpanded,
+            collapsedHeight: collapsedHeight
+        )
         .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 28, bottomTrailingRadius: 28, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(AccessibilityID.Results.map)
@@ -190,13 +177,6 @@ struct PlanResultScreen: View {
         withAnimation(.snappy) { model.selectRoute(id) }
     }
 
-    private func toggleExpanded() {
-        withAnimation(.snappy) { mapExpanded.toggle() }
-        // Re-frame the route once the map has its new size.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            mapCommand = MapCommand(action: .fitRoute)
-        }
-    }
 
     // MARK: Details
 

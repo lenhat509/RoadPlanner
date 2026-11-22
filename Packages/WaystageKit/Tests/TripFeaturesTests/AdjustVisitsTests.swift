@@ -58,6 +58,7 @@ struct AdjustVisitsTests {
         #expect(lasVegas.name == "Las Vegas" && lasVegas.address == "Las Vegas, NV, USA" && lasVegas.status == .inPlan)
         #expect(lasVegas.detail.hasPrefix("1 h 30 min there · Arrive "))
         #expect(editor.canEdit && editor.canAddVisit && !editor.hasPendingChanges && !editor.isUpdated)
+        #expect(editor.routeTimeText == harness.dependencies.formatters.duration(itinerary.totals.elapsedDuration), "a plan not started: its whole time")
 
         // Tapping marks it to be removed, and again keeps it.
         editor.toggle(lasVegas.id)
@@ -132,6 +133,18 @@ struct AdjustVisitsTests {
         let editor = drive.visitsEditor()
         #expect(editor.rows.map(\.id) == itinerary.stops.dropFirst(stopIndex + 1).map(\.id))
         let visit = try #require(editor.visits.first)
+        // The route's label: the time from here to the destination, not the whole plan's.
+        let projected = trip.projectedSchedule(now: clock.now, remainingToTarget: nil)
+        let left = try #require(projected.last?.arrival).timeIntervalSince(clock.now)
+        #expect(editor.routeTimeText == harness.dependencies.formatters.duration(left))
+        #expect(left < itinerary.totals.elapsedDuration)
+
+        let screen = PlanResultViewModel(
+            result: PlanResult(itineraries: [itinerary.goal: itinerary], recommendedGoal: itinerary.goal),
+            dependencies: dependencies(harness, clock, planner: harness.dependencies.planner), trip: trip
+        )
+        #expect(screen.routeChoices.first?.durationText == harness.dependencies.formatters.duration(left), "the trip page's route label")
+        #expect(screen.timeLeft == left)
 
         editor.toggle(visit.id)
         await editor.updatePlan()

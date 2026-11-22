@@ -131,6 +131,16 @@ public final class AdjustVisitsViewModel {
         }
     }
 
+    /// The route's driving time, for its label on the map: for the trip in progress, from where the
+    /// car is now to the destination (a plan made again starts there too); else the plan's.
+    public var routeTimeText: String {
+        let formatters = dependencies.formatters
+        if let destination = plan.stops.last, let arrival = state.projectedArrivals[destination.id] {
+            return formatters.duration(max(0, arrival.timeIntervalSince(dependencies.now())))
+        }
+        return formatters.duration(plan.totals.elapsedDuration)
+    }
+
     /// Visits can be changed from here (the rest of the trip can be planned).
     public var canEdit: Bool { state.request != nil && !isUpdating }
 

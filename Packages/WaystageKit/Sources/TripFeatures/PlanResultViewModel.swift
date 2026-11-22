@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import TripModels
+import TripNavigation
 import TripPlanner
 
 /// One selectable plan (fastest / cheapest).
@@ -97,10 +98,13 @@ public final class PlanResultViewModel {
     private var history: [(result: PlanResult, routeID: String, goal: OptimizationGoal)] = []
 
     private let dependencies: AppDependencies
+    /// The trip in progress shown (from Home): its route is labeled with the time left.
+    public let trip: ActiveTrip?
 
-    public init(result: PlanResult, dependencies: AppDependencies) {
+    public init(result: PlanResult, dependencies: AppDependencies, trip: ActiveTrip? = nil) {
         self.result = result
         self.dependencies = dependencies
+        self.trip = trip
         currentLocation = dependencies.location.lastKnownLocation
         selectedRouteID = result.routes.first?.id ?? ""
         selectedGoal = result.itineraries[result.recommendedGoal] != nil
@@ -199,16 +203,26 @@ public final class PlanResultViewModel {
         let selectedID = selectedRoute?.id
         return result.routes.enumerated().compactMap { index, route in
             guard let itinerary = route.itineraries[selectedGoal] ?? route.options.first else { return nil }
+            let time = route.id == selectedID ? (timeLeft ?? itinerary.totals.elapsedDuration) : itinerary.totals.elapsedDuration
             return RouteChoice(
                 id: route.id,
                 title: route.name ?? (index == 0 ? "Best route" : "Route \(index + 1)"),
-                durationText: formatters.duration(itinerary.totals.elapsedDuration),
+                durationText: formatters.duration(time),
                 distanceText: formatters.distance(itinerary.totals.distanceMeters),
                 isBest: index == 0,
                 isSelected: route.id == selectedID,
                 labelCoordinate: route.labelCoordinate
             )
         }
+    }
+
+    /// For the trip in progress (once started): the time from where the car is now to the
+    /// destination, as planned from here.
+    public var timeLeft: TimeInterval? {
+        guard let trip, trip.progress.phase == .enRoute || trip.progress.phase == .atStop else { return nil }
+        let now = dependencies.now()
+        guard let arrival = trip.projectedSchedule(now: now, remainingToTarget: nil).last?.arrival else { return nil }
+        return max(0, arrival.timeIntervalSince(now))
     }
 
     public var options: [PlanOption] {

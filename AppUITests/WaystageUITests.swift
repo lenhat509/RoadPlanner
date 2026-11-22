@@ -267,8 +267,14 @@ final class WaystageUITests: XCTestCase {
         app.buttons[AccessibilityID.Plan.submit].tap()
         XCTAssertTrue(app.buttons[AccessibilityID.Results.start].waitForExistence(timeout: 30))
         tapPlanButton(AccessibilityID.Results.adjustVisits)
-        XCTAssertTrue(app.otherElements[AccessibilityID.Visits.map].waitForExistence(timeout: 5), "the whole route, with the visits numbered")
+        let visitsMap = app.otherElements[AccessibilityID.Visits.map]
+        XCTAssertTrue(visitsMap.waitForExistence(timeout: 5), "the whole route, with the visits numbered")
+        // The same map as the plan's: it expands to full screen (the list makes way) and back.
         let addVisit = app.buttons[AccessibilityID.Visits.add]
+        XCTAssertTrue(addVisit.waitForExistence(timeout: 5))
+        visitsMap.buttons["Expand map"].tap()
+        XCTAssertTrue(addVisit.waitForNonExistence(timeout: 5), "full screen")
+        visitsMap.buttons["Collapse map"].tap()
         XCTAssertTrue(addVisit.waitForExistence(timeout: 5))
         let update = app.buttons[AccessibilityID.Visits.update]
         XCTAssertTrue(update.exists && !update.isEnabled, "nothing to plan before a change")
