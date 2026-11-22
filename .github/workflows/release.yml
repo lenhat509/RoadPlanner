@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       lane:
-        description: "upload_build: a build to TestFlight · create_version: + Version, then update_version · update_version: the version page and App Information from the repository · submit_for_review: choose the build, Submit for Review · release_all: all of them in one run"
+        description: "upload_build: a build to TestFlight · create_version: + Version, then update_version · update_version: the version page and App Information from the repository · submit_for_review: choose the build, Submit for Review · release_all: all of them in one run · remove_from_review: take the version out of review (Waiting for Review) so it can be changed, then update_version and submit_for_review"
         type: choice
-        options: [upload_build, create_version, update_version, submit_for_review, release_all]
+        options: [upload_build, create_version, update_version, submit_for_review, release_all, remove_from_review]
         default: upload_build
       run_tests:
         description: "Run the iOS tests before building (upload_build, release_all)"
@@ -118,7 +118,7 @@ jobs:
   # Lanes that only talk to App Store Connect: on Linux (no Mac queue, no Mac minutes).
   app-store:
     needs: options
-    if: ${{ inputs.lane == 'create_version' || inputs.lane == 'update_version' || inputs.lane == 'submit_for_review' }}
+    if: ${{ inputs.lane == 'create_version' || inputs.lane == 'update_version' || inputs.lane == 'submit_for_review' || inputs.lane == 'remove_from_review' }}
     runs-on: ubuntu-latest
     environment: app-store
     # submit_for_review can wait for Apple to finish processing a build.
