@@ -191,12 +191,14 @@ final class PromoCaptureTests: XCTestCase {
         pause(1)
     }
 
-    /// Taps a stay stepper's + (`label` is the stepper's accessibility label; `index` counts stops).
-    private func increment(_ label: String, index: Int) {
-        let stepper = app.steppers.matching(NSPredicate(format: "label == %@", label)).element(boundBy: index)
-        guard stepper.waitForExistence(timeout: 5) else { return miss("no stepper \(label) #\(index)") }
-        reveal(stepper)
-        stepper.buttons["Increment"].firstMatch.tap()
+    /// Taps + on a stop's stay: `stepper` 0 is its nights, 1 its hours.
+    private func increment(stop index: Int, stepper: Int) {
+        let stay = element(AccessibilityID.Plan.stopStay(index))
+        guard stay.waitForExistence(timeout: 5) else { return miss("no stay for stop \(index)") }
+        let plus = stay.buttons.matching(identifier: "Increment").element(boundBy: stepper)
+        guard plus.exists else { return miss("no + \(stepper) for stop \(index)") }
+        reveal(plus)
+        plus.tap()
         pause(0.8)
     }
 
@@ -268,8 +270,8 @@ final class PromoCaptureTests: XCTestCase {
             pause(1)
         }
         mark("stays")
-        increment("Hours there", index: 0)
-        increment("Nights there", index: 1)
+        increment(stop: 0, stepper: 1) // Salt Lake City: 2 hours
+        increment(stop: 1, stepper: 0) // Las Vegas: a night
         pause(1.5)
         app.swipeDown(velocity: .slow)
         app.swipeDown(velocity: .slow)

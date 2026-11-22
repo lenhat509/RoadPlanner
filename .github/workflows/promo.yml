@@ -87,7 +87,11 @@ jobs:
             -resultBundlePath Promo.xcresult CODE_SIGNING_ALLOWED=NO > promo/xcodebuild.log 2>&1
           status=$?
           kill -INT "$recorder"; wait "$recorder"
-          grep -E "PROMO-MARK|Test Case|error:|failed|TEST (EXECUTE )?(SUCCEEDED|FAILED)" promo/xcodebuild.log | grep -v "^\s*$" | head -120
+          # The raw recording (full resolution) is too big for a git push: keep a 720-wide copy.
+          command -v ffmpeg >/dev/null || brew install ffmpeg
+          ffmpeg -v error -y -i promo/recording.mov -vf "scale=720:-2" -c:v libx264 -crf 22 -preset veryfast \
+            -pix_fmt yuv420p -an promo/recording-720.mp4 && rm promo/recording.mov
+          grep -E "PROMO-|Test Case|error:|failed|TEST (EXECUTE )?(SUCCEEDED|FAILED)" promo/xcodebuild.log | grep -v "^\s*$" | head -120
           ls -la promo
           exit $status
       - name: Export screenshots
