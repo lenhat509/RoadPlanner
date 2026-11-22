@@ -1,0 +1,102 @@
+[
+  {
+    "name" : "launch",
+    "time" : 1795361695.1616359
+  },
+  {
+    "name" : "shot-00-home",
+    "time" : 1795361721.7334549
+  },
+  {
+    "name" : "form",
+    "time" : 1795361721.7335269
+  },
+  {
+    "name" : "stops",
+    "time" : 1795361743.2328391
+  },
+  {
+    "name" : "stays",
+    "time" : 1795361777.8198781
+  },
+  {
+    "name" : "shot-01-form-top",
+    "time" : 1795361791.7897649
+  },
+  {
+    "name" : "shot-01-form-stops",
+    "time" : 1795361796.1697021
+  },
+  {
+    "name" : "shot-01-form-bottom",
+    "time" : 1795361799.611748
+  },
+  {
+    "name" : "submit",
+    "time" : 1795361799.611784
+  },
+  {
+    "name" : "plan",
+    "time" : 1795361808.1319211
+  },
+  {
+    "name" : "shot-02-plan-top",
+    "time" : 1795361815.286346
+  },
+  {
+    "name" : "shot-02-plan-timeline",
+    "time" : 1795361820.0290489
+  },
+  {
+    "name" : "shot-02-plan-timeline-2",
+    "time" : 1795361824.785152
+  },
+  {
+    "name" : "visits",
+    "time" : 1795361824.7852039
+  },
+  {
+    "name" : "visits-order",
+    "time" : 1795361865.204529
+  },
+  {
+    "time" : 1795361881.418081,
+    "name" : "visits-remove"
+  },
+  {
+    "time" : 1795361886.3840861,
+    "name" : "shot-05-visits-top"
+  },
+  {
+    "time" : 1795361889.227355,
+    "name" : "shot-05-visits-list"
+  },
+  {
+    "name" : "visits-done",
+    "time" : 1795361889.2274032
+  },
+  {
+    "time" : 1795361892.2195501,
+    "name" : "preview"
+  },
+  {
+    "time" : 1795361916.711679,
+    "name" : "shot-03-preview"
+  },
+  {
+    "name" : "navigation",
+    "time" : 1795361916.7117591
+  },
+  {
+    "time" : 1795361942.4013071,
+    "name" : "shot-04-drive"
+  },
+  {
+    "time" : 1795361950.771703,
+    "name" : "shot-04-drive-2"
+  },
+  {
+    "time" : 1795361950.7718749,
+    "name" : "end"
+  }
+]

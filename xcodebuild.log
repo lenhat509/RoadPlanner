@@ -1,0 +1,748 @@
+Command line invocation:
+    /Applications/Xcode_27.2.app/Contents/Developer/usr/bin/xcodebuild test-without-building -project Waystage.xcodeproj -scheme Waystage -destination id=0893739A-31DF-4ADD-AAD3-12D877638876 "-only-testing:WaystageUITests/PromoCaptureTests" -resultBundlePath Promo.xcresult CODE_SIGNING_ALLOWED=NO
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  GoogleMaps: https://github.com/googlemaps/ios-maps-sdk @ 11.3.0
+  WaystageKit: /Users/runner/work/RoadPlanner/RoadPlanner/Packages/WaystageKit
+  GoogleNavigation: https://github.com/googlemaps/ios-navigation-sdk @ 11.3.0
+
+Writing result bundle at path:
+	/Users/runner/work/RoadPlanner/RoadPlanner/Promo.xcresult
+
+2026-11-22 15:34:22.312469+0000 WaystageUITests-Runner[18189:54415] [Default] Running tests...
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'Selected tests' started at 2026-11-22 15:34:38.468.
+Test Suite 'WaystageUITests.xctest' started at 2026-11-22 15:34:38.471.
+Test Suite 'PromoCaptureTests' started at 2026-11-22 15:34:38.471.
+Test Case '-[WaystageUITests.PromoCaptureTests testCapturePromo]' started.
+    t =     0.01s Start Test at 2026-11-22 15:34:38.482
+    t =     0.06s Set Up
+    t =     0.06s Open com.app.waystage
+    t =     0.07s     Launch com.app.waystage
+2026-11-22 15:34:42.845 xcodebuild[17094:51447] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-11-22 15:34:42.845 xcodebuild[17094:51447] [MT] IDELaunchParametersSnapshot: no debugger version
+objc[18189]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.NwJbN1/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x1081ac398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.NwJbN1/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x108b18310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =    10.10s         Setting up automation session
+    t =    14.26s         Wait for com.app.waystage to idle
+PROMO-MARK launch 1795361695.162
+    t =    16.69s Waiting 60.0s for "terms.agree" Button to exist
+    t =    17.76s     Checking `Expect predicate `existsNoRetry == 1` for object "terms.agree" Button`
+    t =    17.76s         Checking existence of `"terms.agree" Button`
+    t =    18.95s Checking existence of `"terms.agree" Button`
+    t =    18.97s Find the "terms.agree" Button
+    t =    19.07s Tap "terms.agree" Button
+    t =    19.07s     Wait for com.app.waystage to idle
+    t =    19.08s     Find the "terms.agree" Button
+    t =    19.09s     Check for interrupting elements affecting "terms.agree" Button
+    t =    19.19s     Synthesize event
+    t =    19.65s     Wait for com.app.waystage to idle
+    t =    19.68s Checking existence of `"Allow While Using App" Button`
+    t =    20.05s Checking existence of `"Allow" Button`
+    t =    20.08s Get number of matches for: Descendants matching type Alert
+    t =    20.16s Checking existence of `"drive.safetyAccept" Button`
+    t =    20.22s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =    20.26s Find the Button (Element at index 0)
+    t =    20.31s Find the "Accept" Button
+PROMO-PROMPT button: OK
+    t =    20.34s Tap "Accept" Button
+    t =    20.34s     Wait for com.app.waystage to idle
+    t =    20.35s     Find the "Accept" Button
+    t =    20.38s     Check for interrupting elements affecting "Accept" Button
+    t =    20.41s     Synthesize event
+    t =    20.73s     Wait for com.app.waystage to idle
+    t =    21.76s Checking existence of `"Allow While Using App" Button`
+    t =    21.82s Checking existence of `"Allow" Button`
+    t =    21.85s Tap "Allow" Button
+    t =    21.85s     Wait for com.apple.springboard to idle
+    t =    21.85s     Find the "Allow" Button
+    t =    21.88s     Check for interrupting elements affecting "Allow" Button
+    t =    21.92s     Synthesize event
+    t =    22.26s     Wait for com.apple.springboard to idle
+    t =    23.50s Checking existence of `"Allow While Using App" Button`
+    t =    23.54s Checking existence of `"Allow" Button`
+    t =    23.59s Get number of matches for: Descendants matching type Alert
+    t =    23.65s Checking existence of `"drive.safetyAccept" Button`
+    t =    23.74s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =    23.78s Get all elements bound by index for: Descendants matching type Button
+    t =    23.81s Find the Button (Element at index 0)
+    t =    23.84s Find the Button (Element at index 1)
+PROMO-BUTTONS Settings | Plan a road trip
+    t =    24.88s Checking existence of `"Allow While Using App" Button`
+    t =    24.93s Checking existence of `"Allow" Button`
+    t =    24.98s Get number of matches for: Descendants matching type Alert
+    t =    25.07s Checking existence of `"drive.safetyAccept" Button`
+    t =    25.25s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =    25.28s Get all elements bound by index for: Descendants matching type Button
+    t =    25.31s Find the Button (Element at index 0)
+    t =    25.34s Find the Button (Element at index 1)
+    t =    26.40s Checking existence of `"Allow While Using App" Button`
+    t =    26.58s Checking existence of `"Allow" Button`
+    t =    26.70s Get number of matches for: Descendants matching type Alert
+    t =    27.13s Checking existence of `"drive.safetyAccept" Button`
+    t =    27.37s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =    27.43s Get all elements bound by index for: Descendants matching type Button
+    t =    27.45s Find the Button (Element at index 0)
+    t =    27.48s Find the Button (Element at index 1)
+    t =    28.52s Checking existence of `"Allow While Using App" Button`
+    t =    28.56s Checking existence of `"Allow" Button`
+    t =    28.59s Get number of matches for: Descendants matching type Alert
+    t =    28.66s Checking existence of `"drive.safetyAccept" Button`
+    t =    28.74s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =    28.76s Get all elements bound by index for: Descendants matching type Button
+    t =    28.79s Find the Button (Element at index 0)
+    t =    28.84s Find the Button (Element at index 1)
+    t =    29.88s Checking existence of `"Allow While Using App" Button`
+    t =    29.91s Checking existence of `"Allow" Button`
+    t =    29.95s Get number of matches for: Descendants matching type Alert
+    t =    31.19s Checking existence of `"drive.safetyAccept" Button`
+    t =    32.32s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =    33.24s Get all elements bound by index for: Descendants matching type Button
+    t =    33.51s Find the Button (Element at index 0)
+    t =    33.94s Find the Button (Element at index 1)
+    t =    35.47s Checking existence of `"Allow While Using App" Button`
+    t =    35.54s Checking existence of `"Allow" Button`
+    t =    35.60s Get number of matches for: Descendants matching type Alert
+    t =    36.65s Checking existence of `"drive.safetyAccept" Button`
+    t =    39.14s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =    39.21s Checking existence of `"home.planTrip" Button`
+    t =    40.29s Checking existence of `"Allow While Using App" Button`
+    t =    40.35s Checking existence of `"Allow" Button`
+    t =    40.40s Get number of matches for: Descendants matching type Alert
+    t =    40.47s Checking existence of `"drive.safetyAccept" Button`
+    t =    40.56s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =    40.60s Checking existence of `"home.planTrip" Button`
+    t =    41.67s Checking existence of `"Allow While Using App" Button`
+    t =    41.73s Checking existence of `"Allow" Button`
+    t =    41.78s Get number of matches for: Descendants matching type Alert
+    t =    41.83s Checking existence of `"drive.safetyAccept" Button`
+    t =    41.92s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =    41.98s Checking existence of `"home.planTrip" Button`
+    t =    43.26s Added attachment named '00-home'
+PROMO-MARK shot-00-home 1795361721.733
+PROMO-MARK form 1795361721.734
+    t =    43.26s Tap "home.planTrip" Button
+    t =    43.26s     Wait for com.app.waystage to idle
+    t =    43.27s     Find the "home.planTrip" Button
+    t =    43.37s     Check for interrupting elements affecting "home.planTrip" Button
+    t =    43.48s     Synthesize event
+    t =    43.91s     Wait for com.app.waystage to idle
+    t =    44.95s Waiting 10.0s for "plan.origin" TextField to exist
+    t =    46.00s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.origin" TextField`
+    t =    46.02s         Checking existence of `"plan.origin" TextField`
+    t =    47.72s Waiting 10.0s for "plan.origin" TextField to exist
+    t =    48.76s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.origin" TextField`
+    t =    48.76s         Checking existence of `"plan.origin" TextField`
+    t =    48.82s Checking existence of `"plan.origin" TextField`
+    t =    48.87s Find the "plan.origin" TextField
+    t =    48.96s Find the "plan.origin" TextField
+    t =    49.02s Tap "plan.origin" TextField
+    t =    49.02s     Wait for com.app.waystage to idle
+    t =    49.02s     Find the "plan.origin" TextField
+    t =    49.07s     Check for interrupting elements affecting "plan.origin" TextField
+    t =    49.14s     Synthesize event
+    t =    49.45s     Wait for com.app.waystage to idle
+    t =    52.54s Waiting 2.0s for Keyboard (First Match) to exist
+    t =    53.55s     Checking `Expect predicate `existsNoRetry == 1` for object Keyboard (First Match)`
+    t =    53.55s         Checking existence of `Keyboard (First Match)`
+    t =    53.58s Find the "plan.origin" TextField
+    t =    53.68s Find the "plan.origin" TextField
+    t =    53.76s Find the "plan.origin" TextField
+    t =    53.85s Find the "plan.origin" TextField
+    t =    53.92s Type 'Denver' into "plan.origin" TextField
+    t =    53.92s     Wait for com.app.waystage to idle
+    t =    53.93s     Find the "plan.origin" TextField
+    t =    54.01s     Check for interrupting elements affecting "plan.origin" TextField
+    t =    54.07s     Synthesize event
+    t =    54.39s     Wait for com.app.waystage to idle
+    t =    54.40s Waiting 15.0s for "plan.suggestion.Denver" Button to exist
+    t =    55.46s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.suggestion.Denver" Button`
+    t =    55.46s         Checking existence of `"plan.suggestion.Denver" Button`
+    t =    56.21s Tap "plan.suggestion.Denver" Button
+    t =    56.21s     Wait for com.app.waystage to idle
+    t =    56.21s     Find the "plan.suggestion.Denver" Button
+    t =    56.50s     Check for interrupting elements affecting "plan.suggestion.Denver" Button
+    t =    56.65s     Synthesize event
+    t =    56.96s     Wait for com.app.waystage to idle
+    t =    58.06s Waiting 10.0s for "plan.destination" TextField to exist
+    t =    59.07s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.destination" TextField`
+    t =    59.08s         Checking existence of `"plan.destination" TextField`
+    t =    59.15s Checking existence of `"plan.destination" TextField`
+    t =    59.22s Find the "plan.destination" TextField
+    t =    59.32s Find the "plan.destination" TextField
+    t =    59.42s Find the "plan.destination" TextField
+    t =    59.52s Find the "plan.destination" TextField
+    t =    59.66s Find the "plan.destination" TextField
+    t =    59.77s Find the "plan.destination" TextField
+    t =    59.87s Type 'San Jose' into "plan.destination" TextField
+    t =    59.87s     Wait for com.app.waystage to idle
+    t =    59.89s     Find the "plan.destination" TextField
+    t =    60.01s     Check for interrupting elements affecting "plan.destination" TextField
+    t =    60.13s     Synthesize event
+    t =    60.47s     Wait for com.app.waystage to idle
+    t =    60.47s Waiting 15.0s for "plan.suggestion.San Jose" Button to exist
+    t =    61.52s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.suggestion.San Jose" Button`
+    t =    61.52s         Checking existence of `"plan.suggestion.San Jose" Button`
+    t =    62.52s Tap "plan.suggestion.San Jose" Button
+    t =    62.52s     Wait for com.app.waystage to idle
+    t =    62.52s     Find the "plan.suggestion.San Jose" Button
+    t =    62.93s     Check for interrupting elements affecting "plan.suggestion.San Jose" Button
+    t =    63.13s     Synthesize event
+    t =    63.50s     Wait for com.app.waystage to idle
+PROMO-MARK stops 1795361743.233
+    t =    64.76s Checking existence of `"plan.addStop" Button`
+    t =    64.82s Find the "plan.addStop" Button
+    t =    64.89s Tap "plan.addStop" Button
+    t =    64.89s     Wait for com.app.waystage to idle
+    t =    64.89s     Find the "plan.addStop" Button
+    t =    64.96s     Check for interrupting elements affecting "plan.addStop" Button
+    t =    65.01s     Synthesize event
+    t =    65.36s     Wait for com.app.waystage to idle
+    t =    65.77s Waiting 10.0s for "plan.stop.0" TextField to exist
+    t =    66.84s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.stop.0" TextField`
+    t =    66.84s         Checking existence of `"plan.stop.0" TextField`
+    t =    66.95s Checking existence of `"plan.stop.0" TextField`
+    t =    67.07s Find the "plan.stop.0" TextField
+    t =    67.20s Find the "plan.stop.0" TextField
+    t =    67.30s Find the "plan.stop.0" TextField
+    t =    67.40s Find the "plan.stop.0" TextField
+    t =    67.52s Find the "plan.stop.0" TextField
+    t =    67.63s Find the "plan.stop.0" TextField
+    t =    67.73s Type 'Salt Lake' into "plan.stop.0" TextField
+    t =    67.73s     Wait for com.app.waystage to idle
+    t =    67.74s     Find the "plan.stop.0" TextField
+    t =    67.87s     Check for interrupting elements affecting "plan.stop.0" TextField
+    t =    67.97s     Synthesize event
+    t =    68.35s     Wait for com.app.waystage to idle
+    t =    68.35s Waiting 15.0s for "plan.suggestion.Salt Lake City" Button to exist
+    t =    69.39s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.suggestion.Salt Lake City" Button`
+    t =    69.39s         Checking existence of `"plan.suggestion.Salt Lake City" Button`
+    t =    70.41s Tap "plan.suggestion.Salt Lake City" Button
+    t =    70.41s     Wait for com.app.waystage to idle
+    t =    70.41s     Find the "plan.suggestion.Salt Lake City" Button
+    t =    70.72s     Check for interrupting elements affecting "plan.suggestion.Salt Lake City" Button
+    t =    70.84s     Synthesize event
+    t =    71.16s     Wait for com.app.waystage to idle
+    t =    72.48s Checking existence of `"plan.addStop" Button`
+    t =    73.03s Find the "plan.addStop" Button
+    t =    73.25s Tap "plan.addStop" Button
+    t =    73.25s     Wait for com.app.waystage to idle
+    t =    73.25s     Find the "plan.addStop" Button
+    t =    73.37s     Check for interrupting elements affecting "plan.addStop" Button
+    t =    73.47s     Synthesize event
+    t =    73.86s     Wait for com.app.waystage to idle
+    t =    74.35s Waiting 10.0s for "plan.stop.1" TextField to exist
+    t =    75.38s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.stop.1" TextField`
+    t =    75.38s         Checking existence of `"plan.stop.1" TextField`
+    t =    75.59s Checking existence of `"plan.stop.1" TextField`
+    t =    75.76s Find the "plan.stop.1" TextField
+    t =    75.99s Find the "plan.stop.1" TextField
+    t =    76.17s Find the "plan.stop.1" TextField
+    t =    76.34s Find the "plan.stop.1" TextField
+    t =    76.52s Find the "plan.stop.1" TextField
+    t =    76.72s Find the "plan.stop.1" TextField
+    t =    76.95s Type 'Las Vegas' into "plan.stop.1" TextField
+    t =    76.95s     Wait for com.app.waystage to idle
+    t =    76.95s     Find the "plan.stop.1" TextField
+    t =    77.33s     Check for interrupting elements affecting "plan.stop.1" TextField
+    t =    77.56s     Synthesize event
+    t =    77.96s     Wait for com.app.waystage to idle
+    t =    77.96s Waiting 15.0s for "plan.suggestion.Las Vegas" Button to exist
+    t =    79.02s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.suggestion.Las Vegas" Button`
+    t =    79.02s         Checking existence of `"plan.suggestion.Las Vegas" Button`
+    t =    79.85s Tap "plan.suggestion.Las Vegas" Button
+    t =    79.85s     Wait for com.app.waystage to idle
+    t =    79.86s     Find the "plan.suggestion.Las Vegas" Button
+    t =    80.27s     Check for interrupting elements affecting "plan.suggestion.Las Vegas" Button
+    t =    80.37s     Synthesize event
+    t =    80.37s         Scroll element to visible
+    t =    80.38s         Find the "plan.suggestion.Las Vegas" Button
+    t =    80.80s         Computed hit point {220.33333333333334, 363.49999999999994} after scrolling to visible
+    t =    81.09s     Wait for com.app.waystage to idle
+    t =    82.37s Waiting 5.0s for "plan.stopOrder" SegmentedControl to exist
+    t =    83.38s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.stopOrder" SegmentedControl`
+    t =    83.38s         Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    83.44s Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    83.52s Find the "plan.stopOrder" SegmentedControl
+    t =    83.60s Swipe up Target Application 'com.app.waystage'
+    t =    83.60s     Wait for com.app.waystage to idle
+    t =    83.61s     Find the Target Application 'com.app.waystage'
+    t =    83.66s     Check for interrupting elements affecting "Waystage" Application
+    t =    83.72s     Synthesize event
+    t =    84.21s     Wait for com.app.waystage to idle
+    t =    86.15s Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    86.25s Find the "plan.stopOrder" SegmentedControl
+    t =    86.37s Swipe up Target Application 'com.app.waystage'
+    t =    86.37s     Wait for com.app.waystage to idle
+    t =    86.48s     Find the Target Application 'com.app.waystage'
+    t =    86.55s     Check for interrupting elements affecting "Waystage" Application
+    t =    86.63s     Synthesize event
+    t =    87.15s     Wait for com.app.waystage to idle
+    t =    87.60s Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    87.71s Find the "plan.stopOrder" SegmentedControl
+    t =    87.84s Swipe up Target Application 'com.app.waystage'
+    t =    87.84s     Wait for com.app.waystage to idle
+    t =    87.85s     Find the Target Application 'com.app.waystage'
+    t =    87.91s     Check for interrupting elements affecting "Waystage" Application
+    t =    87.99s     Synthesize event
+    t =    88.50s     Wait for com.app.waystage to idle
+    t =    88.94s Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    89.03s Find the "plan.stopOrder" SegmentedControl
+    t =    89.12s Swipe up Target Application 'com.app.waystage'
+    t =    89.12s     Wait for com.app.waystage to idle
+    t =    89.14s     Find the Target Application 'com.app.waystage'
+    t =    89.20s     Check for interrupting elements affecting "Waystage" Application
+    t =    89.25s     Synthesize event
+    t =    89.76s     Wait for com.app.waystage to idle
+    t =    90.21s Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    90.32s Find the "plan.stopOrder" SegmentedControl
+    t =    90.45s Swipe up Target Application 'com.app.waystage'
+    t =    90.45s     Wait for com.app.waystage to idle
+    t =    90.46s     Find the Target Application 'com.app.waystage'
+    t =    90.51s     Check for interrupting elements affecting "Waystage" Application
+    t =    90.57s     Synthesize event
+    t =    91.06s     Wait for com.app.waystage to idle
+    t =    91.53s Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    91.64s Find the "plan.stopOrder" SegmentedControl
+    t =    91.76s Swipe up Target Application 'com.app.waystage'
+    t =    91.76s     Wait for com.app.waystage to idle
+    t =    91.76s     Find the Target Application 'com.app.waystage'
+    t =    91.83s     Check for interrupting elements affecting "Waystage" Application
+    t =    91.90s     Synthesize event
+    t =    92.40s     Wait for com.app.waystage to idle
+    t =    92.85s Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    92.96s Find the "plan.stopOrder" SegmentedControl
+    t =    93.07s Swipe up Target Application 'com.app.waystage'
+    t =    93.07s     Wait for com.app.waystage to idle
+    t =    93.08s     Find the Target Application 'com.app.waystage'
+    t =    93.15s     Check for interrupting elements affecting "Waystage" Application
+    t =    93.23s     Synthesize event
+    t =    93.77s     Wait for com.app.waystage to idle
+    t =    94.21s Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    94.33s Find the "plan.stopOrder" SegmentedControl
+    t =    94.62s Swipe up Target Application 'com.app.waystage'
+    t =    94.62s     Wait for com.app.waystage to idle
+    t =    94.62s     Find the Target Application 'com.app.waystage'
+    t =    94.70s     Check for interrupting elements affecting "Waystage" Application
+    t =    94.77s     Synthesize event
+    t =    95.28s     Wait for com.app.waystage to idle
+    t =    95.75s Checking existence of `"plan.stopOrder" SegmentedControl`
+    t =    95.86s Find the "plan.stopOrder" SegmentedControl
+    t =    95.98s Tap "As listed" Button
+    t =    95.98s     Wait for com.app.waystage to idle
+    t =    95.98s     Find the "As listed" Button
+    t =    96.11s     Check for interrupting elements affecting "As listed" Button
+    t =    96.17s     Synthesize event
+    t =    96.21s         Scroll element to visible
+    t =    96.21s         Find the "As listed" Button
+    t =    96.41s         Computed hit point {316, 172} after scrolling to visible
+    t =    96.72s     Wait for com.app.waystage to idle
+PROMO-MARK stays 1795361777.820
+    t =    99.35s Waiting 5.0s for "plan.stopStay.0" Any to exist
+    t =   100.38s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.stopStay.0" Any`
+    t =   100.38s         Checking existence of `"plan.stopStay.0" Any`
+    t =   100.85s Checking existence of `"Increment" Button`
+    t =   101.30s Checking existence of `"Increment" Button`
+    t =   101.66s Find the "Increment" Button
+    t =   102.03s Tap "Increment" Button
+    t =   102.03s     Wait for com.app.waystage to idle
+    t =   102.03s     Find the "Increment" Button
+    t =   102.35s     Check for interrupting elements affecting "Increment" Button
+    t =   102.53s     Synthesize event
+    t =   102.86s     Wait for com.app.waystage to idle
+    t =   103.67s Waiting 5.0s for "plan.stopStay.1" Any to exist
+    t =   104.72s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.stopStay.1" Any`
+    t =   104.72s         Checking existence of `"plan.stopStay.1" Any`
+    t =   105.86s Checking existence of `"Increment" Button`
+    t =   106.18s Checking existence of `"Increment" Button`
+    t =   106.46s Find the "Increment" Button
+    t =   106.80s Tap "Increment" Button
+    t =   106.80s     Wait for com.app.waystage to idle
+    t =   106.80s     Find the "Increment" Button
+    t =   107.24s     Check for interrupting elements affecting "Increment" Button
+    t =   107.39s     Synthesize event
+    t =   107.71s     Wait for com.app.waystage to idle
+    t =   110.02s Swipe down Target Application 'com.app.waystage'
+    t =   110.02s     Wait for com.app.waystage to idle
+    t =   110.02s     Find the Target Application 'com.app.waystage'
+    t =   110.07s     Check for interrupting elements affecting "Waystage" Application
+    t =   110.14s     Synthesize event
+    t =   110.63s     Wait for com.app.waystage to idle
+    t =   111.06s Swipe down Target Application 'com.app.waystage'
+    t =   111.06s     Wait for com.app.waystage to idle
+    t =   111.08s     Find the Target Application 'com.app.waystage'
+    t =   111.15s     Check for interrupting elements affecting "Waystage" Application
+    t =   111.21s     Synthesize event
+    t =   111.71s     Wait for com.app.waystage to idle
+    t =   113.32s Added attachment named '01-form-top'
+PROMO-MARK shot-01-form-top 1795361791.790
+    t =   113.32s Swipe up Target Application 'com.app.waystage'
+    t =   113.32s     Wait for com.app.waystage to idle
+    t =   113.41s     Find the Target Application 'com.app.waystage'
+    t =   113.46s     Check for interrupting elements affecting "Waystage" Application
+    t =   113.57s     Synthesize event
+    t =   114.10s     Wait for com.app.waystage to idle
+    t =   117.70s Added attachment named '01-form-stops'
+PROMO-MARK shot-01-form-stops 1795361796.170
+    t =   117.70s Swipe up Target Application 'com.app.waystage'
+    t =   117.70s     Wait for com.app.waystage to idle
+    t =   117.70s     Find the Target Application 'com.app.waystage'
+    t =   117.78s     Check for interrupting elements affecting "Waystage" Application
+    t =   117.86s     Synthesize event
+    t =   118.39s     Wait for com.app.waystage to idle
+    t =   121.14s Added attachment named '01-form-bottom'
+PROMO-MARK shot-01-form-bottom 1795361799.612
+PROMO-MARK submit 1795361799.612
+    t =   121.14s Checking existence of `"plan.submit" Button`
+    t =   121.19s Find the "plan.submit" Button
+    t =   121.23s Tap "plan.submit" Button
+    t =   121.23s     Wait for com.app.waystage to idle
+    t =   121.24s     Find the "plan.submit" Button
+    t =   121.27s     Check for interrupting elements affecting "plan.submit" Button
+    t =   121.32s     Synthesize event
+    t =   121.63s     Wait for com.app.waystage to idle
+    t =   121.63s Waiting 180.0s for "results.option.fastest" Button to exist
+    t =   122.65s     Checking `Expect predicate `existsNoRetry == 1` for object "results.option.fastest" Button`
+    t =   122.65s         Checking existence of `"results.option.fastest" Button`
+    t =   122.87s         Capturing element debug description
+    t =   123.70s     Checking `Expect predicate `existsNoRetry == 1` for object "results.option.fastest" Button`
+    t =   123.70s         Checking existence of `"results.option.fastest" Button`
+    t =   124.03s         Capturing element debug description
+    t =   124.67s     Checking `Expect predicate `existsNoRetry == 1` for object "results.option.fastest" Button`
+    t =   124.67s         Checking existence of `"results.option.fastest" Button`
+    t =   125.02s         Capturing element debug description
+    t =   125.63s     Checking `Expect predicate `existsNoRetry == 1` for object "results.option.fastest" Button`
+    t =   125.63s         Checking existence of `"results.option.fastest" Button`
+    t =   126.06s         Capturing element debug description
+    t =   126.65s     Checking `Expect predicate `existsNoRetry == 1` for object "results.option.fastest" Button`
+    t =   126.65s         Checking existence of `"results.option.fastest" Button`
+    t =   126.98s         Capturing element debug description
+    t =   127.71s     Checking `Expect predicate `existsNoRetry == 1` for object "results.option.fastest" Button`
+    t =   127.71s         Checking existence of `"results.option.fastest" Button`
+    t =   127.97s         Capturing element debug description
+    t =   128.71s     Checking `Expect predicate `existsNoRetry == 1` for object "results.option.fastest" Button`
+    t =   128.71s         Checking existence of `"results.option.fastest" Button`
+PROMO-MARK plan 1795361808.132
+    t =   136.81s Added attachment named '02-plan-top'
+PROMO-MARK shot-02-plan-top 1795361815.286
+    t =   136.82s Swipe up Target Application 'com.app.waystage'
+    t =   136.82s     Wait for com.app.waystage to idle
+    t =   136.82s     Find the Target Application 'com.app.waystage'
+    t =   136.89s     Check for interrupting elements affecting "Waystage" Application
+    t =   136.97s     Synthesize event
+    t =   137.46s     Wait for com.app.waystage to idle
+    t =   141.56s Added attachment named '02-plan-timeline'
+PROMO-MARK shot-02-plan-timeline 1795361820.029
+    t =   141.56s Swipe up Target Application 'com.app.waystage'
+    t =   141.56s     Wait for com.app.waystage to idle
+    t =   141.56s     Find the Target Application 'com.app.waystage'
+    t =   141.62s     Check for interrupting elements affecting "Waystage" Application
+    t =   141.70s     Synthesize event
+    t =   142.21s     Wait for com.app.waystage to idle
+    t =   146.31s Added attachment named '02-plan-timeline-2'
+PROMO-MARK shot-02-plan-timeline-2 1795361824.785
+PROMO-MARK visits 1795361824.785
+    t =   146.31s Waiting 10.0s for "results.adjustVisits" Button to exist
+    t =   147.36s     Checking `Expect predicate `existsNoRetry == 1` for object "results.adjustVisits" Button`
+    t =   147.36s         Checking existence of `"results.adjustVisits" Button`
+    t =   147.65s Find the "results.adjustVisits" Button
+    t =   148.25s Swipe up Target Application 'com.app.waystage'
+    t =   148.25s     Wait for com.app.waystage to idle
+    t =   148.26s     Find the Target Application 'com.app.waystage'
+    t =   148.35s     Check for interrupting elements affecting "Waystage" Application
+    t =   148.47s     Synthesize event
+    t =   149.15s     Wait for com.app.waystage to idle
+    t =   149.59s Find the "results.adjustVisits" Button
+    t =   149.87s Tap "results.adjustVisits" Button
+    t =   149.87s     Wait for com.app.waystage to idle
+    t =   149.87s     Find the "results.adjustVisits" Button
+    t =   149.99s     Check for interrupting elements affecting "results.adjustVisits" Button
+    t =   150.06s     Synthesize event
+    t =   150.36s     Wait for com.app.waystage to idle
+    t =   150.84s Waiting 15.0s for "visits.add" Button to exist
+    t =   151.87s     Checking `Expect predicate `existsNoRetry == 1` for object "visits.add" Button`
+    t =   151.87s         Checking existence of `"visits.add" Button`
+    t =   156.50s Waiting 10.0s for "visits.add" Button to exist
+    t =   157.51s     Checking `Expect predicate `existsNoRetry == 1` for object "visits.add" Button`
+    t =   157.51s         Checking existence of `"visits.add" Button`
+    t =   157.94s Tap "visits.add" Button
+    t =   157.94s     Wait for com.app.waystage to idle
+    t =   157.94s     Find the "visits.add" Button
+    t =   158.26s     Check for interrupting elements affecting "visits.add" Button
+    t =   158.35s     Synthesize event
+    t =   158.68s     Wait for com.app.waystage to idle
+    t =   159.15s Waiting 10.0s for "results.addStopSearch" TextField to exist
+    t =   160.21s     Checking `Expect predicate `existsNoRetry == 1` for object "results.addStopSearch" TextField`
+    t =   160.21s         Checking existence of `"results.addStopSearch" TextField`
+    t =   160.38s Checking existence of `"results.addStopSearch" TextField`
+    t =   160.54s Find the "results.addStopSearch" TextField
+    t =   160.73s Find the "results.addStopSearch" TextField
+    t =   160.91s Find the "results.addStopSearch" TextField
+    t =   161.06s Find the "results.addStopSearch" TextField
+    t =   161.21s Find the "results.addStopSearch" TextField
+    t =   161.35s Find the "results.addStopSearch" TextField
+    t =   161.50s Type 'Rocky Mountain Nat' into "results.addStopSearch" TextField
+    t =   161.50s     Wait for com.app.waystage to idle
+    t =   161.50s     Find the "results.addStopSearch" TextField
+    t =   161.71s     Check for interrupting elements affecting "results.addStopSearch" TextField
+    t =   161.88s     Synthesize event
+    t =   162.40s     Wait for com.app.waystage to idle
+    t =   162.40s Waiting 15.0s for "plan.suggestion.Rocky Mountain National Park" Button to exist
+    t =   163.46s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.suggestion.Rocky Mountain National Park" Button`
+    t =   163.46s         Checking existence of `"plan.suggestion.Rocky Mountain National Park" Button`
+    t =   164.50s Tap "plan.suggestion.Rocky Mountain National Park" Button
+    t =   164.50s     Wait for com.app.waystage to idle
+    t =   164.51s     Find the "plan.suggestion.Rocky Mountain National Park" Button
+    t =   164.91s     Check for interrupting elements affecting "plan.suggestion.Rocky Mountain National Park" Button
+    t =   165.04s     Synthesize event
+    t =   165.34s     Wait for com.app.waystage to idle
+    t =   166.73s Checking existence of `"results.addStopConfirm" Button`
+    t =   166.92s Find the "results.addStopConfirm" Button
+    t =   168.38s Tap "results.addStopConfirm" Button
+    t =   168.38s     Wait for com.app.waystage to idle
+    t =   168.38s     Find the "results.addStopConfirm" Button
+    t =   168.60s     Check for interrupting elements affecting "results.addStopConfirm" Button
+    t =   168.74s     Synthesize event
+    t =   169.07s     Wait for com.app.waystage to idle
+    t =   171.18s Waiting 10.0s for "visits.add" Button to exist
+    t =   172.19s     Checking `Expect predicate `existsNoRetry == 1` for object "visits.add" Button`
+    t =   172.19s         Checking existence of `"visits.add" Button`
+    t =   172.71s Tap "visits.add" Button
+    t =   172.71s     Wait for com.app.waystage to idle
+    t =   172.72s     Find the "visits.add" Button
+    t =   173.27s     Check for interrupting elements affecting "visits.add" Button
+    t =   173.39s     Synthesize event
+    t =   173.83s     Wait for com.app.waystage to idle
+    t =   174.60s Waiting 10.0s for "results.addStopSearch" TextField to exist
+    t =   175.62s     Checking `Expect predicate `existsNoRetry == 1` for object "results.addStopSearch" TextField`
+    t =   175.62s         Checking existence of `"results.addStopSearch" TextField`
+    t =   175.85s Checking existence of `"results.addStopSearch" TextField`
+    t =   176.00s Find the "results.addStopSearch" TextField
+    t =   176.47s Find the "results.addStopSearch" TextField
+    t =   176.65s Find the "results.addStopSearch" TextField
+    t =   176.81s Find the "results.addStopSearch" TextField
+    t =   176.97s Find the "results.addStopSearch" TextField
+    t =   177.13s Find the "results.addStopSearch" TextField
+    t =   177.29s Type 'Aspen, CO' into "results.addStopSearch" TextField
+    t =   177.29s     Wait for com.app.waystage to idle
+    t =   177.29s     Find the "results.addStopSearch" TextField
+    t =   177.46s     Check for interrupting elements affecting "results.addStopSearch" TextField
+    t =   177.61s     Synthesize event
+    t =   177.98s     Wait for com.app.waystage to idle
+    t =   177.99s Waiting 15.0s for "plan.suggestion.Aspen" Button to exist
+    t =   179.01s     Checking `Expect predicate `existsNoRetry == 1` for object "plan.suggestion.Aspen" Button`
+    t =   179.01s         Checking existence of `"plan.suggestion.Aspen" Button`
+    t =   180.08s Tap "plan.suggestion.Aspen" Button
+    t =   180.08s     Wait for com.app.waystage to idle
+    t =   180.09s     Find the "plan.suggestion.Aspen" Button
+    t =   180.64s     Check for interrupting elements affecting "plan.suggestion.Aspen" Button
+    t =   180.80s     Synthesize event
+    t =   181.12s     Wait for com.app.waystage to idle
+    t =   182.52s Checking existence of `"results.addStopConfirm" Button`
+    t =   182.67s Find the "results.addStopConfirm" Button
+    t =   184.01s Tap "results.addStopConfirm" Button
+    t =   184.01s     Wait for com.app.waystage to idle
+    t =   184.02s     Find the "results.addStopConfirm" Button
+    t =   184.23s     Check for interrupting elements affecting "results.addStopConfirm" Button
+    t =   184.37s     Synthesize event
+    t =   184.69s     Wait for com.app.waystage to idle
+PROMO-MARK visits-order 1795361865.205
+    t =   186.73s Waiting 5.0s for "visits.reorder" Button to exist
+    t =   187.79s     Checking `Expect predicate `existsNoRetry == 1` for object "visits.reorder" Button`
+    t =   187.79s         Checking existence of `"visits.reorder" Button`
+    t =   188.43s Checking existence of `"visits.reorder" Button`
+    t =   188.99s Find the "visits.reorder" Button
+    t =   189.58s Tap "visits.reorder" Button
+    t =   189.58s     Wait for com.app.waystage to idle
+    t =   189.58s     Find the "visits.reorder" Button
+    t =   190.13s     Check for interrupting elements affecting "visits.reorder" Button
+    t =   190.24s     Synthesize event
+    t =   190.56s     Wait for com.app.waystage to idle
+    t =   192.39s Get number of matches for: Elements matching predicate 'label BEGINSWITH[c] "reorder" AND identifier != "visits.reorder"'
+    t =   192.53s Press Button (Element at index 2) for 0.8 seconds, drag to Button (Element at index 0) with velocity of 500.00 pixels per second, and then hold for 0.0 seconds
+    t =   192.53s     Wait for com.app.waystage to idle
+    t =   192.53s     Find the Button (Element at index 2)
+    t =   192.66s     Check for interrupting elements affecting "Reorder Rocky Mountain National Park" Button
+    t =   192.79s     Synthesize event
+    t =   192.80s         Find the Button (Element at index 0)
+    t =   194.35s     Wait for com.app.waystage to idle
+    t =   196.46s Get number of matches for: Elements matching predicate 'label BEGINSWITH[c] "reorder" AND identifier != "visits.reorder"'
+    t =   196.60s Press Button (Element at index 3) for 0.8 seconds, drag to Button (Element at index 1) with velocity of 500.00 pixels per second, and then hold for 0.0 seconds
+    t =   196.60s     Wait for com.app.waystage to idle
+    t =   196.60s     Find the Button (Element at index 3)
+    t =   196.72s     Check for interrupting elements affecting "Reorder Aspen" Button
+    t =   196.83s     Synthesize event
+    t =   196.84s         Find the Button (Element at index 1)
+    t =   198.41s     Wait for com.app.waystage to idle
+    t =   200.37s Tap "visits.reorder" Button
+    t =   200.37s     Wait for com.app.waystage to idle
+    t =   200.38s     Find the "visits.reorder" Button
+    t =   200.75s     Check for interrupting elements affecting "visits.reorder" Button
+    t =   200.84s     Synthesize event
+    t =   201.15s     Wait for com.app.waystage to idle
+PROMO-MARK visits-remove 1795361881.418
+    t =   202.95s Waiting 5.0s for Button (First Match) to exist
+    t =   204.04s     Checking `Expect predicate `existsNoRetry == 1` for object Button (First Match)`
+    t =   204.04s         Checking existence of `Button (First Match)`
+    t =   204.33s Checking existence of `Button (First Match)`
+    t =   204.65s Find the Button (First Match)
+    t =   205.05s Tap "Salt Lake City, 2 h there · Arrive Sun, Nov 22 at 5:11 PM, Salt Lake City, UT, USA" Button
+    t =   205.05s     Wait for com.app.waystage to idle
+    t =   205.05s     Find the "Salt Lake City, 2 h there · Arrive Sun, Nov 22 at 5:11 PM, Salt Lake City, UT, USA" Button
+    t =   205.26s     Check for interrupting elements affecting "Salt Lake City, 2 h there · Arrive Sun, Nov 22 at 5:11 PM, Salt Lake City, UT, USA" Button
+    t =   205.37s     Synthesize event
+    t =   205.70s     Wait for com.app.waystage to idle
+    t =   207.91s Added attachment named '05-visits-top'
+PROMO-MARK shot-05-visits-top 1795361886.384
+    t =   207.91s Swipe up CollectionView (First Match)
+    t =   207.91s     Wait for com.app.waystage to idle
+    t =   207.92s     Find the CollectionView (First Match)
+    t =   208.01s     Check for interrupting elements affecting CollectionView
+    t =   208.12s     Synthesize event
+    t =   208.67s     Wait for com.app.waystage to idle
+    t =   210.76s Added attachment named '05-visits-list'
+PROMO-MARK shot-05-visits-list 1795361889.227
+PROMO-MARK visits-done 1795361889.227
+    t =   210.76s Tap "Cancel" Button
+    t =   210.76s     Wait for com.app.waystage to idle
+    t =   210.76s     Find the "Cancel" Button
+    t =   210.81s     Check for interrupting elements affecting "Cancel" Button
+    t =   210.91s     Synthesize event
+    t =   211.23s     Wait for com.app.waystage to idle
+PROMO-MARK preview 1795361892.220
+    t =   213.75s Waiting 10.0s for "results.start" Button to exist
+    t =   214.78s     Checking `Expect predicate `existsNoRetry == 1` for object "results.start" Button`
+    t =   214.78s         Checking existence of `"results.start" Button`
+    t =   214.86s Find the "results.start" Button
+    t =   214.99s Tap "results.start" Button
+    t =   214.99s     Wait for com.app.waystage to idle
+    t =   214.99s     Find the "results.start" Button
+    t =   215.08s     Check for interrupting elements affecting "results.start" Button
+    t =   215.18s     Synthesize event
+    t =   215.48s     Wait for com.app.waystage to idle
+    t =   215.68s Checking existence of `"Allow While Using App" Button`
+    t =   215.97s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   216.01s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   216.17s Checking existence of `"Allow" Button`
+    t =   216.22s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   216.22s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   216.22s Get number of matches for: Descendants matching type Alert
+    t =   216.38s Checking existence of `"drive.safetyAccept" Button`
+    t =   216.42s Find the "drive.safetyAccept" Button
+    t =   216.46s Tap "drive.safetyAccept" Button
+    t =   216.46s     Wait for com.app.waystage to idle
+    t =   216.46s     Find the "drive.safetyAccept" Button
+    t =   216.49s     Check for interrupting elements affecting "drive.safetyAccept" Button
+    t =   216.58s     Synthesize event
+    t =   217.00s     Wait for com.app.waystage to idle
+    t =   218.02s Checking existence of `"Allow While Using App" Button`
+    t =   218.07s Tap "Allow While Using App" Button
+    t =   218.07s     Wait for com.apple.springboard to idle
+    t =   218.08s     Find the "Allow While Using App" Button
+    t =   218.11s     Check for interrupting elements affecting "Allow While Using App" Button
+    t =   218.14s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   218.14s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   218.16s     Synthesize event
+    t =   218.98s     Wait for com.apple.springboard to idle
+    t =   220.71s Checking existence of `"Allow While Using App" Button`
+    t =   220.90s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   220.90s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   220.93s Checking existence of `"Allow" Button`
+    t =   221.14s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   221.15s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   221.20s Get number of matches for: Descendants matching type Alert
+    t =   222.89s Checking existence of `"drive.safetyAccept" Button`
+    t =   224.49s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =   226.34s Checking existence of `"drive.preview" Any`
+    t =   227.69s Checking existence of `"Allow While Using App" Button`
+    t =   227.84s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   227.85s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   227.86s Checking existence of `"Allow" Button`
+    t =   227.98s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   227.98s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   227.99s Get number of matches for: Descendants matching type Alert
+    t =   228.25s Checking existence of `"drive.safetyAccept" Button`
+    t =   228.93s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =   229.06s Checking existence of `"drive.preview" Any`
+    t =   230.16s Checking existence of `"Allow While Using App" Button`
+    t =   230.25s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   230.26s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   230.28s Checking existence of `"Allow" Button`
+    t =   230.44s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   230.44s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   230.45s Get number of matches for: Descendants matching type Alert
+    t =   230.90s Checking existence of `"drive.safetyAccept" Button`
+    t =   231.71s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =   231.88s Checking existence of `"drive.preview" Any`
+    t =   238.24s Added attachment named '03-preview'
+PROMO-MARK shot-03-preview 1795361916.712
+PROMO-MARK navigation 1795361916.712
+    t =   238.24s Waiting 10.0s for "drive.start" Button to exist
+    t =   239.27s     Checking `Expect predicate `existsNoRetry == 1` for object "drive.start" Button`
+    t =   239.27s         Checking existence of `"drive.start" Button`
+    t =   239.60s Tap "drive.start" Button
+    t =   239.60s     Wait for com.app.waystage to idle
+    t =   239.61s     Find the "drive.start" Button
+    t =   239.75s     Check for interrupting elements affecting "drive.start" Button
+    t =   240.12s     Synthesize event
+    t =   240.69s     Wait for com.app.waystage to idle
+    t =   241.49s Checking existence of `"Allow While Using App" Button`
+    t =   241.56s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   241.56s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   241.57s Checking existence of `"Allow" Button`
+    t =   241.63s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   241.64s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   241.64s Get number of matches for: Descendants matching type Alert
+    t =   242.48s Checking existence of `"drive.safetyAccept" Button`
+    t =   243.12s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =   243.38s Checking existence of `"drive.exit" Any`
+    t =   244.54s Checking existence of `"Allow While Using App" Button`
+    t =   244.59s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   244.60s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   244.60s Checking existence of `"Allow" Button`
+    t =   244.66s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   244.67s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   244.67s Get number of matches for: Descendants matching type Alert
+    t =   244.76s Checking existence of `"drive.safetyAccept" Button`
+    t =   245.11s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+    t =   245.20s Checking existence of `"drive.exit" Any`
+    t =   246.28s Checking existence of `"Allow While Using App" Button`
+    t =   246.33s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   246.33s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   246.34s Checking existence of `"Allow" Button`
+    t =   246.42s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   246.43s Ignoring failure to get hierarchy for remote element in process 26019 (Error getting main window kAXErrorServerNotFound)
+    t =   246.44s Get number of matches for: Descendants matching type Alert
+    t =   247.56s Checking existence of `"drive.safetyAccept" Button`
+    t =   248.05s Get all elements bound by index for: Elements matching predicate 'label MATCHES[c] "(got it|i agree|agree|accept|i accept|ok)"'
+<unknown>:0: warning: -[WaystageUITests.PromoCaptureTests testCapturePromo] :     AVAudioSession_iOS.mm:978   This method can lead to UI unresponsiveness if called on the main thread. Consider using the asynchronous activate/deactivate API instead for calls from the main thread.
+    t =   249.52s Checking existence of `"drive.exit" Any`
+    t =   263.93s Added attachment named '04-drive'
+PROMO-MARK shot-04-drive 1795361942.401
+    t =   272.29s Added attachment named '04-drive-2'
+PROMO-MARK shot-04-drive-2 1795361950.772
+PROMO-MARK end 1795361950.772
+    t =   272.30s Added attachment named 'promo-marks'
+    t =   272.36s Tear Down
+Test Case '-[WaystageUITests.PromoCaptureTests testCapturePromo]' passed (279.485 seconds).
+Test Suite 'PromoCaptureTests' passed at 2026-11-22 15:39:17.968.
+	 Executed 1 test, with 0 failures (0 unexpected) in 279.485 (279.497) seconds
+Test Suite 'WaystageUITests.xctest' passed at 2026-11-22 15:39:17.974.
+	 Executed 1 test, with 0 failures (0 unexpected) in 279.485 (279.503) seconds
+Test Suite 'Selected tests' passed at 2026-11-22 15:39:17.974.
+	 Executed 1 test, with 0 failures (0 unexpected) in 279.485 (279.506) seconds
+2026-11-22 15:39:51.595 xcodebuild[17094:51447] [MT] IDETestOperationsObserverDebug: 349.443 elapsed -- Testing started completed.
+2026-11-22 15:39:51.595 xcodebuild[17094:51447] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-11-22 15:39:51.595 xcodebuild[17094:51447] [MT] IDETestOperationsObserverDebug: 349.443 sec, +349.443 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/runner/work/RoadPlanner/RoadPlanner/Promo.xcresult
+
+** TEST EXECUTE SUCCEEDED **
+
+Testing started
